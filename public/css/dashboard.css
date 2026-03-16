@@ -1,0 +1,74 @@
+:root {
+    --background: 0 0% 96%;
+    --foreground: 0 0% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 15%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 15%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 25 95% 53%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 30%;
+    --sidebar-primary: 25 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 25 95% 97%;
+    --sidebar-accent-foreground: 25 95% 40%;
+    --sidebar-border: 0 0% 93%;
+    --sidebar-ring: 25 95% 53%;
+    --stage-won: 142 71% 45%;
+    --stage-lost: 0 84% 60%;
+    --stage-new: 199 89% 48%;
+    --stage-ad-campaign: 142 71% 45%;
+    --stage-reference: 25 95% 53%;
+    --stage-direct-visit: 199 89% 48%;
+    --table-header-bg: 0 0% 98%;
+    --table-row-hover: 0 0% 97%;
+    --table-row-selected: 25 95% 97%;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+}
+
+.bg-background { background-color: hsl(var(--background)); }
+.bg-card { background-color: hsl(var(--card)); }
+.bg-sidebar { background-color: hsl(var(--sidebar-background)); }
+.bg-muted { background-color: hsl(var(--muted)); }
+.bg-primary { background-color: hsl(var(--primary)); }
+.bg-secondary { background-color: hsl(var(--secondary)); }
+
+.text-foreground { color: hsl(var(--foreground)); }
+.text-muted-foreground { color: hsl(var(--muted-foreground)); }
+.text-primary-foreground { color: hsl(var(--primary-foreground)); }
+.text-sidebar-foreground { color: hsl(var(--sidebar-foreground)); }
+.text-sidebar-accent-foreground { color: hsl(var(--sidebar-accent-foreground)); }
+
+.border-border { border-color: hsl(var(--border)); }
+.border-sidebar-border { border-color: hsl(var(--sidebar-border)); }
+
+.bg-sidebar-accent { background-color: hsl(var(--sidebar-accent)); }
+.bg-sidebar-accent\/50 { background-color: hsla(var(--sidebar-accent), 0.5); }
+
+.text-stage-won { color: hsl(var(--stage-won)); }
+.text-stage-lost { color: hsl(var(--stage-lost)); }
+.text-stage-new { color: hsl(var(--stage-new)); }
+.text-stage-direct-visit { color: hsl(var(--stage-direct-visit)); }
+.text-stage-reference { color: hsl(var(--stage-reference)); }
+
+.bg-table-header { background-color: hsl(var(--table-header-bg)); }
+.bg-table-row-selected { background-color: hsl(var(--table-row-selected)); }
+.hover\:bg-table-row-hover:hover { background-color: hsl(var(--table-row-hover)); }
