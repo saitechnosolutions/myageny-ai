@@ -52,4 +52,5 @@
             <img src="{{ asset('images/42_3030.svg') }}" alt="Down">
         </div>
     </div>
+
 </header>

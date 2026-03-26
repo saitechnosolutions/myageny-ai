@@ -1,0 +1,65 @@
+<?php
+// ================================================================
+// FILE: app/Models/LeadCallUpdate.php
+// ================================================================
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class LeadCallUpdate extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'lead_id','user_id','called_at','call_type',
+        'duration_minutes','outcome','notes','next_follow_up',
+    ];
+
+    protected $casts = [
+        'called_at'       => 'datetime',
+        'next_follow_up'  => 'date',
+    ];
+
+    const CALL_TYPES = [
+        'outgoing' => 'Outgoing',
+        'incoming' => 'Incoming',
+        'missed'   => 'Missed',
+    ];
+
+    const OUTCOMES = [
+        'interested'     => 'Interested',
+        'not_interested' => 'Not Interested',
+        'callback'       => 'Callback Requested',
+        'no_answer'      => 'No Answer',
+        'follow_up'      => 'Follow-up Needed',
+        'closed'         => 'Closed / Won',
+    ];
+
+    const OUTCOME_COLORS = [
+        'interested'     => ['bg'=>'#f0fdf4','text'=>'#16a34a'],
+        'not_interested' => ['bg'=>'#fef2f2','text'=>'#dc2626'],
+        'callback'       => ['bg'=>'#eff6ff','text'=>'#2563eb'],
+        'no_answer'      => ['bg'=>'#f5f4f6','text'=>'#7c7c7c'],
+        'follow_up'      => ['bg'=>'#fffbeb','text'=>'#b45309'],
+        'closed'         => ['bg'=>'#f0fdf4','text'=>'#059669'],
+    ];
+
+    public function lead()   { return $this->belongsTo(Lead::class); }
+    public function user()   { return $this->belongsTo(User::class); }
+
+    public function getOutcomeLabelAttribute(): string
+    {
+        return self::OUTCOMES[$this->outcome] ?? ucfirst($this->outcome);
+    }
+
+    public function getOutcomeColorAttribute(): array
+    {
+        return self::OUTCOME_COLORS[$this->outcome] ?? ['bg'=>'#f5f4f6','text'=>'#7c7c7c'];
+    }
+
+    public function getCallTypeLabelAttribute(): string
+    {
+        return self::CALL_TYPES[$this->call_type] ?? ucfirst($this->call_type);
+    }
+}

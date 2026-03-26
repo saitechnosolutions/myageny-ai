@@ -46,9 +46,7 @@
             background-color: var(--color-bg);
             color: var(--color-text-primary);
             display: flex;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
+
             -webkit-font-smoothing: antialiased;
         }
         main {
@@ -160,6 +158,39 @@
             justify-content: center; color: white;
             font-size: 14px; font-weight: 700;
         }
+
+        .submenu {
+    display: none;
+    padding-left: 40px;
+    transition: max-height 0.3s ease;
+}
+
+.submenu.show {
+    display: block;
+}
+
+.submenu-item {
+    display: block;
+    padding: 8px 0;
+    color: #aaa;
+    text-decoration: none;
+    font-size: 14px;
+    transition: max-height 0.3s ease;
+}
+
+.submenu-item.active {
+    color: #ff7c30;
+    font-weight: 600;
+}
+
+.has-dropdown .chevron {
+    transition: transform 0.3s ease;
+}
+
+.has-dropdown.open .chevron {
+    transform: rotate(90deg);
+}
+
     </style>
     @stack('styles')
     <!-- ApexCharts CDN -->
@@ -171,8 +202,35 @@
     @include('layouts.sidebar')
 
     <main>
+
         @yield('content')
     </main>
+    <script>
 
+function toggleDropdown(element) {
+    const submenu = element.nextElementSibling;
+
+    // Close if already open (THIS WAS MISSING 🔥)
+    if (submenu.classList.contains('show')) {
+        submenu.classList.remove('show');
+        element.classList.remove('open');
+        return;
+    }
+
+    // Close all other dropdowns
+    document.querySelectorAll('.submenu').forEach(menu => {
+        menu.classList.remove('show');
+    });
+
+    document.querySelectorAll('.has-dropdown').forEach(item => {
+        item.classList.remove('open');
+    });
+
+    // Open current
+    submenu.classList.add('show');
+    element.classList.add('open');
+}
+
+    </script>
 </body>
 </html>
