@@ -19,6 +19,7 @@ class Lead extends Model
         'lead_source',
         'lead_status',
         'product_name',
+        'product_id',
         'priority',
         'deal_value',
         'remarks',
@@ -90,6 +91,11 @@ class Lead extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function product()
+{
+    return $this->belongsTo(Product::class);
+}
 
     // ── Scopes ────────────────────────────────────────────────────
 
