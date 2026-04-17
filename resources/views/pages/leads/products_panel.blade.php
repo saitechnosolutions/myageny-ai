@@ -15,6 +15,8 @@
 @php
     $totalValue   = $lead->products->sum('total_price');
     $totalPaid    = $lead->products->sum(fn($p) => $p->total_paid);
+
+
     $totalPending = $totalValue - $totalPaid;
     $prodCount    = $lead->products->count();
 @endphp
@@ -198,6 +200,7 @@
 <div class="pp-prod-grid">
 @foreach($lead->products as $prod)
 @php
+
     $psc      = $prod->product_status_config;
     $pysc     = $prod->payment_status_color;
     $progress = $prod->payment_progress;
@@ -313,7 +316,18 @@
                     <label class="ppf-lbl">Product Name <span class="ppf-req">*</span></label>
                     <div class="ppf-rel">
                         <svg class="ppf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/></svg>
-                        <input type="text" name="product_name" class="ppf-inp" placeholder="e.g. CRM Pro License" required>
+
+                        <select class="form-select select2" name="product_name">
+                            @php
+                                $allProducts = App\Models\Product::where('status', 'active')->get();
+                            @endphp
+                            <option value="" selected>-- Choose Products --</option>
+                            @if($allProducts)
+                                @foreach ($allProducts as $allProduct)
+                                    <option value="{{ $allProduct->id }}">{{ $allProduct->category?->name }} | {{ $allProduct->package_name }}</option>
+                                @endforeach
+                            @endif
+                        </select>
                     </div>
                 </div>
 

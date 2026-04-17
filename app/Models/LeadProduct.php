@@ -1,33 +1,43 @@
 <?php
-// ================================================================
-// FILE: app/Models/LeadProduct.php  (UPDATED)
-// ================================================================
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class LeadProduct extends Model
 {
+    use HasFactory, SoftDeletes;
+
+
+
+    const PAYMENT_MODE_CONFIG = [
+        'cash'          => ['label' => 'Cash',          'icon' => '💵', 'color' => '#16a34a'],
+        'bank_transfer' => ['label' => 'Bank Transfer', 'icon' => '🏦', 'color' => '#1d4ed8'],
+        'cheque'        => ['label' => 'Cheque',        'icon' => '📝', 'color' => '#7c3aed'],
+        'upi'           => ['label' => 'UPI',           'icon' => '📱', 'color' => '#be185d'],
+        'card'          => ['label' => 'Card',          'icon' => '💳', 'color' => '#0369a1'],
+    ];
+
+    // ── Fillable ──────────────────────────────────────────────────────
     protected $fillable = [
-        'lead_id',
-        'product_name',
-        'product_status',       // new, hot, warm, cold, converted
-        'description',
-        'unit_price',
-        'quantity',
-        'discount_percent',
-        'total_price',
-        'payment_status',       // pending, partial, paid — auto-computed
-        'payment_notes',
+        'lead_id', 'product_id', 'deal_name',
+        'product_name', 'description',
+        'unit_price', 'quantity', 'discount_percent',
+        'remarks', 'product_status',
+        'amount_paid', 'created_by',
     ];
 
     protected $casts = [
-        'unit_price'       => 'decimal:2',
-        'total_price'      => 'decimal:2',
-        'discount_percent' => 'decimal:2',
+        'unit_price'       => 'float',
+        'quantity'         => 'integer',
+        'discount_percent' => 'float',
+        'total_price'      => 'float',
+        'amount_paid'       => 'float',
     ];
 
-    // ── Product Status Constants ───────────────────────────────────
+     // ── Product Status Constants ───────────────────────────────────
     const PRODUCT_STATUSES = [
         'new'       => 'New',
         'hot'       => 'Hot',
@@ -88,35 +98,60 @@ class LeadProduct extends Model
         'paid'    => ['bg'=>'#f0fdf4','text'=>'#16a34a','border'=>'#bbf7d0'],
     ];
 
-    // ── Relationships ──────────────────────────────────────────────
-    public function lead()     { return $this->belongsTo(Lead::class); }
-    public function payments() { return $this->hasMany(LeadProductPayment::class)->latest('payment_date'); }
-
-    // ── Accessors ─────────────────────────────────────────────────
-
-    public function getProductStatusConfigAttribute(): array
+    // ── Relationships ─────────────────────────────────────────────────
+    public function lead()
     {
-        return self::PRODUCT_STATUS_CONFIG[$this->product_status] ?? self::PRODUCT_STATUS_CONFIG['new'];
+        return $this->belongsTo(Lead::class);
     }
 
-    public function getProductStatusLabelAttribute(): string
+    public function product()
     {
-        return self::PRODUCT_STATUSES[$this->product_status] ?? ucfirst($this->product_status);
+        return $this->belongsTo(Product::class);
     }
 
-    public function getTotalPaidAttribute(): float
+    public function payments()
     {
-        return (float) $this->payments->sum('amount');
+        return $this->hasMany(Payment::class, 'lead_product_id')->latest('payment_date');
     }
 
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    // ── Accessors ─────────────────────────────────────────────────────
     public function getAmountPendingAttribute(): float
     {
-        return max(0, $this->total_price - $this->total_paid);
+        return max(0, $this->total_price - $this->amount_paid);
+    }
+
+    public function getPaymentProgressAttribute(): int
+    {
+        if ($this->total_price <= 0) return 100;
+        return (int) min(100, round(($this->amount_paid / $this->total_price) * 100));
+    }
+
+    public function getPaymentStatusAttribute(): string
+    {
+        $p = $this->payment_progress;
+        if ($p <= 0)   return 'unpaid';
+        if ($p < 100)  return 'partial';
+        return 'paid';
     }
 
     public function getPaymentStatusColorAttribute(): array
     {
-        return self::PAYMENT_STATUS_CONFIG[$this->payment_status] ?? self::PAYMENT_STATUS_CONFIG['pending'];
+        return match ($this->payment_status) {
+            'paid'    => ['bg' => '#f0fdf4', 'text' => '#15803d', 'border' => '#bbf7d0'],
+            'partial' => ['bg' => '#fff7ed', 'text' => '#c2410c', 'border' => '#fed7aa'],
+            default   => ['bg' => '#fafafa', 'text' => '#6b7280', 'border' => '#e5e7eb'],
+        };
+    }
+
+    public function getProductStatusConfigAttribute(): array
+    {
+        return self::PRODUCT_STATUS_CONFIG[$this->product_status]
+            ?? self::PRODUCT_STATUS_CONFIG['new'];
     }
 
     public function getFormattedTotalAttribute(): string
@@ -126,7 +161,7 @@ class LeadProduct extends Model
 
     public function getFormattedPaidAttribute(): string
     {
-        return '₹' . number_format($this->total_paid, 2);
+        return '₹' . number_format($this->amount_paid, 2);
     }
 
     public function getFormattedPendingAttribute(): string
@@ -134,39 +169,31 @@ class LeadProduct extends Model
         return '₹' . number_format($this->amount_pending, 2);
     }
 
-    public function getPaymentProgressAttribute(): int
+    // ── Methods ───────────────────────────────────────────────────────
+    /**
+     * Recalculate total_paid from actual payment records.
+     */
+    public function recalcPaid(): void
     {
-        if ($this->total_price <= 0) return 0;
-        return (int) min(100, ($this->total_paid / $this->total_price) * 100);
-    }
-
-    // ── Auto-compute total_price and payment_status ───────────────
-    protected static function booted(): void
-    {
-        static::saving(function (LeadProduct $lp) {
-            $gross       = $lp->unit_price * $lp->quantity;
-            $discount    = $gross * ($lp->discount_percent / 100);
-            $lp->total_price = $gross - $discount;
-        });
-
-        static::saved(function (LeadProduct $lp) {
-            $lp->syncPaymentStatus();
-        });
+        $this->amount_paid = $this->payments()->sum('amount');
+        $this->saveQuietly();
     }
 
     /**
-     * Recompute payment_status from actual payments sum.
+     * Build a serializable array for JS hydration.
      */
-    public function syncPaymentStatus(): void
+    public function toJsPayload(): array
     {
-        $paid = $this->payments()->sum('amount');
-        if ($paid <= 0) {
-            $status = 'pending';
-        } elseif ($paid >= $this->total_price) {
-            $status = 'paid';
-        } else {
-            $status = 'partial';
-        }
-        $this->updateQuietly(['payment_status' => $status]);
+        return [
+            'id'       => $this->id,
+            // 'name'     => $this->product_name,
+            'name'     => $this->product?->product_name." (Base Price : ".number_format($this->product?->final_price, 2).")",
+            'total'    => (float) $this->total_price,
+            'paid'     => (float) $this->amount_paid,
+            'pending'  => (float) $this->amount_pending,
+            'progress' => $this->payment_progress,
+            'payUrl'   => route('leads.products.payments.store', [$this->lead_id, $this->id]),
+            'payments' => $this->payments->map(fn($p) => $p->toJsPayload())->toArray(),
+        ];
     }
 }

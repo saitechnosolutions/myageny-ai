@@ -7,7 +7,7 @@
     },
     "servers": [
         {
-            "url": "http://192.168.1.47:8000",
+            "url": "http://192.168.1.30:8002",
             "description": "API Server"
         }
     ],
@@ -484,13 +484,11 @@
                     "Leads"
                 ],
                 "summary": "List leads with filters & pagination",
-                "description": "Returns a paginated list of leads. Supports search, filtering by branch, source, status, priority, assigned user, product, and date range.",
                 "operationId": "292d5a5e3dc2c62e8d9c00ba3937fa85",
                 "parameters": [
                     {
                         "name": "search",
                         "in": "query",
-                        "description": "Search across company name, contact name, mobile, email, product",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -499,7 +497,6 @@
                     {
                         "name": "branch_id",
                         "in": "query",
-                        "description": "Filter by branch ID",
                         "required": false,
                         "schema": {
                             "type": "integer"
@@ -508,56 +505,30 @@
                     {
                         "name": "lead_source",
                         "in": "query",
-                        "description": "Filter by lead source",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": [
-                                "reference",
-                                "ad_campaign",
-                                "direct_visit",
-                                "invitation",
-                                "cold_outreach",
-                                "social_media",
-                                "website"
-                            ]
+                            "type": "string"
                         }
                     },
                     {
                         "name": "lead_status",
                         "in": "query",
-                        "description": "Filter by lead status",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": [
-                                "new",
-                                "qualified",
-                                "proposal",
-                                "negotiation",
-                                "won",
-                                "lost"
-                            ]
+                            "type": "string"
                         }
                     },
                     {
                         "name": "priority",
                         "in": "query",
-                        "description": "Filter by priority",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": [
-                                "low",
-                                "medium",
-                                "high"
-                            ]
+                            "type": "string"
                         }
                     },
                     {
                         "name": "assigned_to",
                         "in": "query",
-                        "description": "Filter by assigned user ID",
                         "required": false,
                         "schema": {
                             "type": "integer"
@@ -566,7 +537,6 @@
                     {
                         "name": "mobile_number",
                         "in": "query",
-                        "description": "Filter by mobile number (partial match)",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -575,7 +545,6 @@
                     {
                         "name": "product_name",
                         "in": "query",
-                        "description": "Filter by product name (partial match)",
                         "required": false,
                         "schema": {
                             "type": "string"
@@ -584,7 +553,6 @@
                     {
                         "name": "date_from",
                         "in": "query",
-                        "description": "Filter leads from this date (Y-m-d)",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -594,7 +562,6 @@
                     {
                         "name": "date_to",
                         "in": "query",
-                        "description": "Filter leads up to this date (Y-m-d)",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -604,7 +571,6 @@
                     {
                         "name": "per_page",
                         "in": "query",
-                        "description": "Results per page (default 15, max 100)",
                         "required": false,
                         "schema": {
                             "type": "integer",
@@ -614,7 +580,6 @@
                     {
                         "name": "page",
                         "in": "query",
-                        "description": "Page number",
                         "required": false,
                         "schema": {
                             "type": "integer",
@@ -624,65 +589,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated list of leads",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "leads": {
-                                                    "properties": {
-                                                        "data": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "$ref": "#/components/schemas/LeadSummary"
-                                                            }
-                                                        },
-                                                        "current_page": {
-                                                            "type": "integer",
-                                                            "example": 1
-                                                        },
-                                                        "last_page": {
-                                                            "type": "integer",
-                                                            "example": 5
-                                                        },
-                                                        "per_page": {
-                                                            "type": "integer",
-                                                            "example": 15
-                                                        },
-                                                        "total": {
-                                                            "type": "integer",
-                                                            "example": 72
-                                                        }
-                                                    },
-                                                    "type": "object"
-                                                },
-                                                "stats": {
-                                                    "$ref": "#/components/schemas/LeadStats"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Paginated list of leads"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -696,209 +606,24 @@
                     "Leads"
                 ],
                 "summary": "Create a new lead",
-                "description": "Creates a new lead. Optionally accepts a `reminder` object — if provided, a reminder is automatically created and linked to the new lead.",
                 "operationId": "09baf2da0c35992b6e4428de605ff0a3",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
-                            "schema": {
-                                "required": [
-                                    "company_name",
-                                    "contact_name",
-                                    "mobile_number",
-                                    "lead_source",
-                                    "lead_status",
-                                    "priority"
-                                ],
-                                "properties": {
-                                    "company_name": {
-                                        "type": "string",
-                                        "example": "Acme Pvt Ltd"
-                                    },
-                                    "contact_name": {
-                                        "type": "string",
-                                        "example": "Ravi Kumar"
-                                    },
-                                    "lead_date": {
-                                        "description": "Defaults to today if omitted",
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2025-07-15",
-                                        "nullable": true
-                                    },
-                                    "mobile_number": {
-                                        "type": "string",
-                                        "example": "9876543210"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "ravi@acme.com",
-                                        "nullable": true
-                                    },
-                                    "lead_source": {
-                                        "type": "string",
-                                        "example": "reference",
-                                        "enum": [
-                                            "reference",
-                                            "ad_campaign",
-                                            "direct_visit",
-                                            "invitation",
-                                            "cold_outreach",
-                                            "social_media",
-                                            "website"
-                                        ]
-                                    },
-                                    "lead_status": {
-                                        "type": "string",
-                                        "example": "new",
-                                        "enum": [
-                                            "new",
-                                            "qualified",
-                                            "proposal",
-                                            "negotiation",
-                                            "won",
-                                            "lost"
-                                        ]
-                                    },
-                                    "product_name": {
-                                        "type": "string",
-                                        "example": "Solar Panel 10kW",
-                                        "nullable": true
-                                    },
-                                    "priority": {
-                                        "type": "string",
-                                        "example": "high",
-                                        "enum": [
-                                            "low",
-                                            "medium",
-                                            "high"
-                                        ]
-                                    },
-                                    "deal_value": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 250000,
-                                        "nullable": true
-                                    },
-                                    "remarks": {
-                                        "type": "string",
-                                        "example": "Customer interested in bulk order",
-                                        "nullable": true
-                                    },
-                                    "branch_id": {
-                                        "type": "integer",
-                                        "example": 2,
-                                        "nullable": true
-                                    },
-                                    "assigned_to": {
-                                        "type": "integer",
-                                        "example": 5,
-                                        "nullable": true
-                                    },
-                                    "reminder": {
-                                        "description": "Optional reminder to create along with the lead",
-                                        "required": [
-                                            "remind_at",
-                                            "title"
-                                        ],
-                                        "properties": {
-                                            "remind_at": {
-                                                "type": "string",
-                                                "format": "date-time",
-                                                "example": "2027-07-18T10:00:00"
-                                            },
-                                            "title": {
-                                                "type": "string",
-                                                "example": "Follow up call with Ravi"
-                                            },
-                                            "description": {
-                                                "type": "string",
-                                                "example": "Discuss bulk order pricing",
-                                                "nullable": true
-                                            },
-                                            "type": {
-                                                "type": "string",
-                                                "example": "call",
-                                                "nullable": true,
-                                                "enum": [
-                                                    "follow_up",
-                                                    "meeting",
-                                                    "call",
-                                                    "email",
-                                                    "demo",
-                                                    "other"
-                                                ]
-                                            },
-                                            "priority": {
-                                                "type": "string",
-                                                "example": "medium",
-                                                "nullable": true,
-                                                "enum": [
-                                                    "low",
-                                                    "medium",
-                                                    "high"
-                                                ]
-                                            }
-                                        },
-                                        "type": "object",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
-                            }
+                            "schema": {}
                         }
                     }
                 },
                 "responses": {
                     "201": {
-                        "description": "Lead created successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Lead created successfully."
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/LeadDetail"
-                                        },
-                                        "reminder_created": {
-                                            "description": "true if a reminder was also created",
-                                            "type": "boolean",
-                                            "example": true
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Lead created"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     },
                     "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -914,13 +639,11 @@
                     "Leads"
                 ],
                 "summary": "Get a single lead",
-                "description": "Returns full details of a lead including branch, assigned user, call updates, reminders, products, and quotations.",
                 "operationId": "1d6d41ea2cc5eec1784679ca8257a001",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Lead ID",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -929,43 +652,13 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lead detail",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/LeadDetail"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Lead detail"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     },
                     "404": {
-                        "description": "Lead not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Not found"
                     }
                 },
                 "security": [
@@ -979,13 +672,11 @@
                     "Leads"
                 ],
                 "summary": "Update a lead",
-                "description": "Updates all fields of an existing lead.",
                 "operationId": "548791498c531c46ab77f10490a63e5e",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Lead ID",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -996,141 +687,22 @@
                     "required": true,
                     "content": {
                         "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "company_name": {
-                                        "type": "string",
-                                        "example": "Acme Pvt Ltd"
-                                    },
-                                    "contact_name": {
-                                        "type": "string",
-                                        "example": "Ravi Kumar"
-                                    },
-                                    "lead_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "nullable": true
-                                    },
-                                    "mobile_number": {
-                                        "type": "string",
-                                        "example": "9876543210"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "nullable": true
-                                    },
-                                    "lead_source": {
-                                        "type": "string",
-                                        "enum": [
-                                            "reference",
-                                            "ad_campaign",
-                                            "direct_visit",
-                                            "invitation",
-                                            "cold_outreach",
-                                            "social_media",
-                                            "website"
-                                        ]
-                                    },
-                                    "lead_status": {
-                                        "type": "string",
-                                        "enum": [
-                                            "new",
-                                            "qualified",
-                                            "proposal",
-                                            "negotiation",
-                                            "won",
-                                            "lost"
-                                        ]
-                                    },
-                                    "product_name": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "priority": {
-                                        "type": "string",
-                                        "enum": [
-                                            "low",
-                                            "medium",
-                                            "high"
-                                        ]
-                                    },
-                                    "deal_value": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "nullable": true
-                                    },
-                                    "remarks": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "branch_id": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "assigned_to": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
-                            }
+                            "schema": {}
                         }
                     }
                 },
                 "responses": {
                     "200": {
-                        "description": "Lead updated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Lead updated successfully."
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/LeadDetail"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Lead updated"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     },
                     "404": {
-                        "description": "Lead not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Not found"
                     },
                     "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -1144,13 +716,11 @@
                     "Leads"
                 ],
                 "summary": "Delete a lead",
-                "description": "Soft-deletes a lead. The record is retained in the database but excluded from all queries.",
                 "operationId": "04b0520f2eff8d2668c7b2c5e566f46f",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Lead ID",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -1159,44 +729,13 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Lead deleted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Lead removed successfully."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Deleted"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     },
                     "404": {
-                        "description": "Lead not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Not found"
                     }
                 },
                 "security": [
@@ -1212,13 +751,11 @@
                     "Leads"
                 ],
                 "summary": "Quick status update",
-                "description": "Updates only the lead_status field. Useful for kanban-style drag-and-drop or quick status changes.",
                 "operationId": "075ad4bd8366a7ff3dae49ef3757b768",
                 "parameters": [
                     {
                         "name": "id",
                         "in": "path",
-                        "description": "Lead ID",
                         "required": true,
                         "schema": {
                             "type": "integer"
@@ -1229,87 +766,22 @@
                     "required": true,
                     "content": {
                         "application/json": {
-                            "schema": {
-                                "required": [
-                                    "lead_status"
-                                ],
-                                "properties": {
-                                    "lead_status": {
-                                        "type": "string",
-                                        "example": "won",
-                                        "enum": [
-                                            "new",
-                                            "qualified",
-                                            "proposal",
-                                            "negotiation",
-                                            "won",
-                                            "lost"
-                                        ]
-                                    }
-                                },
-                                "type": "object"
-                            }
+                            "schema": {}
                         }
                     }
                 },
                 "responses": {
                     "200": {
-                        "description": "Status updated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Lead status updated to Won."
-                                        },
-                                        "lead_status": {
-                                            "type": "string",
-                                            "example": "won"
-                                        },
-                                        "status_label": {
-                                            "type": "string",
-                                            "example": "Won"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Status updated"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     },
                     "404": {
-                        "description": "Lead not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Not found"
                     },
                     "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ValidationErrorResponse"
-                                }
-                            }
-                        }
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -1325,97 +797,13 @@
                     "Leads"
                 ],
                 "summary": "Get lead filter options (enums, branches, users, products)",
-                "description": "Returns all enum values, active branches, active users, and known product names. Use this to populate filter dropdowns and create/edit forms.",
                 "operationId": "ac8eb2531806f2a699c5002d87abbb6b",
                 "responses": {
                     "200": {
-                        "description": "Meta data for leads",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "sources": {
-                                                    "type": "object",
-                                                    "example": {
-                                                        "reference": "Reference"
-                                                    }
-                                                },
-                                                "statuses": {
-                                                    "type": "object",
-                                                    "example": {
-                                                        "new": "New"
-                                                    }
-                                                },
-                                                "priorities": {
-                                                    "type": "object",
-                                                    "example": {
-                                                        "low": "Low"
-                                                    }
-                                                },
-                                                "reminder_types": {
-                                                    "type": "object",
-                                                    "example": {
-                                                        "call": "Call"
-                                                    }
-                                                },
-                                                "branches": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "integer"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                },
-                                                "users": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "properties": {
-                                                            "id": {
-                                                                "type": "integer"
-                                                            },
-                                                            "name": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                },
-                                                "products": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Meta data for leads"
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/UnauthenticatedResponse"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -2956,291 +2344,6 @@
     },
     "components": {
         "schemas": {
-            "LeadSummary": {
-                "description": "Compact lead representation used in list views",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "example": 42
-                    },
-                    "company_name": {
-                        "type": "string",
-                        "example": "Acme Pvt Ltd"
-                    },
-                    "contact_name": {
-                        "type": "string",
-                        "example": "Ravi Kumar"
-                    },
-                    "mobile_number": {
-                        "type": "string",
-                        "example": "9876543210"
-                    },
-                    "email": {
-                        "type": "string",
-                        "example": "ravi@acme.com",
-                        "nullable": true
-                    },
-                    "lead_date": {
-                        "type": "string",
-                        "format": "date",
-                        "example": "2025-07-15"
-                    },
-                    "lead_source": {
-                        "type": "string",
-                        "example": "reference"
-                    },
-                    "source_label": {
-                        "type": "string",
-                        "example": "Reference"
-                    },
-                    "lead_status": {
-                        "type": "string",
-                        "example": "new"
-                    },
-                    "status_label": {
-                        "type": "string",
-                        "example": "New"
-                    },
-                    "status_color": {
-                        "properties": {
-                            "bg": {
-                                "type": "string",
-                                "example": "#eff6ff"
-                            },
-                            "text": {
-                                "type": "string",
-                                "example": "#2563eb"
-                            },
-                            "border": {
-                                "type": "string",
-                                "example": "#bfdbfe"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "priority": {
-                        "type": "string",
-                        "example": "high"
-                    },
-                    "priority_label": {
-                        "type": "string",
-                        "example": "High"
-                    },
-                    "priority_color": {
-                        "type": "object"
-                    },
-                    "product_name": {
-                        "type": "string",
-                        "example": "Solar Panel 10kW",
-                        "nullable": true
-                    },
-                    "deal_value": {
-                        "type": "number",
-                        "example": 250000,
-                        "nullable": true
-                    },
-                    "formatted_deal_value": {
-                        "type": "string",
-                        "example": "₹2,50,000.00"
-                    },
-                    "branch": {
-                        "properties": {
-                            "id": {
-                                "type": "integer"
-                            },
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "assigned_to": {
-                        "properties": {
-                            "id": {
-                                "type": "integer"
-                            },
-                            "name": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time"
-                    }
-                },
-                "type": "object"
-            },
-            "LeadDetail": {
-                "description": "Full lead record with all related data",
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/LeadSummary"
-                    },
-                    {
-                        "properties": {
-                            "remarks": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "created_by": {
-                                "properties": {
-                                    "id": {
-                                        "type": "integer"
-                                    },
-                                    "name": {
-                                        "type": "string"
-                                    }
-                                },
-                                "type": "object",
-                                "nullable": true
-                            },
-                            "updated_at": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "call_updates": {
-                                "type": "array",
-                                "items": {
-                                    "properties": {
-                                        "id": {
-                                            "type": "integer"
-                                        },
-                                        "note": {
-                                            "type": "string"
-                                        },
-                                        "called_at": {
-                                            "type": "string",
-                                            "format": "date-time"
-                                        },
-                                        "user": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "integer"
-                                                },
-                                                "name": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "type": "object",
-                                            "nullable": true
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            },
-                            "reminders": {
-                                "type": "array",
-                                "items": {
-                                    "properties": {
-                                        "id": {
-                                            "type": "integer"
-                                        },
-                                        "title": {
-                                            "type": "string"
-                                        },
-                                        "description": {
-                                            "type": "string",
-                                            "nullable": true
-                                        },
-                                        "remind_at": {
-                                            "type": "string",
-                                            "format": "date-time"
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                            "example": "call"
-                                        },
-                                        "type_label": {
-                                            "type": "string",
-                                            "example": "Call"
-                                        },
-                                        "type_icon": {
-                                            "type": "string",
-                                            "example": "📞"
-                                        },
-                                        "priority": {
-                                            "type": "string",
-                                            "example": "medium"
-                                        },
-                                        "is_completed": {
-                                            "type": "boolean"
-                                        },
-                                        "is_overdue": {
-                                            "type": "boolean"
-                                        },
-                                        "completed_at": {
-                                            "type": "string",
-                                            "format": "date-time",
-                                            "nullable": true
-                                        },
-                                        "user": {
-                                            "properties": {
-                                                "id": {
-                                                    "type": "integer"
-                                                },
-                                                "name": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "type": "object",
-                                            "nullable": true
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            },
-                            "products": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                }
-                            },
-                            "quotations": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                }
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "LeadStats": {
-                "description": "Aggregate stats shown on the leads dashboard",
-                "properties": {
-                    "total": {
-                        "type": "integer",
-                        "example": 120
-                    },
-                    "new": {
-                        "type": "integer",
-                        "example": 34
-                    },
-                    "won": {
-                        "type": "integer",
-                        "example": 18
-                    },
-                    "lost": {
-                        "type": "integer",
-                        "example": 7
-                    },
-                    "pipeline": {
-                        "description": "Sum of deal_value for non-won/lost leads",
-                        "type": "number",
-                        "example": 1250000
-                    },
-                    "high_priority": {
-                        "type": "integer",
-                        "example": 12
-                    }
-                },
-                "type": "object"
-            },
             "AuthUser": {
                 "description": "Authenticated user profile",
                 "properties": {

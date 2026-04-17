@@ -4,6 +4,153 @@
 
 @include('pages.leads.show_page_style')
 
+<style>
+.page-wrapper { padding: 32px; }
+.page-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 24px;
+}
+.page-title { font-size: 22px; font-weight: 700; color: #121212; }
+.btn-primary {
+    display: inline-flex; align-items: center; gap: 6px;
+    background-color: #fe5f04; color: #fff;
+    padding: 8px 18px; border-radius: 20px;
+    font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+    text-decoration: none;
+}
+.btn-primary:hover { background-color: #e05400; }
+.btn-sm {
+    padding: 4px 12px; font-size: 12px; border-radius: 12px;
+}
+.card {
+    background: #fff; border: 1px solid #e1dee3;
+    border-radius: 14px; overflow: hidden;
+}
+.table-responsive { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: #f8f8f8; }
+th {
+    padding: 12px 16px; font-size: 12px; font-weight: 600;
+    color: #7c7c7c; text-align: left; border-bottom: 1px solid #e1dee3;
+}
+td {
+    padding: 13px 16px; font-size: 13px; color: #121212;
+    border-bottom: 1px solid #f1f1f1; vertical-align: middle;
+}
+tbody tr:hover { background: #fdf8f5; }
+tbody tr:last-child td { border-bottom: none; }
+.badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.badge-approved  { background: #edfaf3; color: #1a7a52; border: 1px solid #b6ead0; }
+.badge-pending   { background: #fff8ec; color: #9a6200; border: 1px solid #ffd98a; }
+.action-btns { display: flex; gap: 6px; }
+.btn-outline-sm {
+    padding: 4px 12px; border-radius: 10px; font-size: 12px;
+    font-weight: 500; border: 1px solid #e1dee3;
+    background: #fff; cursor: pointer; text-decoration: none; color: #444;
+}
+.btn-outline-sm:hover { border-color: #fe5f04; color: #fe5f04; }
+.btn-danger-sm {
+    padding: 4px 12px; border-radius: 10px; font-size: 12px;
+    font-weight: 500; border: 1px solid #ffc4c4;
+    background: #fff5f5; cursor: pointer; color: #c00;
+    text-decoration: none;
+}
+.alert-success {
+    background: #edfaf3; border: 1px solid #b6ead0; color: #1a7a52;
+    padding: 12px 18px; border-radius: 10px; margin-bottom: 20px; font-size: 14px;
+}
+.empty-state { text-align: center; padding: 60px 20px; color: #9e9e9e; }
+.empty-state i { font-size: 42px; margin-bottom: 12px; display: block; }
+
+   #summaryPreview {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid #f3f4f6;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-top: 15px;
+    }
+
+    #summaryPreview hr {
+        margin: 10px 0 15px;
+    }
+
+    /* Title */
+    #summaryPreview .title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fe5f04; /* ORANGE */
+        display: flex;
+        align-items: center;
+    }
+
+    /* Labels */
+    #summaryPreview .label {
+        font-size: 12px;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    /* Boxes */
+    .preview-box {
+        max-height: 130px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-size: 13px;
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    /* Original */
+    #originalTextPreview {
+        background: #fff7ed; /* light orange bg */
+        border: 1px solid #fdba74;
+        color: #7c2d12;
+    }
+
+    /* Summary */
+    #summarizedTextPreview {
+        background: #fff7ed;
+        border: 1px solid #fe5f04;
+        color: #9a3412;
+        font-weight: 500;
+    }
+
+    /* Buttons */
+    .btn-use {
+        background: #fe5f04;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 14px;
+    }
+
+    .btn-use:hover {
+        background: #e55303;
+    }
+
+    .btn-keep {
+        border: 1px solid #fe5f04;
+        color: #fe5f04;
+        background: transparent;
+        border-radius: 6px;
+        padding: 6px 14px;
+    }
+
+    .btn-keep:hover {
+        background: #fe5f04;
+        color: #fff;
+    }
+
+    .actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+    }
+</style>
 @section('content')
 @php
     $colors  = ['#fe5f04','#7c3aed','#2563eb','#16a34a','#be123c','#0284c7','#b45309','#0f766e'];
@@ -12,7 +159,8 @@
     $pc = $lead->priority_color;
     $priClass = ['low'=>'','medium'=>'','high'=>''][$lead->priority] ?? '';
 
-    $callCount     = $lead->callUpdates->count();
+    $incomingCallCount     = $lead->callUpdates->where('call_type', 'incoming')->count();
+    $outGoingcallCount     = $lead->callUpdates->where('call_type', 'outgoing')->count();
     $remCount      = $lead->reminders->where('is_completed', false)->count();
     $overdueRem    = $lead->reminders->where('is_completed', false)->filter(fn($r) => $r->remind_at->isPast())->count();
     $prodCount     = $lead->products->count();
@@ -84,7 +232,7 @@
             <button class="lsp-tab" onclick="switchTab('calls', this)">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.71 19a19.5 19.5 0 0 1-5.52-5.51A19.79 19.79 0 0 1 3.08 4.18 2 2 0 0 1 5.06 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L9.91 9.91a16 16 0 0 0 5.71 5.71l.63-.63a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
                 Call Updates
-                <span class="lsp-tab-count">{{ $callCount }}</span>
+                <span class="lsp-tab-count">{{ $outGoingcallCount + $incomingCallCount }}</span>
             </button>
             <button class="lsp-tab" onclick="switchTab('reminders', this)">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -162,17 +310,21 @@
 
                 {{-- Right --}}
                 <div style="display:flex;flex-direction:column;gap:14px;">
+
+
                     <div class="lsp-card">
                         <div class="lsp-card-head"><div class="lsp-card-title">💰 Deal & Status</div></div>
                         <div class="lsp-card-body">
                             <div class="lsp-info-grid" style="margin-bottom:14px;">
-                                <div class="lsp-info-item"><div class="lsp-il">Deal Value</div><div class="lsp-deal-big">{{ $lead->formatted_deal_value }}</div></div>
+                                <div class="lsp-info-item"><div class="lsp-il">Deal Value</div><div class="lsp-deal-big">{{ number_format($lead->products->sum('total_price'), 2) }}</div></div>
                                 <div class="lsp-info-item">
-                                    <div class="lsp-il">Priority</div>
+                                    {{--  <div class="lsp-il">Priority</div>
                                     <div><span class="lsp-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['text'] }};border-color:{{ $pc['border'] }}">{{ $lead->priority_label }}</span></div>
+                                      --}}
+                                      <div class="lsp-info-item"><div class="lsp-il">Number Of Products</div><div class="lsp-deal-big">{{ $lead->products->count() ?? 0 }}</div></div>
                                 </div>
                             </div>
-                            <div style="margin-bottom:6px;font-size:11px;font-weight:700;color:#3d3d3d;text-transform:uppercase;letter-spacing:.4px;">Quick Status Change</div>
+                            {{--  <div style="margin-bottom:6px;font-size:11px;font-weight:700;color:#3d3d3d;text-transform:uppercase;letter-spacing:.4px;">Quick Status Change</div>
                             <form method="POST" action="{{ route('leads.update-status', $lead) }}">
                                 @csrf @method('PATCH')
                                 <div style="position:relative;">
@@ -183,7 +335,13 @@
                                     </select>
                                     <svg style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9e9e9e;width:11px;height:11px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                 </div>
-                            </form>
+                            </form>  --}}
+
+                            <div class="lsp-info-grid" style="margin-bottom:14px;">
+
+                                <div class="lsp-info-item">
+                                    <div class="lsp-il">Age Of Lead</div><div style="font-weight:bold">{{ $lead->created_at->diffForHumans() }}</div></div>
+                            </div>
                         </div>
                     </div>
 
@@ -214,7 +372,12 @@
                 <div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="font-size:15px;font-weight:700;color:var(--text);">📞 Call History</h3>
-                        <span style="font-size:12px;color:var(--muted);">{{ $callCount }} records</span>
+                        <div>
+<span style="font-size:12px;color:var(--orange);">{{ $incomingCallCount }} Incoming Call records</span>
+<span style="font-size:12px;color:var(--muted);"> | </span>
+                        <span style="font-size:12px;color:var(--orange);">{{ $outGoingcallCount }} Outgoing Call records</span>
+                        </div>
+
                     </div>
 
                     @if($lead->callUpdates->isEmpty())
@@ -250,8 +413,8 @@
                             <div class="lsp-call-notes">{{ $call->notes }}</div>
                             @endif
                             <div class="lsp-call-footer">
-                                <span class="lsp-call-outcome" style="background:{{ $oc['bg'] }};color:{{ $oc['text'] }}">
-                                    {{ $call->outcome_label }}
+                                <span class="lsp-call-outcome" style="background:#f0fdf4;color:#16a34a">
+                                    {{ $call?->outCome?->name }} - {{ $call?->outComeSubCategory?->name }}
                                 </span>
                                 @if($call->next_follow_up)
                                 <span class="lsp-call-followup">
@@ -278,44 +441,38 @@
                                 <div style="display:flex;flex-direction:column;gap:12px;">
 
                                     <div class="lsp-form-row lsp-form-row-2">
-                                        <div class="lsp-group">
-                                            <label class="lsp-label">Call Date & Time <span class="lsp-req">*</span></label>
-                                            <div class="lsp-fw">
-                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                                <input type="datetime-local" name="called_at" class="lsp-inp" value="{{ now()->format('Y-m-d\TH:i') }}" required readonly>
-                                            </div>
-                                        </div>
-                                        <div class="lsp-group">
-                                            <label class="lsp-label">Call Type <span class="lsp-req">*</span></label>
-                                            <div class="lsp-fw">
-                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.71 19"/></svg>
-                                                <select name="call_type" class="lsp-sel" required>
-                                                    @foreach(\App\Models\LeadCallUpdate::CALL_TYPES as $k => $v)
-                                                    <option value="{{ $k }}">{{ $v }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <svg class="lsp-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                            </div>
-                                        </div>
+
+
                                     </div>
 
                                     <div class="lsp-form-row lsp-form-row-2">
-                                        <div class="lsp-group">
+                                        {{--  <div class="lsp-group">
                                             <label class="lsp-label">Duration (minutes)</label>
                                             <div class="lsp-fw">
                                                 <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                 <input type="number" name="duration_minutes" class="lsp-inp" placeholder="0" min="0">
                                             </div>
-                                        </div>
+                                        </div>  --}}
                                         <div class="lsp-group">
                                             <label class="lsp-label">Outcome <span class="lsp-req">*</span></label>
                                             <div class="lsp-fw">
                                                 <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                                <select name="outcome" class="lsp-sel" required>
-                                                    <option value="">— Select outcome —</option>
-                                                    @foreach(\App\Models\LeadCallUpdate::OUTCOMES as $k => $v)
-                                                    <option value="{{ $k }}">{{ $v }}</option>
-                                                    @endforeach
+                                                <select name="outcome" id="outcome_category" class="lsp-sel" required>
+                                                    <option value="">— Select Outcome —</option>
+                                                     @foreach($outcomes as $v)
+                                                            <option value="{{ $v->id }}">{{ $v->name }}</option>
+                                                        @endforeach
+                                                </select>
+                                                <svg class="lsp-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                            </div>
+                                        </div>
+
+                                        <div class="lsp-group">
+                                            <label class="lsp-label">Outcome Subcategory<span class="lsp-req">*</span></label>
+                                            <div class="lsp-fw">
+                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                                <select name="outcome_sub_category_id" id="outcome_sub_category" class="lsp-sel" required>
+                                                    <option value="">— Select sub category —</option>
                                                 </select>
                                                 <svg class="lsp-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                                             </div>
@@ -323,17 +480,94 @@
                                     </div>
 
                                     <div class="lsp-group">
-                                        <label class="lsp-label">Call Notes</label>
-                                        <textarea name="notes" class="lsp-ta" placeholder="What was discussed? Any key points…" rows="3"></textarea>
+                                        <label class="lsp-label">Call Notes <span class="lsp-req">*</span></label>
+                                        <textarea name="notes" class="lsp-ta" id="addNoteText" placeholder="What was discussed? Any key points…" rows="3" required></textarea>
                                     </div>
 
-                                    <div class="lsp-group">
-                                        <label class="lsp-label">Next Follow-up Date</label>
-                                        <div class="lsp-fw">
-                                            <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                            <input type="date" name="next_follow_up" class="lsp-inp" min="{{ today()->toDateString() }}">
+
+
+                                    <div class="d-flex justify-content-end mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="summarizeBtn"
+                                                onclick="summarizeNote()">
+                                                <i class="fas fa-magic me-1"></i> AI Summarize
+                                            </button>
                                         </div>
+
+                                       <div id="summaryPreview" style="display:none;">
+    <hr style="border:none; border-top:0.5px solid #e1dee3; margin:0 0 1.25rem;">
+
+    <p style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:#7c7c7c; margin:0 0 1rem;">
+        <i class="fas fa-robot" style="font-size:14px; color:#9e9e9e;"></i>
+        AI Summary Preview
+    </p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:1.25rem;">
+        <div>
+            <p style="font-size:12px; font-weight:500; color:#7c7c7c; margin:0 0 8px;">Original</p>
+            <div id="originalTextPreview"
+                style="background:#f8f8f8; border:0.5px solid #e1dee3; border-radius:8px;
+                       padding:12px 14px; font-size:12px; line-height:1.75; color:#7c7c7c;
+                       min-height:90px; max-height:140px; overflow-y:auto; white-space:pre-wrap;">
+            </div>
+        </div>
+        <div>
+            <p style="font-size:12px; font-weight:500; color:#c45f04; margin:0 0 8px;">Summarized</p>
+            <div id="summarizedTextPreview"
+                style="background:#fff8f3; border:0.5px solid #f5d3b8; border-radius:8px;
+                       padding:12px 14px; font-size:12px; line-height:1.75; color:#7a3b0d;
+                       min-height:90px; max-height:140px; overflow-y:auto; white-space:pre-wrap;">
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+        <button type="button" onclick="acceptSummary()"
+            style="display:inline-flex; align-items:center; gap:7px; padding:8px 18px;
+                   border-radius:20px; background:#fe5f04; border:none; color:#fff;
+                   font-size:13px; font-weight:500; cursor:pointer;">
+            <i class="fas fa-check" style="font-size:12px;"></i> Use Summary
+        </button>
+        <button type="button" onclick="rejectSummary()"
+            style="display:inline-flex; align-items:center; gap:7px; padding:8px 18px;
+                   border-radius:20px; background:transparent; border:0.5px solid #c8c4cc;
+                   color:#7c7c7c; font-size:13px; font-weight:500; cursor:pointer;">
+            <i class="fas fa-times" style="font-size:12px;"></i> Keep Original
+        </button>
+    </div>
+</div>
+
+                        <div id="summarizeSpinner" style="display:none;" class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary me-2"  role="status"></div>
+                            <span class="text-muted small" style="font-size:12px;color:green">Generating summary...</span>
+                        </div>
+
+                        {{-- Error --}}
+                        <div id="summarizeError" class="alert alert-danger alert-sm py-2 mt-2 d-none" style="color:red;font-size:12px" role="alert">
+
+                            <span id="summarizeErrorMsg"></span>
+                        </div>
+
+                                    <div class="lsp-form-row lsp-form-row-2">
+                                         <div class="lsp-group">
+                                            <label class="lsp-label">Next Follow-up Date <span class="lsp-req">*</span></label>
+                                            <div class="lsp-fw">
+                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                <input type="date" name="next_follow_up" class="lsp-inp" min="{{ today()->toDateString() }}" required>
+                                            </div>
+                                         </div>
+
+                                         <div class="lsp-group">
+                                            <label class="lsp-label">Next Follow-up Time <span class="lsp-req">*</span></label>
+                                            <div class="lsp-fw">
+                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                <input type="time" name="followup_time" class="lsp-inp" required>
+                                            </div>
+                                         </div>
+
                                     </div>
+
+
+
 
                                     <button type="submit" class="lsp-btn lsp-btn-primary" style="justify-content:center;">
                                         <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -436,63 +670,82 @@
                             <div class="lsp-card-title">➕ Set Reminder</div>
                         </div>
                         <div class="lsp-card-body">
-                            <form method="POST" action="{{ route('leads.reminders.store', $lead) }}">
-                                @csrf
-                                <div style="display:flex;flex-direction:column;gap:12px;">
-                                    <div class="lsp-group">
-                                        <label class="lsp-label">Title <span class="lsp-req">*</span></label>
-                                        <div class="lsp-fw">
-                                            <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>
-                                            <input type="text" name="title" class="lsp-inp" placeholder="e.g. Follow-up call with Raj Kumar" required>
-                                        </div>
-                                    </div>
+                            <!-- FORM START -->
+<form method="POST" action="{{ route('leads.reminders.store', $lead) }}">
+@csrf
 
-                                    <div class="lsp-form-row lsp-form-row-2">
-                                        <div class="lsp-group">
-                                            <label class="lsp-label">Remind At <span class="lsp-req">*</span></label>
-                                            <div class="lsp-fw">
-                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                <input type="datetime-local" name="remind_at" class="lsp-inp" required>
-                                            </div>
-                                        </div>
-                                        <div class="lsp-group">
-                                            <label class="lsp-label">Type <span class="lsp-req">*</span></label>
-                                            <div class="lsp-fw">
-                                                <svg class="lsp-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-                                                <select name="type" class="lsp-sel" required>
-                                                    @foreach(\App\Models\LeadReminder::TYPES as $k => $v)
-                                                    <option value="{{ $k }}">{{ $v }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <svg class="lsp-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                            </div>
-                                        </div>
-                                    </div>
+<div id="step-form">
 
-                                    <div class="lsp-group">
-                                        <label class="lsp-label">Priority <span class="lsp-req">*</span></label>
-                                        <div style="display:flex;gap:8px;">
-                                            @foreach(['low'=>['🟢','Low','#16a34a','#f0fdf4'],'medium'=>['🟡','Medium','#b45309','#fffbeb'],'high'=>['🔴','High','#dc2626','#fef2f2']] as $pk => $pv)
-                                            <label style="flex:1;display:flex;align-items:center;gap:5px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;" class="rem-pri-opt" data-val="{{ $pk }}">
-                                                <input type="radio" name="priority" value="{{ $pk }}" {{ $pk==='medium'?'checked':'' }} style="display:none">
-                                                <span>{{ $pv[0] }}</span>
-                                                <span style="font-size:12px;font-weight:700;color:#555">{{ $pv[1] }}</span>
-                                            </label>
-                                            @endforeach
-                                        </div>
-                                    </div>
+    <!-- STEP 1 -->
+    <div class="lsp-group step">
+        <label class="lsp-label">Title <span class="lsp-req">*</span></label>
+        <div class="lsp-fw">
+            <input type="text" name="title" class="lsp-inp" required>
+        </div>
+    </div>
 
-                                    <div class="lsp-group">
-                                        <label class="lsp-label">Description</label>
-                                        <textarea name="description" class="lsp-ta" placeholder="Optional details…" rows="2"></textarea>
-                                    </div>
+    <!-- STEP 2 -->
+    <div class="lsp-form-row lsp-form-row-2 step">
 
-                                    <button type="submit" class="lsp-btn lsp-btn-primary" style="justify-content:center;">
-                                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                                        Set Reminder
-                                    </button>
-                                </div>
-                            </form>
+        <div class="lsp-group">
+            <label class="lsp-label">Remind Date <span class="lsp-req">*</span></label>
+            <div class="lsp-fw">
+                <input type="date" name="remind_at" class="lsp-inp" required>
+            </div>
+        </div>
+
+        <div class="lsp-group">
+            <label class="lsp-label">Remind Time <span class="lsp-req">*</span></label>
+            <div class="lsp-fw">
+                <input type="time" name="remainder_time" class="lsp-inp" required>
+            </div>
+        </div>
+
+
+
+    </div>
+    <div class="lsp-group step">
+     <div class="lsp-group">
+            <label class="lsp-label">Type <span class="lsp-req">*</span></label>
+            <div class="lsp-fw">
+                <select name="type" class="lsp-sel" required>
+                    @foreach(\App\Models\LeadReminder::TYPES as $k => $v)
+                        <option value="{{ $k }}">{{ $v }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="lsp-group step">
+        <label class="lsp-label">Priority <span class="lsp-req">*</span></label>
+        <div style="display:flex;gap:8px;">
+            @foreach(['low'=>['🟢','Low'],'medium'=>['🟡','Medium'],'high'=>['🔴','High']] as $pk => $pv)
+            <label class="rem-pri-opt">
+                <input type="radio" name="priority" value="{{ $pk }}" {{ $pk==='medium'?'checked':'' }}>
+                {{ $pv[0] }} {{ $pv[1] }}
+            </label>
+            @endforeach
+        </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="lsp-group step">
+        <label class="lsp-label">Description <span class="lsp-req">*</span></label>
+        <textarea name="description" class="lsp-ta" required></textarea>
+    </div>
+
+    <!-- BUTTONS -->
+    <div id="step-buttons" style="margin-top:15px;display:flex;gap:10px;">
+        <button type="button" id="prevBtn" class="lsp-btn">Back</button>
+        <button type="button" id="nextBtn" class="lsp-btn lsp-btn-primary">Next</button>
+        <button type="submit" id="submitBtn" class="lsp-btn lsp-btn-primary">Submit</button>
+    </div>
+
+</div>
+</form>
+<!-- FORM END -->
                         </div>
                     </div>
                 </div>
@@ -503,7 +756,7 @@
              TAB 4 — PRODUCTS & PAYMENTS
         ════════════════════════════════════════ --}}
        <div class="lsp-panel" id="panel-products">
-         @include('pages.leads.products_panel')
+         @include('pages.leads.partials._products_panel')
         </div>
 
         {{-- ════════════════════════════════════════
@@ -511,89 +764,104 @@
         ════════════════════════════════════════ --}}
         <div class="lsp-panel" id="panel-quotations">
 
-            {{-- Existing quotations --}}
-            @if($lead->quotations->isNotEmpty())
-            <div class="lsp-qt-list">
-                @foreach($lead->quotations as $qt)
-                @php $qsc = $qt->status_color; @endphp
-                <div class="lsp-qt-card">
-                    <div class="lsp-qt-head">
-                        <div>
-                            <div class="lsp-qt-num">{{ $qt->quotation_number }}</div>
-                            <div class="lsp-qt-date">
-                                {{ $qt->quotation_date->format('d M Y') }}
-                                @if($qt->valid_until) · Valid until {{ $qt->valid_until->format('d M Y') }} @endif
-                            </div>
-                        </div>
-                        <div class="lsp-qt-actions">
-                            <span class="lsp-badge" style="background:{{ $qsc['bg'] }};color:{{ $qsc['text'] }};border-color:{{ $qsc['border'] }}">
-                                {{ $qt->status_label }}
-                            </span>
-                            <span style="font-size:15px;font-weight:800;color:var(--text);">{{ $qt->formatted_grand_total }}</span>
-                            {{-- Quick status change --}}
-                            <form method="POST" action="{{ route('leads.quotations.update-status', [$lead, $qt]) }}" style="display:inline;">
-                                @csrf @method('PATCH')
-                                <div style="position:relative;display:inline-block;">
-                                    <select name="status" class="lsp-status-select" style="font-size:12px;padding:5px 24px 5px 9px;min-width:100px;" onchange="this.form.submit()">
-                                        @foreach(\App\Models\Quotation::STATUSES as $k => $v)
-                                        <option value="{{ $k }}" {{ $qt->status===$k?'selected':'' }}>{{ $v }}</option>
-                                        @endforeach
-                                    </select>
-                                    <svg style="position:absolute;right:7px;top:50%;transform:translateY(-50%);pointer-events:none;color:#9e9e9e;width:10px;height:10px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                            </form>
-                            <form method="POST" action="{{ route('leads.quotations.destroy', [$lead, $qt]) }}">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="lsp-call-del" onclick="return confirm('Delete quotation?')">
-                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    <div class="lsp-qt-body">
-                        <table class="lsp-qt-items-tbl">
-                            <thead>
-                                <tr><th>#</th><th>Product</th><th>Qty</th><th>Unit</th><th style="text-align:right">Price</th><th style="text-align:right">Disc%</th><th style="text-align:right">Total</th></tr>
-                            </thead>
-                            <tbody>
-                                @foreach($qt->items as $i => $item)
-                                <tr>
-                                    <td style="color:var(--muted);font-size:12px;">{{ $i+1 }}</td>
-                                    <td><div style="font-weight:600;">{{ $item->product_name }}</div>@if($item->description)<div style="font-size:11px;color:var(--muted);">{{ $item->description }}</div>@endif</td>
-                                    <td>{{ $item->quantity }}</td>
-                                    <td>{{ $item->unit }}</td>
-                                    <td style="text-align:right;">₹{{ number_format($item->unit_price,2) }}</td>
-                                    <td style="text-align:right;">{{ $item->discount_percent }}%</td>
-                                    <td style="text-align:right;font-weight:700;">₹{{ number_format($item->total,2) }}</td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        <div class="lsp-qt-totals">
-                            <div class="lsp-qt-total-row"><span class="lsp-qt-total-label">Subtotal</span><span class="lsp-qt-total-value">₹{{ number_format($qt->subtotal,2) }}</span></div>
-                            @if($qt->discount_amount > 0)
-                            <div class="lsp-qt-total-row"><span class="lsp-qt-total-label">Discount</span><span class="lsp-qt-total-value" style="color:var(--green)">-₹{{ number_format($qt->discount_amount,2) }}</span></div>
-                            @endif
-                            @if($qt->tax_percent > 0)
-                            <div class="lsp-qt-total-row"><span class="lsp-qt-total-label">Tax ({{ $qt->tax_percent }}%)</span><span class="lsp-qt-total-value">₹{{ number_format($qt->tax_amount,2) }}</span></div>
-                            @endif
-                            <div class="lsp-qt-total-row grand"><span>Grand Total</span><span>{{ $qt->formatted_grand_total }}</span></div>
-                        </div>
-                        @if($qt->notes)<div style="margin-top:10px;font-size:12px;color:var(--muted);background:var(--soft);padding:9px;border-radius:8px;">{{ $qt->notes }}</div>@endif
-                    </div>
-                </div>
-                @endforeach
-            </div>
-            @endif
+            <div class="page-header">
+        <div class="page-title"></div>
+        <a href="/quotations/create/{{ $lead->id }}" class="btn-primary">
+            <i class="bi bi-plus-lg"></i> New Quotation
+        </a>
+    </div>
 
             {{-- Create new quotation form --}}
             <div class="lsp-qt-form-wrap">
-                <div class="lsp-qt-form-head" onclick="toggleQtForm()">
+
+                <div class="card">
+        <div class="table-responsive">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Quotation No</th>
+                        <th>Lead</th>
+                        <th>Date</th>
+                        <th>Valid Until</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Approved By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        $i=1;
+                    @endphp
+                    @forelse($lead->quotations as $q)
+                    <tr>
+                        {{--  <td>{{ $loop->iteration + ($quotations->firstItem() - 1) }}</td>  --}}
+                        <td>{{ $i++ }}</td>
+                        <td><strong>{{ $q->quotation_no }}</strong></td>
+                        <td>{{ $q->lead->name ?? '—' }}<br>
+                            <small style="color:#9e9e9e">{{ $q->lead->company_name ?? '' }}</small>
+                        </td>
+                        <td>{{ $q->quotation_date->format('d M Y') }}</td>
+                        <td>{{ $q->valid_until->format('d M Y') }}</td>
+                        <td><strong>₹{{ number_format($q->total_amount, 2) }}</strong></td>
+                        <td>
+                            @if($q->is_approved)
+                                <span class="badge badge-approved"><i class="bi bi-check-circle-fill"></i> Approved</span>
+                            @else
+                                <span class="badge badge-pending"><i class="bi bi-clock-fill"></i> Pending</span>
+                            @endif
+                        </td>
+                        <td>{{ $q->approver->name ?? '—' }}</td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="/quotations/{{ $q->id }}/pdf" class="btn-outline-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                @if(!$q->is_approved)
+                                <form method="POST" action="{{ route('quotations.approve', $q) }}" style="display:inline">
+                                    @csrf @method('PATCH')
+                                    <button class="btn-outline-sm" style="border-color:#4caf50;color:#2e7d32">
+                                        <i class="bi bi-check-lg"></i> Approve
+                                    </button>
+                                </form>
+                                @endif
+                                <form method="POST" action="{{ route('quotations.destroy', $q) }}"
+                                      onsubmit="return confirm('Delete this quotation?')" style="display:inline">
+                                    @csrf @method('DELETE')
+                                    <button class="btn-danger-sm"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <i class="bi bi-file-earmark-text"></i>
+                                No quotations found.
+                                <br><br>
+                                <a href="/quotations/create/{{ $lead->id }}" class="btn-primary" style="display:inline-flex">
+                                    Create First Quotation
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+
+
+    </div>
+                {{--  <div class="lsp-qt-form-head" onclick="toggleQtForm()">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Create New Quotation
                     <svg id="qtArrow" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="margin-left:auto;transition:transform .2s"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div class="lsp-qt-form-body {{ $lead->quotations->isEmpty() ? 'open' : '' }}" id="qtFormBody">
+                </div>  --}}
+                {{--  <div class="lsp-qt-form-body {{ $lead->quotations->isEmpty() ? 'open' : '' }}" id="qtFormBody">
                     <form method="POST" action="{{ route('leads.quotations.store', $lead) }}" id="qtForm">
                         @csrf
                         <div style="display:flex;flex-direction:column;gap:14px;">
@@ -613,7 +881,7 @@
                                 </div>
                             </div>
 
-                            {{-- Line items --}}
+
                             <div>
                                 <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">Line Items</div>
                                 <div style="overflow-x:auto;">
@@ -649,7 +917,7 @@
                                     Add Line Item
                                 </button>
 
-                                {{-- Totals preview --}}
+
                                 <div class="lsp-qt-totals-preview">
                                     <div class="lsp-qt-pr"><span>Subtotal</span><span id="qtSubtotal">₹0.00</span></div>
                                     <div class="lsp-qt-pr"><span>Discount</span><span>-<input type="number" name="discount_amount" id="qtDiscInput" value="0" min="0" style="width:70px;border:1px solid var(--border);border-radius:5px;padding:3px 5px;font-size:12px;font-family:inherit;" onchange="recalcQt()"></span></div>
@@ -675,12 +943,15 @@
                             </button>
                         </div>
                     </form>
-                </div>
+                </div>  --}}
             </div>
         </div>
 
     </div>{{-- /lsp-body --}}
 </div>{{-- /lsp --}}
+
+
+
 @endsection
 
 @push('scripts')
@@ -791,7 +1062,177 @@ document.querySelectorAll('.rem-pri-opt').forEach(el => {
 // Init medium selected
 const medOpt = document.querySelector('.rem-pri-opt[data-val="medium"]');
 if (medOpt) { medOpt.style.borderColor = '#fde68a'; medOpt.style.background = '#fffbeb'; }
+
+
+function summarizeNote() {
+            const noteText = $('#addNoteText').val().trim();
+
+
+     $('#summaryPreview').hide();
+            $('#summarizeError').addClass('d-none');
+
+            if (!noteText || noteText.length < 30) {
+                showSummarizeError('Please enter at least 30 characters to summarize.');
+                return;
+            }
+
+            $('#summarizeSpinner').show();
+            $('#summarizeBtn').prop('disabled', true);
+
+
+            $.ajax({
+                url: '{{ route("ai.summarize") }}',
+                method: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'Accept': 'application/json',
+                },
+                data: JSON.stringify({ text: noteText }),
+
+                success: function (response) {
+                    if (response.summary) {
+                        $('#originalTextPreview').text(noteText);
+                        $('#summarizedTextPreview').text(response.summary);
+                        $('#summaryPreview').show();
+                    } else {
+                        showSummarizeError('No summary returned. Please try again.');
+                    }
+                },
+
+                error: function (xhr) {
+                    const json = xhr.responseJSON;
+                    const status = xhr.status;
+
+                    let msg;
+                    if (status === 503) {
+                        msg = 'AI model is warming up. Please try again in 20 seconds.';
+                    } else if (status === 401) {
+                        msg = 'API key error. Please contact your administrator.';
+                    } else {
+                        msg = json?.error ?? 'Failed to summarize. Please try again.';
+                    }
+
+                    showSummarizeError(msg);
+                },
+
+                complete: function () {
+                    $('#summarizeSpinner').hide();
+                    $('#summarizeBtn').prop('disabled', false);
+                }
+            });
+        }
+
+        function acceptSummary() {
+            $('#addNoteText').val($('#summarizedTextPreview').text());
+            $('#summaryPreview').hide();
+        }
+
+        function rejectSummary() {
+            $('#summaryPreview').hide();
+        }
+
+        function showSummarizeError(msg) {
+            $('#summarizeErrorMsg').text(msg);
+            $('#summarizeError').removeClass('d-none');
+        }
+
+        // Reset modal state on close
+        $('#addNoteModal').on('hidden.bs.modal', function () {
+            $('#summaryPreview').hide();
+            $('#summarizeError').addClass('d-none');
+            $('#summarizeSpinner').hide();
+        });
+
+        window.summarizeNote = summarizeNote;
+        window.acceptSummary = acceptSummary;
+        window.rejectSummary = rejectSummary;
+
+
 </script>
 
+<script>
+$(document).ready(function() {
+
+    $('#outcome_category').change(function() {
+
+        let category_id = $(this).val();
+
+        $('#outcome_sub_category').html('<option>Loading...</option>');
+
+        if(category_id != '') {
+
+            $.ajax({
+                url: '/get-subcategories/' + category_id,
+                type: 'GET',
+                success: function(response) {
+
+                    let options = '<option value="">— Select sub category —</option>';
+
+                    response.forEach(function(item) {
+                        options += `<option value="${item.id}">${item.name}</option>`;
+                    });
+
+                    $('#outcome_sub_category').html(options);
+                }
+            });
+
+        } else {
+            $('#outcome_sub_category').html('<option value="">— Select sub category —</option>');
+        }
+
+    });
+
+});
+</script>
+
+<script>
+$(document).ready(function(){
+
+    let currentStep = 0;
+    let steps = $('.step');
+
+    function showStep(index) {
+        steps.removeClass('active').hide();
+        $(steps[index]).addClass('active').show();
+
+        // Button control
+        $('#prevBtn').toggle(index > 0);
+        $('#nextBtn').toggle(index < steps.length - 1);
+        $('#submitBtn').toggle(index === steps.length - 1);
+    }
+
+    showStep(currentStep);
+
+    // NEXT
+    $('#nextBtn').click(function(){
+
+        let currentInputs = $(steps[currentStep]).find('input, select, textarea');
+
+        let valid = true;
+
+        currentInputs.each(function(){
+            if ($(this).prop('required') && !$(this).val()) {
+                valid = false;
+            }
+        });
+
+        if (!valid) {
+            alert('Please fill all required fields');
+            return;
+        }
+
+        currentStep++;
+        showStep(currentStep);
+    });
+
+    // BACK
+    $('#prevBtn').click(function(){
+        currentStep--;
+        showStep(currentStep);
+    });
+
+});
+</script>
 
 @endpush

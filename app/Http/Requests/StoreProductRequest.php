@@ -1,40 +1,53 @@
 <?php
-// ================================================================
-// FILE: app/Http/Requests/Products/StoreProductRequest.php
-// ================================================================
 
 namespace App\Http\Requests;
 
-use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreProductRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true; // replace with gate/policy check
+    }
 
     public function rules(): array
     {
         return [
-            'product_name' => ['required', 'string', 'max:150'],
-            'product_code' => ['nullable', 'string', 'max:30', 'unique:products,product_code'],
-            'rate'         => ['required', 'numeric', 'min:0'],
-            'gst_percent'  => ['required', 'numeric', 'in:' . implode(',', Product::GST_RATES)],
-            'description'  => ['nullable', 'string', 'max:2000'],
-            'unit'         => ['required', 'string', 'in:' . implode(',', array_keys(Product::UNITS))],
-            'category'     => ['nullable', 'string', 'max:80'],
-            'is_active'    => ['boolean'],
+            'product_category_id'   => ['required', 'exists:product_categories,id'],
+            'package_name'          => ['required', 'string', 'max:255'],
+            'base_price'            => ['required', 'numeric', 'min:0'],
+            'tax_type'              => ['required', 'in:percentage,fixed'],
+            'tax_value'             => ['required', 'numeric', 'min:0'],
+            'discount_type'         => ['required', 'in:percentage,fixed'],
+            'discount_value'        => ['required', 'numeric', 'min:0'],
+            'description'           => ['nullable', 'string'],
+            'status'                => ['required', 'in:active,inactive,draft'],
+            'sort_order'            => ['nullable', 'integer', 'min:0'],
+
+            // Dynamic attributes
+            'attributes'            => ['nullable', 'array'],
+            'attributes.*.attribute_id' => ['required_with:attributes', 'exists:attributes,id'],
+            'attributes.*.value'        => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'product_name.required' => 'Product name is required.',
-            'rate.required'         => 'Rate (selling price) is required.',
-            'rate.min'              => 'Rate must be zero or greater.',
-            'gst_percent.required'  => 'Please select a GST rate.',
-            'gst_percent.in'        => 'Invalid GST rate selected.',
-            'unit.required'         => 'Please select a unit.',
+            'product_category_id.required' => 'Please select a category.',
+            'product_category_id.exists'   => 'Selected category is invalid.',
+            'base_price.required'          => 'Base price is required.',
+            'base_price.numeric'           => 'Base price must be a number.',
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'tax_value'      => $this->tax_value ?? 0,
+            'discount_value' => $this->discount_value ?? 0,
+            'sort_order'     => $this->sort_order ?? 0,
+        ]);
     }
 }

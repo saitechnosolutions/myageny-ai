@@ -48,9 +48,9 @@ return [
                  * ─────────────────────────────────────────────────────────────────
                  */
                 'annotations' => [
-    app_path('Http/Controllers/App'),
-    app_path('Annotations'),  // for your OpenApi.php and SwaggerSchemas.php
-],
+                    app_path('Http/Controllers/App'),
+                    app_path('Swagger'),  // for your OpenApi.php and SwaggerSchemas.php
+                ],
             ],
         ],
     ],
@@ -209,7 +209,7 @@ return [
          * Constants usable in annotations (e.g. url=L5_SWAGGER_CONST_HOST)
          */
         'constants' => [
-            'L5_SWAGGER_CONST_HOST' => env('L5_SWAGGER_CONST_HOST', 'http://127.0.0.1:8000', 'http://192.168.1.47:8000'),
+            'L5_SWAGGER_CONST_HOST' => env('L5_SWAGGER_CONST_HOST', 'http://192.168.1.47:8000', 'http://192.168.1.30:8002'),
         ],
     ],
 ];

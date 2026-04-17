@@ -3,6 +3,7 @@
      FILE: resources/views/layouts/partials/logout-btn.blade.php
 ===================================================================== --}}
 
+
 <form method="POST" action="{{ route('logout') }}" id="logoutForm">
     @csrf
     <button

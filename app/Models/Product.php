@@ -1,7 +1,4 @@
 <?php
-// ================================================================
-// FILE: app/Models/Product.php
-// ================================================================
 
 namespace App\Models;
 
@@ -14,105 +11,91 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'product_name',
-        'product_code',
-        'rate',
-        'gst_percent',
-        'gst_amount',
-        'rate_with_gst',
-        'description',
-        'unit',
-        'category',
-        'is_active',
-        'created_by',
+        'product_category_id', 'package_name', 'sku',
+        'base_price', 'tax_type', 'tax_value', 'discount_type', 'discount_value',
+        'final_price', 'description', 'status', 'sort_order',
     ];
 
     protected $casts = [
-        'rate'          => 'decimal:2',
-        'gst_percent'   => 'decimal:2',
-        'gst_amount'    => 'decimal:2',
-        'rate_with_gst' => 'decimal:2',
-        'is_active'     => 'boolean',
+        'base_price'     => 'float',
+        'tax_value'      => 'float',
+        'discount_value' => 'float',
+        'final_price'    => 'float',
     ];
 
-    // ── Constants ──────────────────────────────────────────────────
-
-    const GST_RATES = [0, 3, 5, 12, 18, 28];
-
-    const UNITS = [
-        'Nos'   => 'Nos (Numbers)',
-        'Kg'    => 'Kg (Kilogram)',
-        'Ltr'   => 'Ltr (Litre)',
-        'Set'   => 'Set',
-        'Hr'    => 'Hr (Hours)',
-        'Month' => 'Month',
-        'Year'  => 'Year',
-        'Sqft'  => 'Sqft',
-        'Meter' => 'Meter',
-    ];
-
-    // ── Relationships ──────────────────────────────────────────────
-
-    public function createdBy()
+    // ── Boot ──────────────────────────────────────────────────────────
+    protected static function boot(): void
     {
-        return $this->belongsTo(User::class, 'created_by');
+        parent::boot();
+
+        $callback = function (self $model) {
+            $model->final_price = $model->computeFinalPrice();
+            if (empty($model->sku)) {
+                $model->sku = 'PRD-' . strtoupper(uniqid());
+            }
+        };
+
+        static::creating($callback);
+        static::updating($callback);
     }
 
-    // ── Scopes ─────────────────────────────────────────────────────
+    // ── Relationships ─────────────────────────────────────────────────
+    public function category()
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    }
 
+    public function attributeValues()
+    {
+        return $this->hasMany(ProductAttributeValue::class)->with('attribute')->orderBy('sort_order');
+    }
+
+    // ── Price Logic ───────────────────────────────────────────────────
+    public function computeFinalPrice(): float
+    {
+        $base = (float) $this->base_price;
+
+        // Apply discount first
+        if ($this->discount_type === 'percentage') {
+            $discounted = $base - ($base * $this->discount_value / 100);
+        } else {
+            $discounted = $base - $this->discount_value;
+        }
+
+        // Apply tax
+        if ($this->tax_type === 'percentage') {
+            $final = $discounted + ($discounted * $this->tax_value / 100);
+        } else {
+            $final = $discounted + $this->tax_value;
+        }
+
+        return round(max(0, $final), 2);
+    }
+
+    // ── Accessors ─────────────────────────────────────────────────────
+    public function getFormattedFinalPriceAttribute(): string
+    {
+        return '₹' . number_format($this->final_price, 2);
+    }
+
+    public function getStatusBadgeAttribute(): string
+    {
+        return match ($this->status) {
+            'active'   => '<span class="pm-badge pm-badge--active">Active</span>',
+            'inactive' => '<span class="pm-badge pm-badge--inactive">Inactive</span>',
+            'draft'    => '<span class="pm-badge pm-badge--draft">Draft</span>',
+            default    => '',
+        };
+    }
+
+    // ── Scopes ────────────────────────────────────────────────────────
     public function scopeActive($query)
     {
-        return $query->where('is_active', true);
+        return $query->where('status', 'active');
     }
 
-    public function scopeSearch($query, string $term)
+    public function scopeByCategory($query, int $categoryId)
     {
-        return $query->where(function ($q) use ($term) {
-            $q->where('product_name', 'like', "%{$term}%")
-              ->orWhere('product_code', 'like', "%{$term}%")
-              ->orWhere('category', 'like', "%{$term}%")
-              ->orWhere('description', 'like', "%{$term}%");
-        });
-    }
-
-    // ── Accessors ─────────────────────────────────────────────────
-
-    public function getFormattedRateAttribute(): string
-    {
-        return '₹' . number_format($this->rate, 2);
-    }
-
-    public function getFormattedRateWithGstAttribute(): string
-    {
-        return '₹' . number_format($this->rate_with_gst, 2);
-    }
-
-    public function getGstLabelAttribute(): string
-    {
-        return $this->gst_percent > 0
-            ? $this->gst_percent . '% GST'
-            : 'GST Exempt';
-    }
-
-    // ── Auto-compute GST fields + auto-generate product_code ───────
-
-    protected static function booted(): void
-    {
-        // Compute GST before save
-        static::saving(function (Product $p) {
-            $p->gst_amount    = round($p->rate * ($p->gst_percent / 100), 2);
-            $p->rate_with_gst = round($p->rate + $p->gst_amount, 2);
-        });
-
-        // Auto-generate product_code on create
-        static::creating(function (Product $p) {
-            if (empty($p->product_code)) {
-                $last = static::withTrashed()->max('id') ?? 0;
-                $p->product_code = 'PRD-' . str_pad($last + 1, 4, '0', STR_PAD_LEFT);
-            }
-            if (empty($p->created_by) && auth()->check()) {
-                $p->created_by = auth()->id();
-            }
-        });
+        return $query->where('product_category_id', $categoryId);
     }
 }

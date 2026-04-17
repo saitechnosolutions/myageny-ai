@@ -64,6 +64,16 @@ return [
             ]) : [],
         ],
 
+
+        'mysql2' => [
+        // NEW DB
+        'driver' => 'mysql',
+        'host' => env('DB2_HOST', '127.0.0.1'),
+        'database' => env('DB2_DATABASE', 'new_db'),
+        'username' => env('DB2_USERNAME', 'root'),
+        'password' => env('DB2_PASSWORD', ''),
+    ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

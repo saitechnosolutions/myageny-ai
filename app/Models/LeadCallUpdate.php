@@ -13,7 +13,8 @@ class LeadCallUpdate extends Model
 
     protected $fillable = [
         'lead_id','user_id','called_at','call_type',
-        'duration_minutes','outcome','notes','next_follow_up',
+        'duration_minutes','outcome','notes','next_follow_up','followup_time',
+        'outcome_subcategory'
     ];
 
     protected $casts = [
@@ -61,5 +62,15 @@ class LeadCallUpdate extends Model
     public function getCallTypeLabelAttribute(): string
     {
         return self::CALL_TYPES[$this->call_type] ?? ucfirst($this->call_type);
+    }
+
+    public function outCome()
+    {
+        return $this->belongsTo(OutcomeCategory::class, 'outcome', 'id');
+    }
+
+    public function outComeSubCategory()
+    {
+        return $this->belongsTo(OutcomeSubCategory::class, 'outcome_subcategory', 'id');
     }
 }

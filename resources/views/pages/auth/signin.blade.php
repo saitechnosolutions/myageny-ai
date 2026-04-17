@@ -451,8 +451,10 @@
         <div class="grid-lines"></div>
 
         <div class="brand">
-            <div class="brand-icon">MA</div>
-            <span class="brand-name">myAgenci.ai</span>
+            {{--  <div class="brand-icon">MA</div>
+            <span class="brand-name">myAgenci.ai</span>  --}}
+
+            <img src="{{ asset('images/my_agenci_logo_2.png') }}" alt="Logo" class="logo-img" style="width:250px">
         </div>
 
         <div class="left-content">

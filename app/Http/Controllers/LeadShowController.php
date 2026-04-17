@@ -24,16 +24,21 @@ class LeadShowController extends Controller
 
     public function storeCall(Request $request, Lead $lead)
     {
+
         $data = $request->validate([
-            'called_at'        => ['required', 'date'],
-            'call_type'        => ['required', 'in:outgoing,incoming,missed'],
-            'duration_minutes' => ['nullable', 'integer', 'min:0'],
-            'outcome'          => ['required', 'in:' . implode(',', array_keys(LeadCallUpdate::OUTCOMES))],
+            // 'called_at'        => ['required', 'date'],
+            // 'call_type'        => ['required', 'in:outgoing,incoming,missed'],
+            // 'duration_minutes' => ['nullable', 'integer', 'min:0'],
+            'outcome'          => ['required'],
+            'outcome_sub_category_id'          => ['required'],
             'notes'            => ['nullable', 'string', 'max:1000'],
             'next_follow_up'   => ['nullable', 'date', 'after_or_equal:today'],
+            'followup_time'   => ['required'],
         ]);
 
         $data['lead_id'] = $lead->id;
+        $data['called_at'] = date("Y-m-d H:i:s");
+        $data['outcome_subcategory'] = $request->outcome_sub_category_id;
         $data['user_id'] = auth()->id();
 
         LeadCallUpdate::create($data);
@@ -60,6 +65,7 @@ class LeadShowController extends Controller
             'remind_at'   => ['required', 'date'],
             'type'        => ['required', 'in:' . implode(',', array_keys(LeadReminder::TYPES))],
             'priority'    => ['required', 'in:low,medium,high'],
+            'remainder_time'    => ['required'],
         ]);
 
         $data['lead_id'] = $lead->id;

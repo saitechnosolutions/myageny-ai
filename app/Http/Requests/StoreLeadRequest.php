@@ -28,6 +28,7 @@ class StoreLeadRequest extends FormRequest
             'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string', 'max:2000'],
             'branch_id'     => ['nullable', 'exists:branches,id'],
+            
         ];
     }
 

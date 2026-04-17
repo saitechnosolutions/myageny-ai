@@ -239,6 +239,9 @@
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.36"/></svg>
                 Refresh
             </button>
+            <a href="/product-dashboard/admin" class="da-refresh-btn" id="daRefreshBtn" >
+                Goto Product Dashboard
+            </a>
             <div style="font-size:12px;color:var(--da-muted);font-weight:600">
                 {{ $userName ?? auth()->user()->name }}
                 <span style="background:#f5f4f6;padding:2px 8px;border-radius:20px;margin-left:4px;font-size:11px">{{ $userRole ?? 'Admin' }}</span>
@@ -471,16 +474,17 @@
 
 @push('scripts')
 <script>
+    document.addEventListener("DOMContentLoaded", function () {
 (function () {
 'use strict';
 
 /* ═══════════════════════════════════════════════════════
    CONFIG
 ═══════════════════════════════════════════════════════ */
-var API_URL   = '{{ $apiBase ?? url("/api") }}/dashboard/admin';
+var API_URL   = '{{ $apiBase ?? url("/api") }}/dashboard-data';
 var API_TOKEN = '{{ $apiToken ?? "" }}';   // Server-issued Sanctum token (2h expiry)
 var LEAD_BASE = '{{ $leadBase ?? url("/leads") }}';
-
+console.log(API_TOKEN);
 // Avatar colors
 var AV_COLORS = ['#fe5f04','#7c3aed','#2563eb','#16a34a','#be123c','#0284c7','#b45309','#0f766e'];
 var avColor   = function(id) { return AV_COLORS[id % AV_COLORS.length]; };
@@ -559,6 +563,24 @@ function countFilters() {
     return Object.keys(buildParams()).length;
 }
 
+
+
+  function setLoading(on) {
+    const el = document.getElementById('daLoading');
+
+    if (!el) {
+        console.error('daLoading element not found');
+        return;
+    }
+
+    if (on) {
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
+    }
+}
+
+
 function renderChips() {
     var chips = document.getElementById('daChips');
     var labels = {
@@ -608,6 +630,7 @@ window.removeFilter = function(key) {
    API FETCH
 ═══════════════════════════════════════════════════════ */
 window.dashboardLoad = function() {
+console.log('🔥 dashboardLoad called');
     setLoading(true);
     hideError();
 
@@ -627,14 +650,18 @@ window.dashboardLoad = function() {
         'Authorization':    'Bearer ' + API_TOKEN
     };
 
+    console.log("Fetch URL"+url);
+
     fetch(url, { headers: headers, credentials: 'same-origin' })
         .then(function(res) {
+            console.log('STATUS:', res.status);
             if (res.status === 401) throw new Error('Unauthenticated. Please log in again.');
             if (res.status === 403) throw new Error('Access denied. Super Admin role required.');
             if (!res.ok) throw new Error('Server error (' + res.status + ')');
             return res.json();
         })
         .then(function(json) {
+
             if (!json.success) throw new Error(json.message || 'API returned an error');
             data = json.data;
             renderAll(data);
@@ -644,6 +671,7 @@ window.dashboardLoad = function() {
             renderChips();
         })
         .catch(function(err) {
+
             setLoading(false);
             btn.classList.remove('spinning');
             showError(err.message);
@@ -651,9 +679,11 @@ window.dashboardLoad = function() {
         });
 };
 
-function setLoading(on) {
-    document.getElementById('daLoading').classList.toggle('hidden', !on);
-}
+
+
+
+
+
 function showError(msg) {
     var el = document.getElementById('daError');
     document.getElementById('daErrorText').textContent = msg;
@@ -970,12 +1000,23 @@ function renderRecentLeads(leads) {
 // Token is server-issued via SuperAdminDashboardWebController
 // No localStorage needed — it's already set in API_TOKEN above
 
-// Initial load
-dashboardLoad();
 
-// Auto-refresh every 5 minutes
-setInterval(dashboardLoad, 5 * 60 * 1000);
+
+    if (typeof dashboardLoad === 'function') {
+        dashboardLoad();
+    } else {
+        console.error('❌ dashboardLoad not found');
+    }
+
+    setInterval(function () {
+        if (typeof dashboardLoad === 'function') {
+            dashboardLoad();
+        }
+    }, 5 * 60 * 1000);
+
+
 
 }());
+});
 </script>
 @endpush

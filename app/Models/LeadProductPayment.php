@@ -63,4 +63,9 @@ class LeadProductPayment extends Model
     {
         return self::PAYMENT_MODE_COLORS[$this->payment_mode] ?? '#7c7c7c';
     }
+
+    public function leadProduct()
+    {
+        return $this->belongsTo(LeadProduct::class);
+    }
 }

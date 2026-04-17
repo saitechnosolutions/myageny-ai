@@ -1,12 +1,19 @@
 <?php
 
+use App\Http\Controllers\AiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadShowController;
+use App\Http\Controllers\LeadStatusController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\QuotationController;
+use App\Http\Controllers\LeadSourceController;
+use App\Http\Controllers\OutcomeCategoryController;
+use App\Http\Controllers\OutcomeSubCategoryController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,6 +26,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 });
 
+Route::get('/quotations/{id}/pdf',  [QuotationController::class, 'downloadPdf'])->name('quotation.pdf');
+
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
@@ -29,7 +38,7 @@ Route::get('/forgot-password', function () {
 })->name('password.request');
 
 
-
+Route::get('/lead/form-customization', fn() => view('pages.field_customization.index'))->middleware('auth');
 Route::middleware(['auth'])->group(function () {
 
   // Dashboard
@@ -37,12 +46,15 @@ Route::middleware(['auth'])->group(function () {
     // Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
      // Super Admin Dashboard (API-integrated blade)
-    Route::get('/dashboard/admin', [SuperAdminDashboardController::class, 'index'])
+    Route::get('/dashboard/admin', [DashboardController::class, 'index'])
         ->name('dashboard.admin');
+
+    Route::get('/product-dashboard/admin', [SuperAdminDashboardController::class, 'adminProductindex']);
 
     // Default redirect by role
     Route::get('/dashboard', function () {
-        if (auth()->user()->hasAnyRole(['super_admin', 'admin'])) {
+
+        if (auth()->user()->hasAnyRole(['Super Admin', 'admin'])) {
             return redirect()->route('dashboard.admin');
         }
         return redirect()->route('leads.index');
@@ -113,15 +125,73 @@ Route::middleware(['auth'])->group(function () {
             [LeadShowController::class, 'destroyQuotation'])->name('quotations.destroy');
     });
 
-    Route::prefix('products')->name('products.')->middleware(['auth'])->group(function () {
-    Route::get('/',                  [ProductController::class, 'index'])->name('index');
-    Route::get('/create',            [ProductController::class, 'create'])->name('create');
-    Route::post('/',                 [ProductController::class, 'store'])->name('store');
-    Route::get('/{product}',         [ProductController::class, 'show'])->name('show');
-    Route::get('/{product}/edit',    [ProductController::class, 'edit'])->name('edit');
-    Route::put('/{product}',         [ProductController::class, 'update'])->name('update');
-    Route::delete('/{product}',      [ProductController::class, 'destroy'])->name('destroy');
-    Route::patch('/{product}/toggle',[ProductController::class, 'toggleStatus'])->name('toggle');
+    Route::prefix('products')->name('products.')->group(function () {
+
+    // AJAX helpers (must be before {product} wildcard)
+    Route::get('attributes-by-category/{category}', [ProductController::class, 'attributesByCategory'])
+         ->name('attributes-by-category');
+
+    Route::post('preview-price', [ProductController::class, 'previewPrice'])
+         ->name('preview-price');
+
+    // Standard resource routes
+    Route::get('/',               [ProductController::class, 'index'])->name('index');
+    Route::get('/create',         [ProductController::class, 'create'])->name('create');
+    Route::post('/',              [ProductController::class, 'store'])->name('store');
+    Route::get('/{product}',      [ProductController::class, 'show'])->name('show');
+    Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
+    Route::put('/{product}',      [ProductController::class, 'update'])->name('update');
+    Route::delete('/{product}',   [ProductController::class, 'destroy'])->name('destroy');
+
+
 });
+
+Route::middleware(['auth'])->prefix('settings')->name('settings.')->group(function () {
+
+    // Main settings dashboard
+    Route::get('/', fn() => view('pages.settings.index'))->name('index');
+
+    // Lead Status  (no create/show pages – handled via modal on index)
+    Route::resource('lead-statuses', LeadStatusController::class)
+         ->except(['create', 'show']);
+
+    // Lead Source
+    Route::resource('lead-sources', LeadSourceController::class)
+         ->except(['create', 'show']);
+
+    // Outcome Category
+    Route::resource('outcome-categories', OutcomeCategoryController::class)
+         ->except(['create', 'show']);
+
+    // Outcome Sub Category
+    Route::resource('outcome-sub-categories', OutcomeSubCategoryController::class)
+         ->except(['create', 'show']);
+});
+    Route::get('/get-subcategories/{id}', [OutcomeCategoryController::class, 'getSubCategories']);
+
+     Route::get('/quotations',               [QuotationController::class, 'index'])  ->name('quotations.index');
+    Route::get('/quotations/create/{leadId}',        [QuotationController::class, 'create']) ->name('quotations.create');
+    Route::post('/quotations',              [QuotationController::class, 'store'])  ->name('quotations.store');
+    Route::get('/quotations/{quotation}',   [QuotationController::class, 'show'])   ->name('quotations.show');
+    Route::patch('/quotations/{quotation}/approve', [QuotationController::class, 'approve'])->name('quotations.approve');
+    Route::delete('/quotations/{quotation}',[QuotationController::class, 'destroy'])->name('quotations.destroy');
+
+
+    // Helper: product search for Select2 AJAX (optional)
+    Route::get('/api/products-search',      [QuotationController::class, 'productsApi'])->name('api.products.search');
+
+    Route::post('/ai/summarize', [AiController::class, 'summarize'])->name('ai.summarize');
+
+
+//     Route::prefix('products')->name('products.')->middleware(['auth'])->group(function () {
+//     Route::get('/',                  [ProductController::class, 'index'])->name('index');
+//     Route::get('/create',            [ProductController::class, 'create'])->name('create');
+//     Route::post('/',                 [ProductController::class, 'store'])->name('store');
+//     Route::get('/{product}',         [ProductController::class, 'show'])->name('show');
+//     Route::get('/{product}/edit',    [ProductController::class, 'edit'])->name('edit');
+//     Route::put('/{product}',         [ProductController::class, 'update'])->name('update');
+//     Route::delete('/{product}',      [ProductController::class, 'destroy'])->name('destroy');
+//     Route::patch('/{product}/toggle',[ProductController::class, 'toggleStatus'])->name('toggle');
+// });
 
 });

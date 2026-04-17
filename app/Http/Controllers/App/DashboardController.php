@@ -52,6 +52,7 @@ class DashboardController extends Controller
             new OA\Response(response: 422, description: "Validation error",  content: new OA\JsonContent(ref: "#/components/schemas/ValidationErrorResponse")),
         ]
     )]
+    
     public function index(Request $request): JsonResponse
     {
         // ── Validate filter inputs ─────────────────────────────────

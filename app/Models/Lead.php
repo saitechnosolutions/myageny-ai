@@ -26,6 +26,7 @@ class Lead extends Model
         'branch_id',
         'assigned_to',
         'created_by',
+        
     ];
 
     protected $casts = [

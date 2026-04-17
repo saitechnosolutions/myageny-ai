@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'huggingface' => [
+        'key' => env('HUGGINGFACE_KEY'),
+    ],
+
+    'ai_agent' => [
+        'url'    => env('AI_AGENT_URL', 'http://127.0.0.1:8001'),
+        'secret' => env('AI_AGENT_SECRET', ''),
+    ],
+
 ];

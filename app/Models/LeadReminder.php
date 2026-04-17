@@ -10,7 +10,7 @@ class LeadReminder extends Model
 {
     protected $fillable = [
         'lead_id','user_id','title','description',
-        'remind_at','type','priority','is_completed','completed_at',
+        'remind_at','type','priority','is_completed','completed_at','remainder_time'
     ];
 
     protected $casts = [

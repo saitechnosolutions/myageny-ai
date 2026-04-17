@@ -2,11 +2,12 @@
 <aside class="sidebar">
     <div class="sidebar-header">
         <div class="logo-container">
-            <div class="logo-icon">
-                <img src="{{ asset('images/de5a089ae19a67b2b6f7f59203abf1b0ba0f9474.png') }}" alt="Logo" class="logo-img">
+            {{--  <div class="logo-icon">
+                <img src="{{ asset('images/my_agenci_logo.png') }}" alt="Logo" class="logo-img">
             </div>
-            <span class="logo-text">myAgenci.ai</span>
-            <img src="{{ asset('images/42_3060.svg') }}" alt="Collapse" class="collapse-icon">
+            <span class="logo-text">myAgenci.ai</span>  --}}
+            <img src="{{ asset('images/my_agenci_logo.png') }}" alt="Logo" class="logo-img">
+            {{--  <img src="{{ asset('images/42_3060.svg') }}" alt="Collapse" class="collapse-icon">  --}}
         </div>
 
         <div class="search-bar">
@@ -47,14 +48,17 @@
 </a>
 
 <!-- Dropdown Menu -->
-<div class="submenu {{ request()->is('masters*') ? 'show' : '' }}">
+<div class="submenu {{ request()->is('masters*') ? 'show' : 'show' }}">
 
     <a href="{{ url('/products') }}" class="submenu-item {{ request()->is('products') ? 'active' : '' }}">
         Products
     </a>
+      <a href="{{ url('/lead/form-customization') }}" class="submenu-item {{ request()->is('products') ? 'active' : '' }}">
+        Form Customization
+    </a>
 </div>
 
-                <a href="javascript:void(0)"
+    <a href="javascript:void(0)"
    class="nav-item has-dropdown {{ request()->is('lead*') ? 'active open' : '' }}"
    onclick="toggleDropdown(this)">
 
@@ -70,7 +74,7 @@
 </a>
 
 <!-- Dropdown Menu -->
-<div class="submenu {{ request()->is('lead*') ? 'show' : '' }}">
+<div class="submenu {{ request()->is('lead*') ? 'show' : 'show' }}">
     <a href="{{ url('/leads') }}" class="submenu-item {{ request()->is('leads') ? 'active' : '' }}">
         All Leads
     </a>
@@ -79,6 +83,26 @@
         Add Lead
     </a>
 </div>
+
+ <a href="{{ url('/quotations') }}" class="nav-item {{ request()->is('quotations') || request()->is('/') ? 'active' : '' }}">
+                    @if(request()->is('quotations') || request()->is('/'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <img src="{{ asset('images/42_3074.svg') }}" alt="Quotation">
+                        <span>Quotations</span>
+                    </div>
+                </a>
+
+                <a href="{{ url('/settings') }}" class="nav-item {{ request()->is('settings') || request()->is('/') ? 'active' : '' }}">
+                    @if(request()->is('settings') || request()->is('/'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <img src="{{ asset('images/42_3074.svg') }}" alt="Quotation">
+                        <span>Settings</span>
+                    </div>
+                </a>
 
             </div>
         </div>

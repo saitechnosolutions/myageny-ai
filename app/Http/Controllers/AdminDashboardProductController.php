@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\AdminDashboardService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class AdminDashboardProductController extends Controller
+{
+    public function __construct(protected AdminDashboardService $service) {}
+
+
+
+    public function index(Request $request): JsonResponse
+    {
+        $request->validate([
+            'product_id' => 'nullable|integer|exists:products,id',
+            'lead_id'    => 'nullable|integer|exists:leads,id',
+            'branch_id'  => 'nullable|integer|exists:branches,id',
+            'user_id'    => 'nullable|integer|exists:users,id',
+            'source'     => 'nullable|string|max:100',
+            'status'     => 'nullable|string|in:new,hot,cold,warm,converted,lost',
+            'from_date'  => 'nullable|date_format:Y-m-d',
+            'to_date'    => 'nullable|date_format:Y-m-d|after_or_equal:from_date',
+        ]);
+
+        $filters = $request->only([
+            'product_id', 'lead_id', 'branch_id',
+            'user_id', 'source', 'status',
+            'from_date', 'to_date',
+        ]);
+
+        try {
+            $data = $this->service->getDashboardData($filters);
+
+            return response()->json([
+                'status' => true,
+                'data'   => $data,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to load dashboard data.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /api/admin/dashboard/filters
+     * Returns dropdown options for filter selects.
+     */
+    public function filterOptions(): JsonResponse
+    {
+        try {
+            $products = DB::table('products')->select('id', 'product_name')->orderBy('product_name')->get();
+            $branches = DB::table('branches')->select('id', 'name')->orderBy('name')->get();
+            $users    = DB::table('users')->select('id', 'name')->orderBy('name')->get();
+            $sources  = DB::table('leads')->distinct()->pluck('lead_source')->filter()->values();
+
+            return response()->json([
+                'status' => true,
+                'data'   => compact('products', 'branches', 'users', 'sources'),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Failed to load filter options.',
+            ], 500);
+        }
+    }
+}

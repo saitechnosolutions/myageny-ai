@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'myAgenci.ai')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,6 +11,9 @@
     <!-- Font Awesome (If needed) & Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+
     <style>
         /* ===== GLOBAL RESET & BASE ===== */
         :root {
@@ -187,6 +191,11 @@
     transition: transform 0.3s ease;
 }
 
+.select2-container
+{
+    width:100% !important;
+}
+
 .has-dropdown.open .chevron {
     transform: rotate(90deg);
 }
@@ -205,7 +214,21 @@
 
         @yield('content')
     </main>
+     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    @stack('scripts')
     <script>
+
+            $(document).ready(function() {
+        $('.select2').select2({
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('.select2').select2({
+            dropdownParent: $('#pp-modal-add-product')
+        });
+});
 
 function toggleDropdown(element) {
     const submenu = element.nextElementSibling;

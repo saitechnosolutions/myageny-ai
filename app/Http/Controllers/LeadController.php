@@ -5,8 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreLeadRequest;
 use App\Http\Requests\UpdateLeadRequest;
+use App\Http\Resources\LeadSourceCollection;
+use App\Http\Resources\LeadStatusCollection;
 use App\Models\Branch;
 use App\Models\Lead;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
+use App\Models\OutcomeCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -114,9 +119,10 @@ class LeadController extends Controller
      */
     public function show(Lead $lead)
     {
-        $lead->load(['branch', 'assignedTo', 'createdBy']);
+        $lead->load(['branch', 'assignedTo', 'createdBy', 'quotations']);
+        $outcomes = OutcomeCategory::get();
 
-        return view('pages.leads.show', compact('lead'));
+        return view('pages.leads.show', compact('lead', 'outcomes'));
     }
 
     /**
@@ -167,5 +173,19 @@ class LeadController extends Controller
         $lead->update(['lead_status' => $request->lead_status]);
 
         return back()->with('success', "Lead status updated to <strong>{$lead->status_label}</strong>.");
+    }
+
+    public function leadStatus()
+    {
+        $leadStatus = LeadStatus::get();
+
+        return new LeadStatusCollection($leadStatus);
+    }
+
+    public function leadSource()
+    {
+        $leadSource = LeadSource::get();
+
+        return new LeadSourceCollection($leadSource);
     }
 }
