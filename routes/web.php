@@ -13,6 +13,7 @@ use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\OutcomeSubCategoryController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\MagiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,13 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::get('/quotations/{id}/pdf',  [QuotationController::class, 'downloadPdf'])->name('quotation.pdf');
+
+Route::get('/magi', function () {
+    return view('pages.magi.index');
+})->middleware('auth');
+
+Route::get('/db/tables',       [MagiController::class, 'listTables']);
+Route::post('/db/fetch-table', [MagiController::class, 'fetchTable']);
 
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
