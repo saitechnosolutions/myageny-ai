@@ -38,7 +38,7 @@
 
         {{-- Package Name --}}
         <div class="pm-field">
-            <label class="pm-label pm-label--required" for="package_name">Package Name</label>
+            <label class="pm-label pm-label--required" for="package_name">Package Name (Product Name)</label>
             <input type="text" id="package_name" name="package_name"
                    class="pm-input @error('package_name') is-invalid @enderror"
                    value="{{ old('package_name', $isEdit ? $product->package_name : '') }}"
@@ -64,12 +64,12 @@
         </div>
 
         {{-- Sort Order --}}
-        <div class="pm-field pm-field--sm">
+        {{--  <div class="pm-field pm-field--sm">
             <label class="pm-label" for="sort_order">Sort Order</label>
             <input type="number" id="sort_order" name="sort_order" min="0"
                    class="pm-input"
                    value="{{ old('sort_order', $isEdit ? $product->sort_order : 0) }}">
-        </div>
+        </div>  --}}
 
         {{-- Description --}}
         <div class="pm-field">

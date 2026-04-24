@@ -24,6 +24,15 @@
 .text-right         { text-align:right; }
 .crm-empty          { text-align:center; color:#9e9e9e; padding:32px !important; }
 
+/* Pagination */
+.crm-pagination     { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-top:1px solid #f1f1f1; gap:12px; flex-wrap:wrap; }
+.crm-page-info      { font-size:12px; color:#9e9e9e; }
+.crm-page-links     { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+.crm-page-link      { display:inline-flex; align-items:center; justify-content:center; min-width:36px; padding:7px 11px; border-radius:8px; font-size:12px; font-weight:600; text-decoration:none; color:#666; border:1px solid #e1dee3; background:#fff; transition:all .15s ease; }
+.crm-page-link:hover { background:#fe5f04; color:#fff; border-color:#fe5f04; }
+.crm-page-link.active { background:#fe5f04; color:#fff; border-color:#fe5f04; }
+.crm-page-link.disabled { opacity:.45; cursor:default; pointer-events:none; }
+
 /* Badges */
 .crm-badge          { background:#f0eadb; color:#6b4c1e; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
 .crm-badge-blue     { background:#eef4ff; color:#3355aa; }

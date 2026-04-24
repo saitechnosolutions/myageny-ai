@@ -17,7 +17,7 @@
 
     /* ── Header ── */
     .header {
-      background: #0f1923;
+      background: {{ $quoteSetting['theme_color'] }};
       color: #fff;
       padding: 20px 28px;
       overflow: hidden;
@@ -35,7 +35,7 @@
     .brand-sub { font-size: 9px; color: #fff; line-height: 1.6; }
     .gstin-badge {
       display: inline-block;
-      background: #c8973a;
+      background: {{ $quoteSetting['secondary_color'] }};
       color: #fff;
       font-size: 9px;
       padding: 2px 6px;
@@ -43,7 +43,7 @@
       margin-top: 5px;
     }
 
-    .estimate-word { font-size: 30px; color: #c8973a; font-weight: bold; }
+    .estimate-word { font-size: 30px; color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; }
     .est-meta { font-size: 10px; color: rgba(255,255,255,.8); line-height: 1.8; margin-top: 6px; }
     .est-meta strong { color: #fff; }
 
@@ -75,7 +75,7 @@
     /* ── Table ── */
     .table-wrap { padding: 0 28px; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
-    thead tr { background: #0f1923; color: #fff; }
+    thead tr { background: {{ $quoteSetting['theme_color'] }}; color: #fff; }
     thead th {
       padding: 8px 8px;
       text-align: left;
@@ -106,7 +106,7 @@
     .t-lbl { float: left; color: #5a6472; }
     .t-val { float: right; font-weight: 600; }
     .t-grand {
-      background: #0f1923;
+      background: {{ $quoteSetting['theme_color'] }};
       color: #fff;
       padding: 10px 12px;
       overflow: hidden;
@@ -114,7 +114,7 @@
       margin-top: 6px;
     }
     .t-grand .t-lbl { color: #fff; font-weight: bold; font-size: 12px; }
-    .t-grand .t-val { color: #c8973a; font-weight: bold; font-size: 16px; }
+    .t-grand .t-val { color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; font-size: 16px; }
 
     /* ── Words bar ── */
     .words-bar {
@@ -122,7 +122,7 @@
       border-top: 1px solid #f0e0bc;
       padding: 8px 28px;
       font-size: 10px;
-      color: #c8973a;
+      color: {{ $quoteSetting['secondary_color'] }};
       font-weight: bold;
     }
     .words-bar span { color: #5a6472; font-weight: normal; margin-right: 4px; }
@@ -173,6 +173,16 @@
     overflow-wrap: break-word;
     pointer-events: none; /* click-through */
 }
+
+.footer-final
+{
+    position: absolute;
+    bottom:0;
+    background: #fdf4e7;
+    padding:10px;
+    width:100%;
+    text-align:center
+}
   </style>
 </head>
 <body>
@@ -181,25 +191,25 @@
 <div class="header clearfix">
   <div class="header-left">
      @php
-    $path = public_path('images/LOGO_STS.png');
+    $path = public_path($quoteSetting['logo']);
     $type = pathinfo($path, PATHINFO_EXTENSION);
     $data = file_get_contents($path);
     $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
 @endphp
 
-<div style="margin-bottom:10px;width:120px;background-color:#fff;padding:10px;border-radius:10px">
-    <img src="{{ $base64 }}" style="width:105px">
+<div style="margin-bottom:10px;width:180px;background-color:#fff;padding:10px;border-radius:10px">
+    <img src="{{ $base64 }}" style="width:175px">
 </div>
 
-    <div class="brand-name">Sai Techno Solutions Private Limited</div>
+    {{--  <div class="brand-name">Brilliant Pavers</div>  --}}
     <div class="brand-sub">
-      No: 6, 1st Floor, KCP Garden, Kaapi Kadai Stop,<br>
-      Saravanampatti, Coimbatore – Tamil Nadu 641035, India
+      297A, D.R.Shelders, Shakthi Garden, Chidambaram Nagar, <br>
+      Poompogar Nagar, Saravanampatti, <br>Coimbatore, Tamil Nadu 641035.
     </div>
-    <span class="gstin-badge">GSTIN: 33ABPCS7671C1Z3</span>
+    <span class="gstin-badge">GSTIN: </span>
   </div>
   <div class="header-right">
-    <div class="estimate-word">Estimate</div>
+    <div class="estimate-word">Quotation</div>
     <div class="est-meta">
       <strong>{{ $quotation->estimate_number }}</strong><br>
       Date: <strong>{{ \Carbon\Carbon::parse($quotation->estimate_date)->format('d/m/Y') }}</strong><br>
@@ -286,18 +296,18 @@
 <div class="footer-row clearfix">
   <div class="foot-cell">
     <div class="foot-label">Bank Details</div>
-    <div class="bk-row clearfix"><span >Bank Name : </span><span >DHANLAXMI BANK</span></div>
-    <div class="bk-row clearfix">Account Name : SAI TECHNO SOLUTIONS PVT LTD</div>
-    <div class="bk-row clearfix">Account Number : 012706700003085</div>
-    <div class="bk-row clearfix">IFSC Code : DLXB0000127</div>
-    <div class="bk-row clearfix">Branch : PEELAMEDU</div>
-    <span class="upi">UPI: saitechno3085@dlb</span>
+    <div class="bk-row clearfix"><span >Bank Name : </span><span >{{ $quoteSetting['bank_name'] }}</span></div>
+    <div class="bk-row clearfix">Account Name : {{ $quoteSetting['account_name'] }}</div>
+    <div class="bk-row clearfix">Account Number : {{ $quoteSetting['bank_account'] }}</div>
+    <div class="bk-row clearfix">IFSC Code : {{ $quoteSetting['bank_ifsc'] }}</div>
+    <div class="bk-row clearfix">Branch : {{ $quoteSetting['bank_branch'] }}</div>
+    <span class="upi">UPI: {{ $quoteSetting['bank_upi'] }}</span>
     <p class="note">Looking forward for your business.</p>
   </div>
   <div class="foot-cell">
     <div class="foot-label">Authorized Signatory</div>
     @php
-    $path = public_path('images/sign.jpeg');
+    $path = public_path($quoteSetting['signature']);
     $type = pathinfo($path, PATHINFO_EXTENSION);
     $data = file_get_contents($path);
     $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
@@ -310,8 +320,14 @@
   </div>
 </div>
 
+
+
 <div class="preview">
-    <h1>Preview Only</h1>
+    <h1>{{ $quoteSetting['watermark_text'] }}</h1>
+</div>
+
+<div class="footer-final">
+    <a style="text-decoration:none;color:#0f1923" href="http://myagenci.ai/" target="_blank">Powered By Myagenci.ai</a>
 </div>
 
 </body>

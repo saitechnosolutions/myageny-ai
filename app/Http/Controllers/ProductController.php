@@ -61,6 +61,12 @@ class ProductController extends Controller
     {
         $product = $this->service->store($request->validated());
 
+        $category = ProductCategory::find($request->product_category_id);
+
+
+        $product->update([
+            "product_name"=> $category->name . ' ' . $request->package_name
+        ]);
         return redirect()
             ->route('products.show', $product)
             ->with('success', "Product {$product->package_name} created successfully.");

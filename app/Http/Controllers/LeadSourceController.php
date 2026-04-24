@@ -11,7 +11,9 @@ class LeadSourceController extends Controller
 {
     public function index()
     {
-        $sources = LeadSource::latest()->get();
+        $sources = LeadSource::latest()
+            ->paginate(10)
+            ->withQueryString();
         return view('pages.settings.lead-source.index', compact('sources'));
     }
 

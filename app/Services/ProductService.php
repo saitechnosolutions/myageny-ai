@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\ProductAttributeValue;
+use App\Models\ProductCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -13,13 +14,29 @@ class ProductService
      * Create a product along with its dynamic attribute values.
      */
     public function store(array $data): Product
-    {
-        return DB::transaction(function () use ($data) {
-            $product = Product::create($this->productFields($data));
-            $this->syncAttributes($product, $data['attributes'] ?? []);
-            return $product->load('category', 'attributeValues.attribute');
-        });
-    }
+{
+    return DB::transaction(function () use ($data) {
+
+        $category = ProductCategory::find($data['product_category_id']);
+
+        $data['product_name'] =
+            $category->name . ' ' . $data['package_name'];
+
+        $product = Product::create(
+            $this->productFields($data)
+        );
+
+        $this->syncAttributes(
+            $product,
+            $data['attributes'] ?? []
+        );
+
+        return $product->load(
+            'category',
+            'attributeValues.attribute'
+        );
+    });
+}
 
     /**
      * Update a product and re-sync its attribute values.

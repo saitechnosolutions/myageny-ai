@@ -84,9 +84,14 @@ Route::prefix('mobile/auth')->group(function () {
 });
 
 
+Route::get('/get-outcome-category', [OutcomeCategoryController::class, 'getOutcomeCategory']);
 Route::get('/get-subcategories/{id}', [OutcomeCategoryController::class, 'getSubCategories']);
 Route::get('/get-lead-status', [LeadController::class, 'leadStatus']);
 Route::get('/get-lead-source', [LeadController::class, 'leadSource']);
+Route::get('/quotation/{quotation}', [QuotationController::class, 'apiShow']);
+Route::post('/create-quotation', [QuotationController::class, 'apiStore']);
+Route::put('/quotation/{quotation}', [QuotationController::class, 'apiUpdate']);
+Route::patch('/quotation/{quotation}', [QuotationController::class, 'apiUpdate']);
 
 /*
 |--------------------------------------------------------------------------

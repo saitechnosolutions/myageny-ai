@@ -71,6 +71,93 @@
             background-color: var(--color-bg);
             z-index: 10;
         }
+        input[type="date"],
+        input[type="time"],
+        input[type="datetime-local"] {
+            accent-color: #ff7c30;
+            color-scheme: light;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            border-radius: 8px;
+            padding: 4px;
+            transition: background-color .15s ease, opacity .15s ease;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover,
+        input[type="time"]::-webkit-calendar-picker-indicator:hover,
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+            background-color: rgba(255, 124, 48, 0.14);
+        }
+        input[type="date"]:focus,
+        input[type="time"]:focus,
+        input[type="datetime-local"]:focus {
+            border-color: #ff7c30 !important;
+            box-shadow: 0 0 0 3px rgba(255, 124, 48, 0.12) !important;
+        }
+        main table thead th {
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+        .app-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 14px 18px;
+            border-top: 1px solid #f0eef2;
+            background: #fff;
+        }
+        .app-pagination__info {
+            font-size: 12px;
+            color: #8a8a8a;
+        }
+        .app-pagination__info strong {
+            color: #121212;
+            font-weight: 700;
+        }
+        .app-pagination__links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .app-pagination__link,
+        .app-pagination__ellipsis {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            padding: 6px 11px;
+            border-radius: 8px;
+            border: 1px solid #e1dee3;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            color: #666;
+            text-decoration: none;
+            transition: all .15s ease;
+        }
+        .app-pagination__link:hover,
+        .app-pagination__link.is-active {
+            background: #fe5f04;
+            border-color: #fe5f04;
+            color: #fff;
+        }
+        .app-pagination__link.is-disabled {
+            opacity: .45;
+            cursor: default;
+            pointer-events: none;
+        }
+        .app-pagination__ellipsis {
+            border-color: transparent;
+            background: transparent;
+            color: #9e9e9e;
+            min-width: auto;
+            padding: 6px 2px;
+        }
         img, svg { display: block; max-width: 100%; }
         h1, h2, h3, h4, h5, h6, p { margin: 0; }
         a { text-decoration: none; color: inherit; }

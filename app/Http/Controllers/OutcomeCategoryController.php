@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OutcomeCategoryRequest;
+use App\Http\Resources\OutcomeCategoryCollection;
 use App\Models\OutcomeCategory;
 use App\Models\OutcomeSubCategory;
 
@@ -12,7 +13,10 @@ class OutcomeCategoryController extends Controller
 {
     public function index()
     {
-        $categories = OutcomeCategory::withCount('subCategories')->latest()->get();
+        $categories = OutcomeCategory::withCount('subCategories')
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
         return view('pages.settings.outcome-category.index', compact('categories'));
     }
 
@@ -63,6 +67,13 @@ class OutcomeCategoryController extends Controller
             ->get();
 
         return response()->json($data);
+    }
+
+    public function getOutcomeCategory()
+    {
+        $data = OutcomeCategory::get();
+
+        return new OutcomeCategoryCollection($data);
     }
 
 }

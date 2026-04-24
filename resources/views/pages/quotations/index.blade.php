@@ -25,6 +25,29 @@
     background: #fff; border: 1px solid #e1dee3;
     border-radius: 14px; overflow: hidden;
 }
+.filter-card {
+    background: #fff; border: 1px solid #e1dee3; border-radius: 14px;
+    padding: 18px; margin-bottom: 20px;
+}
+.filter-form {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto auto;
+    gap: 12px; align-items: end;
+}
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+.filter-label { font-size: 12px; font-weight: 600; color: #666; }
+.filter-input, .filter-select {
+    width: 100%; padding: 10px 12px; border: 1px solid #e1dee3; border-radius: 10px;
+    font-size: 13px; color: #121212; background: #fff; outline: none;
+}
+.filter-input:focus, .filter-select:focus {
+    border-color: #fe5f04; box-shadow: 0 0 0 3px rgba(254, 95, 4, 0.10);
+}
+.btn-filter-reset {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    border: 1px solid #e1dee3; color: #444; text-decoration: none; background: #fff;
+}
+.btn-filter-reset:hover { border-color: #cfc9d2; background: #fafafa; }
 .table-responsive { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 thead tr { background: #f8f8f8; }
@@ -63,6 +86,13 @@ tbody tr:last-child td { border-bottom: none; }
 }
 .empty-state { text-align: center; padding: 60px 20px; color: #9e9e9e; }
 .empty-state i { font-size: 42px; margin-bottom: 12px; display: block; }
+@media (max-width: 1200px) {
+    .filter-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .filter-form { grid-template-columns: 1fr; }
+}
 </style>
 @endpush
 
@@ -79,6 +109,69 @@ tbody tr:last-child td { border-bottom: none; }
     @if(session('success'))
         <div class="alert-success">{{ session('success') }}</div>
     @endif
+
+    <div class="filter-card">
+        <form method="GET" action="{{ route('quotations.index') }}" class="filter-form">
+            @if(request('lead_id'))
+                <input type="hidden" name="lead_id" value="{{ request('lead_id') }}">
+            @endif
+
+            <div class="filter-group">
+                <label class="filter-label" for="quotation_no">Quotation No</label>
+                <input
+                    type="text"
+                    id="quotation_no"
+                    name="quotation_no"
+                    class="filter-input"
+                    value="{{ request('quotation_no') }}"
+                    placeholder="Search quotation no">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="start_date">Start Date</label>
+                <input
+                    type="date"
+                    id="start_date"
+                    name="start_date"
+                    class="filter-input"
+                    value="{{ request('start_date') }}">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="end_date">End Date</label>
+                <input
+                    type="date"
+                    id="end_date"
+                    name="end_date"
+                    class="filter-input"
+                    value="{{ request('end_date') }}">
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="status">Status</label>
+                <select id="status" name="status" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="approved" @selected(request('status') === 'approved')>Approved</option>
+                    <option value="pending" @selected(request('status') === 'pending')>Pending</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="approved_by">Approved By</label>
+                <select id="approved_by" name="approved_by" class="filter-select">
+                    <option value="">All Users</option>
+                    @foreach($approvers as $approver)
+                        <option value="{{ $approver->id }}" @selected((string) request('approved_by') === (string) $approver->id)>
+                            {{ $approver->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary">Apply Filter</button>
+            <a href="{{ route('quotations.index', request()->filled('lead_id') ? ['lead_id' => request('lead_id')] : []) }}" class="btn-filter-reset">Reset</a>
+        </form>
+    </div>
 
     {{-- Table --}}
     <div class="card">
@@ -102,7 +195,7 @@ tbody tr:last-child td { border-bottom: none; }
                     <tr>
                         <td>{{ $loop->iteration + ($quotations->firstItem() - 1) }}</td>
                         <td><strong>{{ $q->quotation_no }}</strong></td>
-                        <td>{{ $q->lead->name ?? '—' }}<br>
+                        <td>{{ $q->lead?->contact_name ?? '—' }}<br>
                             <small style="color:#9e9e9e">{{ $q->lead->company_name ?? '' }}</small>
                         </td>
                         <td>{{ $q->quotation_date->format('d M Y') }}</td>
@@ -144,7 +237,7 @@ tbody tr:last-child td { border-bottom: none; }
                                 <i class="bi bi-file-earmark-text"></i>
                                 No quotations found.
                                 <br><br>
-                                <a href="{{ route('quotations.create') }}" class="btn-primary" style="display:inline-flex">
+                                <a href="/quotations/create" class="btn-primary" style="display:inline-flex">
                                     Create First Quotation
                                 </a>
                             </div>
@@ -157,8 +250,8 @@ tbody tr:last-child td { border-bottom: none; }
 
         {{-- Pagination --}}
         @if($quotations->hasPages())
-        <div style="padding: 16px 20px; border-top: 1px solid #f1f1f1;">
-            {{ $quotations->links() }}
+        <div style="padding: 0;">
+            @include('partials.table-pagination', ['paginator' => $quotations])
         </div>
         @endif
     </div>

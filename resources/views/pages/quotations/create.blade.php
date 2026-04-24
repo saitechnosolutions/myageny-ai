@@ -147,7 +147,7 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
             <a href="{{ route('quotations.index') }}" class="back-link">
                 <i class="bi bi-arrow-left"></i> Back to Quotations
             </a>
-            <div class="page-title" style="margin-top:4px">Create Quotation</div>
+            <div class="page-title" style="margin-top:4px">Create Quotation - {{ $lead->contact_name }} {{ $lead->company_name }}</div>
         </div>
     </div>
 
@@ -196,21 +196,7 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                     @error('valid_until')<div class="error-text">{{ $message }}</div>@enderror
                 </div>
 
-                 {{-- Lead --}}
-                <div class="form-group">
-                    <label class="form-label">Lead <span style="color:#e53935">*</span></label>
-                    <select name="lead_id"
-                            class="form-control  @error('lead_id') is-invalid @enderror" required>
-                        <option value="">— Select Lead —</option>
-                        @foreach($leads as $lead)
-                        <option value="{{ $lead->id }}"
-                            {{ (old('lead_id', $selectedLeadId) == $lead->id) ? 'selected' : '' }}>
-                            {{ $lead->name }}{{ $lead->company_name ? ' — '.$lead->company_name : '' }}
-                        </option>
-                        @endforeach
-                    </select>
-                    @error('lead_id')<div class="error-text">{{ $message }}</div>@enderror
-                </div>
+
             </div>
 
              <div class="grid-2" style="margin-bottom:16px">
@@ -282,9 +268,18 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                         <span id="displaySubtotal">₹0.00</span>
                     </div>
                     <div class="totals-line">
+                        <span>CGST (<span id="displayTaxPctCgst">0</span>%)</span>
+                        <span id="displayTaxAmtCgst">₹0.00</span>
+                    </div>
+                    <div class="totals-line">
+                        <span>SGST (<span id="displayTaxPctSgst">0</span>%)</span>
+                        <span id="displayTaxAmtSgst">₹0.00</span>
+                    </div>
+
+                    {{--  <div class="totals-line">
                         <span>Tax (<span id="displayTaxPct">0</span>%)</span>
                         <span id="displayTaxAmt">₹0.00</span>
-                    </div>
+                    </div>  --}}
                     <div class="totals-line grand">
                         <span>Grand Total</span>
                         <span id="displayTotal">₹0.00</span>
@@ -311,6 +306,7 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
             </div>
             <div class="form-group">
                 <textarea name="notes" class="form-control" placeholder="Optional internal notes…">{{ old('notes') }}</textarea>
+                <input type="hidden" name="lead_id" value="{{ $leadId ?? null }}">
             </div>
         </div>
         </div>
@@ -460,13 +456,16 @@ $(function () {
         subtotal += parseFloat($(this).text().replace('₹', '') || 0);
     });
 
-    const taxPct  = 18;
-    const taxAmt  = subtotal * (taxPct / 100);
+    const taxPctCgst  = 18/2;
+    const taxPctSgst  = 18/2;
+    const taxAmt  = subtotal * (taxPctCgst / 100);
     const grand   = subtotal + taxAmt;
 
     $('#displaySubtotal').text(fmt(subtotal));
-    $('#displayTaxPct').text(taxPct.toFixed(2));
-    $('#displayTaxAmt').text(fmt(taxAmt));
+    $('#displayTaxPctSgst').text(taxPctCgst.toFixed(2));
+    $('#displayTaxPctCgst').text(taxPctSgst.toFixed(2));
+    $('#displayTaxAmtCgst').text(fmt(taxAmt));
+    $('#displayTaxAmtSgst').text(fmt(taxAmt));
     $('#displayTotal').text(fmt(grand));
 }
 

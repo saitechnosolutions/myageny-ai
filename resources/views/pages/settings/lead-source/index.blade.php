@@ -7,7 +7,7 @@
 
 @section('content')
 <main class="main-content">
-    @include('layouts.header')
+
 
     <div class="crm-page-body">
         <div class="crm-page-header">
@@ -29,9 +29,9 @@
                     <tr><th>#</th><th>Source Name</th><th>Created</th><th class="text-right">Actions</th></tr>
                 </thead>
                 <tbody>
-                @forelse($sources as $i => $source)
+                @forelse($sources as $source)
                     <tr>
-                        <td>{{ $i + 1 }}</td>
+                        <td>{{ ($sources->firstItem() ?? 1) + $loop->index }}</td>
                         <td><span class="crm-badge crm-badge-blue">{{ $source->name }}</span></td>
                         <td>{{ $source->created_at->format('d M Y') }}</td>
                         <td class="text-right">
@@ -48,6 +48,10 @@
                 @endforelse
                 </tbody>
             </table>
+
+            @if($sources->hasPages())
+                @include('partials.table-pagination', ['paginator' => $sources])
+            @endif
         </div>
     </div>
 

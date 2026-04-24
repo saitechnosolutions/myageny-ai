@@ -14,6 +14,7 @@ use App\Models\LeadStatus;
 use App\Models\OutcomeCategory;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class LeadController extends Controller
 {
@@ -167,7 +168,7 @@ class LeadController extends Controller
     public function updateStatus(Request $request, Lead $lead)
     {
         $request->validate([
-            'lead_status' => ['required', 'in:' . implode(',', array_keys(Lead::STATUSES))],
+            'lead_status' => ['required', 'string', Rule::in(Lead::statusKeys())],
         ]);
 
         $lead->update(['lead_status' => $request->lead_status]);

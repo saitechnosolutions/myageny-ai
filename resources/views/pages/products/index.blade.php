@@ -141,9 +141,11 @@
                 </div>
 
                 {{-- Pagination --}}
+                @if($products->hasPages())
                 <div class="pm-pagination">
-                    {{ $products->links() }}
+                    @include('partials.table-pagination', ['paginator' => $products])
                 </div>
+                @endif
             @endif
         </div>
 

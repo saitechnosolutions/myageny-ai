@@ -329,7 +329,7 @@ tbody tr:last-child td { border-bottom: none; }
                                 @csrf @method('PATCH')
                                 <div style="position:relative;">
                                     <select name="lead_status" class="lsp-status-select" onchange="this.form.submit()">
-                                        @foreach(\App\Models\Lead::STATUSES as $k => $v)
+                                        @foreach(\App\Models\Lead::statusOptions() as $k => $v)
                                         <option value="{{ $k }}" {{ $lead->lead_status===$k?'selected':'' }}>{{ $v }}</option>
                                         @endforeach
                                     </select>
@@ -625,12 +625,12 @@ tbody tr:last-child td { border-bottom: none; }
                                     @csrf @method('PATCH')
                                     <button type="submit" class="lsp-rem-done-btn">✓ Done</button>
                                 </form>
-                                <form method="POST" action="{{ route('leads.reminders.destroy', [$lead, $rem]) }}">
+                                {{--  <form method="POST" action="{{ route('leads.reminders.destroy', [$lead, $rem]) }}">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="lsp-rem-del-btn" onclick="return confirm('Remove reminder?')">
                                         <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
                                     </button>
-                                </form>
+                                </form>  --}}
                             </div>
                         </div>
                         @endforeach
@@ -800,7 +800,7 @@ tbody tr:last-child td { border-bottom: none; }
                         {{--  <td>{{ $loop->iteration + ($quotations->firstItem() - 1) }}</td>  --}}
                         <td>{{ $i++ }}</td>
                         <td><strong>{{ $q->quotation_no }}</strong></td>
-                        <td>{{ $q->lead->name ?? '—' }}<br>
+                        <td>{{ $q->lead?->contact_name ?? '—' }}<br>
                             <small style="color:#9e9e9e">{{ $q->lead->company_name ?? '' }}</small>
                         </td>
                         <td>{{ $q->quotation_date->format('d M Y') }}</td>

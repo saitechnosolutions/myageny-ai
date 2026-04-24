@@ -7,7 +7,7 @@
 
 @section('content')
 <main class="main-content">
-    @include('layouts.header')
+
 
     <div class="crm-page-body">
         <div class="crm-page-header">
@@ -29,9 +29,9 @@
                     <tr><th>#</th><th>Category Name</th><th>Sub-categories</th><th>Created</th><th class="text-right">Actions</th></tr>
                 </thead>
                 <tbody>
-                @forelse($categories as $i => $cat)
+                @forelse($categories as $cat)
                     <tr>
-                        <td>{{ $i + 1 }}</td>
+                        <td>{{ ($categories->firstItem() ?? 1) + $loop->index }}</td>
                         <td><strong>{{ $cat->name }}</strong></td>
                         <td><span class="crm-count-badge">{{ $cat->sub_categories_count }}</span></td>
                         <td>{{ $cat->created_at->format('d M Y') }}</td>
@@ -49,6 +49,10 @@
                 @endforelse
                 </tbody>
             </table>
+
+            @if($categories->hasPages())
+                @include('partials.table-pagination', ['paginator' => $categories])
+            @endif
         </div>
     </div>
 

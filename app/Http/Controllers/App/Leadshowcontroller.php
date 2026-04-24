@@ -69,7 +69,7 @@ class LeadShowController extends Controller
             'called_at'        => ['required', 'date'],
             'call_type'        => ['required', 'in:outgoing,incoming,missed'],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
-            'outcome'          => ['required', 'in:' . implode(',', array_keys(LeadCallUpdate::OUTCOMES))],
+            'outcome'          => ['required'],
             'notes'            => ['nullable', 'string', 'max:1000'],
             'next_follow_up'   => ['nullable', 'date', 'after_or_equal:today'],
         ]);

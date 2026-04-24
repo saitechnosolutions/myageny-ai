@@ -407,6 +407,9 @@
 
             {{-- Pagination --}}
             @if($query->hasPages())
+                @include('partials.table-pagination', ['paginator' => $query])
+            @endif
+            @if(false && $query->hasPages())
             <div class="usr-pagination">
                 <div class="usr-page-info">
                     Page {{ $query->currentPage() }} of {{ $query->lastPage() }}

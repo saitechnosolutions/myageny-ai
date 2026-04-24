@@ -18,6 +18,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SuperAdminDashboardController extends ApiController
@@ -31,8 +32,8 @@ class SuperAdminDashboardController extends ApiController
         $request->validate([
             'branch_id'  => ['nullable', 'exists:branches,id'],
             'user_id'    => ['nullable', 'exists:users,id'],
-            'stage'      => ['nullable', 'in:' . implode(',', array_keys(Lead::STATUSES))],
-            'source'     => ['nullable', 'in:' . implode(',', array_keys(Lead::SOURCES))],
+            'stage'      => ['nullable', Rule::in(Lead::statusKeys())],
+            'source'     => ['nullable', Rule::in(Lead::sourceKeys())],
             'date_from'  => ['nullable', 'date'],
             'date_to'    => ['nullable', 'date', 'after_or_equal:date_from'],
             'quick_date' => ['nullable', 'in:today,week,month,quarter,year'],
@@ -70,7 +71,7 @@ class SuperAdminDashboardController extends ApiController
         // ── 2. Stage funnel (from enum) ────────────────────────────
         $stageTotal  = 0;
         $stageFunnel = [];
-        foreach (Lead::STATUSES as $key => $label) {
+        foreach (Lead::statusOptions() as $key => $label) {
             $count = (clone $base())->where('lead_status', $key)->count();
             $stageTotal += $count;
             $stageFunnel[] = [
@@ -91,7 +92,7 @@ class SuperAdminDashboardController extends ApiController
         // ── 3. Source counts (from enum) ───────────────────────────
         $sourceCounts = [];
         $sourceTotal  = 0;
-        foreach (Lead::SOURCES as $key => $label) {
+        foreach (Lead::sourceOptions() as $key => $label) {
             $count = (clone $base())->where('lead_source', $key)->count();
             $sourceTotal += $count;
             $sourceCounts[] = ['key' => $key, 'label' => $label, 'count' => $count];
@@ -374,8 +375,8 @@ class SuperAdminDashboardController extends ApiController
 
             // Enum references for mobile UI
             'enums' => [
-                'statuses'         => Lead::STATUSES,
-                'sources'          => Lead::SOURCES,
+                'statuses'         => Lead::statusOptions(),
+                'sources'          => Lead::sourceOptions(),
                 'priorities'       => Lead::PRIORITIES,
                 'status_colors'    => Lead::STATUS_COLORS,
                 'priority_colors'  => Lead::PRIORITY_COLORS,
@@ -413,8 +414,8 @@ class SuperAdminDashboardController extends ApiController
          $request->validate([
             'branch_id'  => ['nullable', 'exists:branches,id'],
             'user_id'    => ['nullable', 'exists:users,id'],
-            'stage'      => ['nullable', 'in:' . implode(',', array_keys(Lead::STATUSES))],
-            'source'     => ['nullable', 'in:' . implode(',', array_keys(Lead::SOURCES))],
+            'stage'      => ['nullable', Rule::in(Lead::statusKeys())],
+            'source'     => ['nullable', Rule::in(Lead::sourceKeys())],
             'date_from'  => ['nullable', 'date'],
             'date_to'    => ['nullable', 'date', 'after_or_equal:date_from'],
             'quick_date' => ['nullable', 'in:today,week,month,quarter,year'],
@@ -452,7 +453,7 @@ class SuperAdminDashboardController extends ApiController
         // ── 2. Stage funnel (from enum) ────────────────────────────
         $stageTotal  = 0;
         $stageFunnel = [];
-        foreach (Lead::STATUSES as $key => $label) {
+        foreach (Lead::statusOptions() as $key => $label) {
             $count = (clone $base())->where('lead_status', $key)->count();
             $stageTotal += $count;
             $stageFunnel[] = [
@@ -473,7 +474,7 @@ class SuperAdminDashboardController extends ApiController
         // ── 3. Source counts (from enum) ───────────────────────────
         $sourceCounts = [];
         $sourceTotal  = 0;
-        foreach (Lead::SOURCES as $key => $label) {
+        foreach (Lead::sourceOptions() as $key => $label) {
             $count = (clone $base())->where('lead_source', $key)->count();
             $sourceTotal += $count;
             $sourceCounts[] = ['key' => $key, 'label' => $label, 'count' => $count];
@@ -756,8 +757,8 @@ class SuperAdminDashboardController extends ApiController
 
             // Enum references for mobile UI
             'enums' => [
-                'statuses'         => Lead::STATUSES,
-                'sources'          => Lead::SOURCES,
+                'statuses'         => Lead::statusOptions(),
+                'sources'          => Lead::sourceOptions(),
                 'priorities'       => Lead::PRIORITIES,
                 'status_colors'    => Lead::STATUS_COLORS,
                 'priority_colors'  => Lead::PRIORITY_COLORS,

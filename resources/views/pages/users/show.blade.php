@@ -100,6 +100,12 @@
 .ushow-input-ico { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9e9e9e; pointer-events:none; width:13px; height:13px; }
 .ushow-input { width:100%; padding:8px 12px 8px 32px; border:1px solid #e1dee3; border-radius:9px; font-size:13px; font-family:inherit; color:#121212; background:#fafafa; outline:none; transition:all .15s; }
 .ushow-input:focus { border-color:#fe5f04; background:#fff; box-shadow:0 0 0 3px rgba(254,95,4,.1); }
+.ushow-select { width:100%; padding:10px 12px; border:1px solid #e1dee3; border-radius:9px; font-size:13px; font-family:inherit; color:#121212; background:#fafafa; outline:none; }
+.ushow-checkbox-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+.ushow-checkbox-card { display:flex; gap:10px; align-items:flex-start; border:1px solid #f0eef2; border-radius:10px; padding:10px 12px; background:#fafafa; }
+.ushow-checkbox-card input { margin-top:3px; }
+.ushow-checkbox-title { display:block; font-size:12px; font-weight:700; color:#121212; }
+.ushow-checkbox-sub { display:block; font-size:11px; color:#8a8a8a; margin-top:2px; }
 
 /* Activity log */
 .ushow-activity-list { display:flex; flex-direction:column; gap:0; }
@@ -180,6 +186,7 @@
 
                         @php
                             $role = $user->roles->first();
+                            $directPermissions = $user->permissions;
                             $roleColors = ['super_admin'=>['bg'=>'#fef9c3','color'=>'#92400e'],'admin'=>['bg'=>'#fff7ed','color'=>'#ea580c'],'team_leader'=>['bg'=>'#f0fdf4','color'=>'#15803d'],'bde'=>['bg'=>'#eff6ff','color'=>'#2563eb'],'hr_manager'=>['bg'=>'#faf5ff','color'=>'#7c3aed'],'accounts_manager'=>['bg'=>'#f0fdfa','color'=>'#0f766e'],'staff'=>['bg'=>'#f5f4f6','color'=>'#7c7c7c']];
                             $rc = $roleColors[$role?->name ?? 'staff'] ?? ['bg'=>'#f5f4f6','color'=>'#7c7c7c'];
                         @endphp
@@ -343,6 +350,74 @@
                     </div>
                 </div>
                 @endif
+
+                @if($directPermissions->count())
+                <div class="ushow-card">
+                    <div class="ushow-card-head">
+                        <div class="ushow-card-title">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"/></svg>
+                            Direct Permissions
+                        </div>
+                        <span style="font-size:11px;color:#9e9e9e;">{{ $directPermissions->count() }} directly assigned</span>
+                    </div>
+                    <div class="ushow-card-body">
+                        <div class="ushow-perms-grid">
+                            @foreach($directPermissions as $permission)
+                            <span class="ushow-perm-chip">{{ $permission->display_name ?? $permission->name }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                <div class="ushow-card">
+                    <div class="ushow-card-head">
+                        <div class="ushow-card-title">
+                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Access Control
+                        </div>
+                    </div>
+                    <div class="ushow-card-body">
+                        <form method="POST" action="{{ route('auth.users.assign-role', $user) }}" class="ushow-pw-form">
+                            @csrf
+                            <div>
+                                <div class="ushow-info-label">Role</div>
+                                <select name="roles[]" class="ushow-select">
+                                    <option value="">No Role</option>
+                                    @foreach($roles as $availableRole)
+                                    <option value="{{ $availableRole->name }}" {{ $user->roles->contains('name', $availableRole->name) ? 'selected' : '' }}>
+                                        {{ $availableRole->display_name ?? ucfirst(str_replace('_', ' ', $availableRole->name)) }}
+                                    </option>
+                                    @endforeach
+                                </select>
+                                @error('roles')<div style="font-size:11px;color:#dc2626;margin-top:6px;">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div>
+                                <div class="ushow-info-label">Direct Permissions</div>
+                                <div class="ushow-checkbox-grid">
+                                    @foreach($permissions as $module => $permissionGroup)
+                                        @foreach($permissionGroup as $permission)
+                                        <label class="ushow-checkbox-card">
+                                            <input type="checkbox" name="permissions[]" value="{{ $permission->name }}" {{ $directPermissions->contains('name', $permission->name) ? 'checked' : '' }}>
+                                            <span>
+                                                <span class="ushow-checkbox-title">{{ $permission->display_name ?? ucfirst(str_replace(['.', '_'], ' ', $permission->name)) }}</span>
+                                                <span class="ushow-checkbox-sub">{{ strtoupper($module) }} | {{ $permission->name }}</span>
+                                            </span>
+                                        </label>
+                                        @endforeach
+                                    @endforeach
+                                </div>
+                                @error('permissions')<div style="font-size:11px;color:#dc2626;margin-top:6px;">{{ $message }}</div>@enderror
+                                @error('permissions.*')<div style="font-size:11px;color:#dc2626;margin-top:6px;">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div>
+                                <button type="submit" class="ushow-btn ushow-btn-primary">Update Access</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
 
                 {{-- Reset Password --}}
                 @can('users.manage')

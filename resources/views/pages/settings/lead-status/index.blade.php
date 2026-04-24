@@ -7,7 +7,7 @@
 
 @section('content')
 <main class="main-content">
-    @include('layouts.header')
+
 
     <div class="crm-page-body">
         {{-- Page title + Add button --}}
@@ -36,9 +36,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                @forelse($statuses as $i => $status)
+                @forelse($statuses as $status)
                     <tr>
-                        <td>{{ $i + 1 }}</td>
+                        <td>{{ ($statuses->firstItem() ?? 1) + $loop->index }}</td>
                         <td><span class="crm-badge">{{ $status->name }}</span></td>
                         <td>{{ $status->created_at->format('d M Y') }}</td>
                         <td class="text-right">
@@ -55,6 +55,10 @@
                 @endforelse
                 </tbody>
             </table>
+
+            @if($statuses->hasPages())
+                @include('partials.table-pagination', ['paginator' => $statuses])
+            @endif
         </div>
     </div>
 

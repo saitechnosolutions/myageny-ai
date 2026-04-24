@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: "Leads", description: "Lead management endpoints for mobile app")]
@@ -128,10 +129,10 @@ class LeadController extends Controller
             'lead_date'     => ['nullable', 'date'],
             'mobile_number' => ['required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:255'],
-            'lead_source'   => ['required', 'string', 'in:' . implode(',', array_keys(Lead::SOURCES))],
-            'lead_status'   => ['required', 'string', 'in:' . implode(',', array_keys(Lead::STATUSES))],
+            'lead_source'   => ['required', 'string' ],
+            'lead_status'   => ['required', 'string'],
             'product_id'    => ['nullable', 'integer', 'exists:products,id'],
-            'priority'      => ['required', 'string', 'in:' . implode(',', array_keys(Lead::PRIORITIES))],
+            'priority'      => ['required', 'string'],
             'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string'],
             'branch_id'     => ['nullable', 'integer', 'exists:branches,id'],
@@ -141,8 +142,8 @@ class LeadController extends Controller
             'reminder.remind_at'   => ['required_with:reminder', 'date', 'after:now'],
             'reminder.title'       => ['required_with:reminder', 'string', 'max:255'],
             'reminder.description' => ['nullable', 'string', 'max:1000'],
-            'reminder.type'        => ['nullable', 'string', 'in:' . implode(',', array_keys(LeadReminder::TYPES))],
-            'reminder.priority'    => ['nullable', 'string', 'in:' . implode(',', array_keys(Lead::PRIORITIES))],
+            'reminder.type'        => ['nullable', 'string'],
+            'reminder.priority'    => ['nullable', 'string'],
         ]);
 
         $reminderCreated = false;
@@ -245,8 +246,8 @@ class LeadController extends Controller
             'lead_date'     => ['nullable', 'date'],
             'mobile_number' => ['sometimes', 'required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:255'],
-            'lead_source'   => ['sometimes', 'required', 'string', 'in:' . implode(',', array_keys(Lead::SOURCES))],
-            'lead_status'   => ['sometimes', 'required', 'string', 'in:' . implode(',', array_keys(Lead::STATUSES))],
+            'lead_source'   => ['sometimes', 'required', 'string', Rule::in(Lead::sourceKeys())],
+            'lead_status'   => ['sometimes', 'required', 'string', Rule::in(Lead::statusKeys())],
             'product_id'    => ['nullable', 'integer', 'exists:products,id'],
             'priority'      => ['sometimes', 'required', 'string', 'in:' . implode(',', array_keys(Lead::PRIORITIES))],
             'deal_value'    => ['nullable', 'numeric', 'min:0'],
@@ -318,7 +319,7 @@ class LeadController extends Controller
     public function updateStatus(Request $request, Lead $lead): JsonResponse
     {
         $request->validate([
-            'lead_status' => ['required', 'string', 'in:' . implode(',', array_keys(Lead::STATUSES))],
+            'lead_status' => ['required', 'string', Rule::in(Lead::statusKeys())],
         ]);
 
         $lead->update(['lead_status' => $request->lead_status]);
@@ -350,8 +351,8 @@ class LeadController extends Controller
         return response()->json([
             'status' => true,
             'data'   => [
-                'sources'        => Lead::SOURCES,
-                'statuses'       => Lead::STATUSES,
+                'sources'        => Lead::sourceOptions(),
+                'statuses'       => Lead::statusOptions(),
                 'priorities'     => Lead::PRIORITIES,
                 'reminder_types' => LeadReminder::TYPES,
                 'branches'       => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),

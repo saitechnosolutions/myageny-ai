@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Lead;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateLeadRequest extends FormRequest
 {
@@ -17,8 +18,8 @@ class UpdateLeadRequest extends FormRequest
             'lead_date'     => ['required', 'date'],
             'mobile_number' => ['required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:150'],
-            'lead_source'   => ['required', 'string', 'in:' . implode(',', array_keys(Lead::SOURCES))],
-            'lead_status'   => ['required', 'string', 'in:' . implode(',', array_keys(Lead::STATUSES))],
+            'lead_source'   => ['required', 'string', Rule::in(Lead::sourceKeys())],
+            'lead_status'   => ['required', 'string', Rule::in(Lead::statusKeys())],
             'product_name'  => ['nullable', 'string', 'max:100'],
             'assigned_to'   => ['nullable', 'exists:users,id'],
             'priority'      => ['required', 'in:low,medium,high'],

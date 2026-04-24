@@ -212,7 +212,7 @@
                     <svg class="ld-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                     <select name="lead_source" class="ld-fs" id="f_source" onchange="autoSubmit()">
                         <option value="">All Sources</option>
-                        @foreach(\App\Models\Lead::SOURCES as $key => $label)
+                        @foreach(\App\Models\Lead::sourceOptions() as $key => $label)
                         <option value="{{ $key }}" {{ request('lead_source') == $key ? 'selected':'' }}>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -224,7 +224,7 @@
                     <svg class="ld-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
                     <select name="lead_status" class="ld-fs" id="f_status" onchange="autoSubmit()">
                         <option value="">All Status</option>
-                        @foreach(\App\Models\Lead::STATUSES as $key => $label)
+                        @foreach(\App\Models\Lead::statusOptions() as $key => $label)
                         <option value="{{ $key }}" {{ request('lead_status') == $key ? 'selected':'' }}>{{ $label }}</option>
                         @endforeach
                     </select>
@@ -469,6 +469,9 @@
 
             {{-- Pagination --}}
             @if($leads->hasPages())
+                @include('partials.table-pagination', ['paginator' => $leads])
+            @endif
+            @if(false && $leads->hasPages())
             <div class="ld-pag">
                 <div class="ld-pag-info">Page {{ $leads->currentPage() }} of {{ $leads->lastPage() }}</div>
                 <div class="ld-pag-links">

@@ -10,6 +10,9 @@ class Lead extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static ?array $sourceOptionsCache = null;
+    protected static ?array $statusOptionsCache = null;
+
     protected $fillable = [
         'company_name',
         'contact_name',
@@ -35,25 +38,6 @@ class Lead extends Model
     ];
 
     // ── Constants ──────────────────────────────────────────────────
-
-    const SOURCES = [
-        'reference'    => 'Reference',
-        'ad_campaign'  => 'Ad Campaign',
-        'direct_visit' => 'Direct Visit',
-        'invitation'   => 'Invitation',
-        'cold_outreach'=> 'Cold Outreach',
-        'social_media' => 'Social Media',
-        'website'      => 'Website',
-    ];
-
-    const STATUSES = [
-        'new'         => 'New',
-        'qualified'   => 'Qualified',
-        'proposal'    => 'Proposal',
-        'negotiation' => 'Negotiation',
-        'won'         => 'Won',
-        'lost'        => 'Lost',
-    ];
 
     const PRIORITIES = [
         'low'    => 'Low',
@@ -98,6 +82,40 @@ class Lead extends Model
     return $this->belongsTo(Product::class);
 }
 
+    public static function sourceOptions(): array
+    {
+        if (static::$sourceOptionsCache !== null) {
+            return static::$sourceOptionsCache;
+        }
+
+        return static::$sourceOptionsCache = LeadSource::query()
+            ->orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+    }
+
+    public static function sourceKeys(): array
+    {
+        return array_keys(static::sourceOptions());
+    }
+
+    public static function statusOptions(): array
+    {
+        if (static::$statusOptionsCache !== null) {
+            return static::$statusOptionsCache;
+        }
+
+        return static::$statusOptionsCache = LeadStatus::query()
+            ->orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+    }
+
+    public static function statusKeys(): array
+    {
+        return array_keys(static::statusOptions());
+    }
+
     // ── Scopes ────────────────────────────────────────────────────
 
     public function scopeForUser($query, $userId)
@@ -115,7 +133,9 @@ class Lead extends Model
 
     public function getStatusColorAttribute(): array
     {
-        return self::STATUS_COLORS[$this->lead_status] ?? ['bg' => '#f5f4f6', 'text' => '#7c7c7c', 'border' => '#e1dee3'];
+        $statusKey = str($this->lead_status)->lower()->replace(' ', '_')->value();
+
+        return self::STATUS_COLORS[$statusKey] ?? ['bg' => '#f5f4f6', 'text' => '#7c7c7c', 'border' => '#e1dee3'];
     }
 
     public function getPriorityColorAttribute(): array
@@ -125,7 +145,7 @@ class Lead extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return self::STATUSES[$this->lead_status] ?? ucfirst($this->lead_status);
+        return static::statusOptions()[$this->lead_status] ?? $this->lead_status;
     }
 
     public function getPriorityLabelAttribute(): string
@@ -135,7 +155,7 @@ class Lead extends Model
 
     public function getSourceLabelAttribute(): string
     {
-        return self::SOURCES[$this->lead_source] ?? ucfirst(str_replace('_', ' ', $this->lead_source));
+        return static::sourceOptions()[$this->lead_source] ?? $this->lead_source;
     }
 
     public function getFormattedDealValueAttribute(): string

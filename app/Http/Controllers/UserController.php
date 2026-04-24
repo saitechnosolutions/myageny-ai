@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
@@ -97,11 +98,14 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        // $this->authorize('users.view');
+        $user->load(['branch', 'roles', 'roles.permissions', 'permissions']);
+        $roles = Role::orderByRaw('COALESCE(display_name, name)')->get();
+        $permissions = Permission::orderBy('module')
+            ->orderByRaw('COALESCE(display_name, name)')
+            ->get()
+            ->groupBy(fn (Permission $permission) => $permission->module ?: 'general');
 
-        $user->load(['branch', 'roles', 'roles.permissions']);
-
-        return view('pages.users.show', compact('user'));
+        return view('pages.users.show', compact('user', 'roles', 'permissions'));
     }
 
     /**
@@ -210,5 +214,10 @@ class UserController extends Controller
         $user->update(['password' => Hash::make($request->new_password)]);
 
         return back()->with('success', "Password for <strong>{$user->name}</strong> has been reset.");
+    }
+
+    public function authIndex()
+    {
+        return view('pages.auth_menu.index');
     }
 }

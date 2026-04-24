@@ -8,7 +8,7 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize()
     {
-        // return auth()->user()->can('users.manage');
+      return true;
     }
 
     public function rules(): array

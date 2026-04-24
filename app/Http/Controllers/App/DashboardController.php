@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: "Dashboard", description: "Mobile app dashboard endpoints")]
@@ -32,8 +33,8 @@ class DashboardController extends Controller
         parameters: [
             new OA\Parameter(name: "branch_id",  in: "query", required: false, description: "Filter by branch ID",   schema: new OA\Schema(type: "integer")),
             new OA\Parameter(name: "user_id",    in: "query", required: false, description: "Filter by user ID",     schema: new OA\Schema(type: "integer")),
-            new OA\Parameter(name: "stage",      in: "query", required: false, description: "Filter by lead stage",  schema: new OA\Schema(type: "string", enum: ["new","qualified","proposal","negotiation","won","lost"])),
-            new OA\Parameter(name: "source",     in: "query", required: false, description: "Filter by lead source", schema: new OA\Schema(type: "string", enum: ["reference","ad_campaign","direct_visit","invitation","cold_outreach","social_media","website"])),
+            new OA\Parameter(name: "stage",      in: "query", required: false, description: "Filter by lead stage",  schema: new OA\Schema(type: "string")),
+            new OA\Parameter(name: "source",     in: "query", required: false, description: "Filter by lead source", schema: new OA\Schema(type: "string")),
             new OA\Parameter(name: "date_from",  in: "query", required: false, description: "Start date (Y-m-d)",    schema: new OA\Schema(type: "string", format: "date")),
             new OA\Parameter(name: "date_to",    in: "query", required: false, description: "End date (Y-m-d)",      schema: new OA\Schema(type: "string", format: "date")),
             new OA\Parameter(name: "quick_date", in: "query", required: false, description: "Preset date range",     schema: new OA\Schema(type: "string", enum: ["today","week","month","quarter","year"])),
@@ -59,8 +60,8 @@ class DashboardController extends Controller
         $request->validate([
             'branch_id'  => ['nullable', 'exists:branches,id'],
             'user_id'    => ['nullable', 'exists:users,id'],
-            'stage'      => ['nullable', 'in:' . implode(',', array_keys(Lead::STATUSES))],
-            'source'     => ['nullable', 'in:' . implode(',', array_keys(Lead::SOURCES))],
+            'stage'      => ['nullable', Rule::in(Lead::statusKeys())],
+            'source'     => ['nullable', Rule::in(Lead::sourceKeys())],
             'date_from'  => ['nullable', 'date'],
             'date_to'    => ['nullable', 'date', 'after_or_equal:date_from'],
             'quick_date' => ['nullable', 'in:today,week,month,quarter,year'],
@@ -98,7 +99,7 @@ class DashboardController extends Controller
         // ── 2. Stage funnel ────────────────────────────────────────
         $stageTotal  = 0;
         $stageFunnel = [];
-        foreach (Lead::STATUSES as $key => $label) {
+        foreach (Lead::statusOptions() as $key => $label) {
             $count = (clone $base())->where('lead_status', $key)->count();
             $stageTotal += $count;
             $stageFunnel[] = [
@@ -118,7 +119,7 @@ class DashboardController extends Controller
         // ── 3. Source distribution ─────────────────────────────────
         $sourceCounts = [];
         $sourceTotal  = 0;
-        foreach (Lead::SOURCES as $key => $label) {
+        foreach (Lead::sourceOptions() as $key => $label) {
             $count = (clone $base())->where('lead_source', $key)->count();
             $sourceTotal += $count;
             $sourceCounts[] = ['key' => $key, 'label' => $label, 'count' => $count];
@@ -406,8 +407,8 @@ class DashboardController extends Controller
 
                 // Enum references for mobile UI rendering
                 'enums' => [
-                    'statuses'         => Lead::STATUSES,
-                    'sources'          => Lead::SOURCES,
+                    'statuses'         => Lead::statusOptions(),
+                    'sources'          => Lead::sourceOptions(),
                     'priorities'       => Lead::PRIORITIES,
                     'status_colors'    => Lead::STATUS_COLORS,
                     'priority_colors'  => Lead::PRIORITY_COLORS,

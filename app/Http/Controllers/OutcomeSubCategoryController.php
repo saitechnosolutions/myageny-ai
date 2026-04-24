@@ -14,7 +14,8 @@ class OutcomeSubCategoryController extends Controller
     {
         $subCategories = OutcomeSubCategory::with('category')
                             ->latest()
-                            ->get();
+                            ->paginate(10)
+                            ->withQueryString();
         $categories = OutcomeCategory::get();
         return view('pages.settings.outcome-sub-category.index', compact('subCategories', 'categories'));
     }
@@ -32,6 +33,7 @@ class OutcomeSubCategoryController extends Controller
 
     public function edit(OutcomeSubCategory $outcomeSubCategory)
     {
+
         $this->authorizeCompany($outcomeSubCategory);
         $categories = OutcomeCategory::forCompany()->get();
         return view('pages.settings.outcome-sub-category.edit', compact('outcomeSubCategory', 'categories'));

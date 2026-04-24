@@ -12,7 +12,9 @@ class LeadStatusController extends Controller
 {
     public function index()
     {
-        $statuses = LeadStatus::latest()->get();
+        $statuses = LeadStatus::latest()
+            ->paginate(10)
+            ->withQueryString();
         return view('pages.settings.lead-status.index', compact('statuses'));
     }
 

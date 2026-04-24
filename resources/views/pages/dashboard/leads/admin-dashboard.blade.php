@@ -293,7 +293,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
                 <select class="da-fsel" id="fStage" onchange="onFilterChange()">
                     <option value="">All Stages</option>
-                    @foreach(\App\Models\Lead::STATUSES as $k => $v)
+                    @foreach(\App\Models\Lead::statusOptions() as $k => $v)
                     <option value="{{ $k }}">{{ $v }}</option>
                     @endforeach
                 </select>
@@ -305,7 +305,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <select class="da-fsel" id="fSource" onchange="onFilterChange()">
                     <option value="">All Sources</option>
-                    @foreach(\App\Models\Lead::SOURCES as $k => $v)
+                    @foreach(\App\Models\Lead::sourceOptions() as $k => $v)
                     <option value="{{ $k }}">{{ $v }}</option>
                     @endforeach
                 </select>

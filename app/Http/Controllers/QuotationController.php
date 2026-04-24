@@ -7,6 +7,8 @@ use App\Models\Lead;
 use App\Models\Product;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\QuotationSetting;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -31,9 +33,34 @@ class QuotationController extends Controller
             $query->where('lead_id', $request->lead_id);
         }
 
-        $quotations = $query->paginate(15)->withQueryString();
+        if ($request->filled('quotation_no')) {
+            $query->where('quotation_no', 'like', '%' . trim($request->quotation_no) . '%');
+        }
 
-        return view('pages.quotations.index', compact('quotations'));
+        if ($request->filled('status')) {
+            if ($request->status === 'approved') {
+                $query->where('is_approved', true);
+            } elseif ($request->status === 'pending') {
+                $query->where('is_approved', false);
+            }
+        }
+
+        if ($request->filled('approved_by')) {
+            $query->where('approved_by', $request->approved_by);
+        }
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('quotation_date', '>=', $request->start_date);
+        }
+
+        if ($request->filled('end_date')) {
+            $query->whereDate('quotation_date', '<=', $request->end_date);
+        }
+
+        $quotations = $query->paginate(15)->withQueryString();
+        $approvers = User::orderBy('name')->get(['id', 'name']);
+
+        return view('pages.quotations.index', compact('quotations', 'approvers'));
     }
 
     // ── Create ────────────────────────────────────────────────────────────────
@@ -41,9 +68,9 @@ class QuotationController extends Controller
     /**
      * Show create form, optionally pre-selecting a lead.
      */
-    public function create($leadId): View
+    public function create($leadId = null): View
     {
-
+        $lead= Lead::find($leadId);
         $leads    = Lead::orderBy('contact_name')->get(['id', 'contact_name', 'company_name']);
         $products = Product::orderBy('product_name')->get(['id', 'product_name', 'description', 'final_price', 'base_price']);
 
@@ -56,7 +83,7 @@ class QuotationController extends Controller
             'tax'            => 0,
         ];
 
-        return view('pages.quotations.create', compact('leads', 'products', 'selectedLeadId', 'defaults'));
+        return view('pages.quotations.create', compact('leads', 'products', 'selectedLeadId', 'defaults', 'lead', 'leadId'));
     }
 
     // ── Store ─────────────────────────────────────────────────────────────────
@@ -64,72 +91,92 @@ class QuotationController extends Controller
     /**
      * Persist quotation + items inside a DB transaction.
      */
-    public function store(Request $request): RedirectResponse
-    {
 
-        $validated = $request->validate([
-            'lead_id'        => ['required'],
-            'quotation_date' => ['required', 'date'],
-            'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
+    public function store(Request $request)
+{
+    $validated = $request->validate([
+        'lead_id'        => ['nullable'],
+        'quotation_date' => ['required', 'date'],
+        'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
 
-            'notes'          => ['nullable', 'string'],
+        'notes'          => ['nullable', 'string'],
 
-            // Line items
-            'items'                  => ['required', 'array', 'min:1'],
-            'items.*.product_id'     => ['required', 'exists:products,id'],
-            'items.*.description'    => ['nullable', 'string'],
-            'items.*.qty'            => ['required', 'numeric', 'min:0.01'],
-            'items.*.unit_price'     => ['required', 'numeric', 'min:0'],
-            'items.*.discount'       => ['required', 'numeric', 'min:0'],
+        // Line items
+        'items'                  => ['required', 'array', 'min:1'],
+        'items.*.product_id'     => ['required', 'exists:products,id'],
+        'items.*.description'    => ['nullable', 'string'],
+        'items.*.qty'            => ['required', 'numeric', 'min:0.01'],
+        'items.*.unit_price'     => ['required', 'numeric', 'min:0'],
+        'items.*.discount'       => ['required', 'numeric', 'min:0'],
+    ]);
+
+    $quotation = DB::transaction(function () use ($validated, $request) {
+
+        $subtotal = 0;
+
+        foreach ($validated['items'] as $item) {
+
+            $rowTotal = ($item['qty'] * $item['unit_price']) - $item['discount'];
+
+            $subtotal += max($rowTotal, 0);
+        }
+
+        $taxAmount = round($subtotal * (18 / 100), 2);
+
+        $totalAmount = round($subtotal + $taxAmount, 2);
+
+        $quotation = Quotation::create([
+            'quotation_no'    => Quotation::generateQuotationNo(),
+            'quotation_date'  => $validated['quotation_date'],
+            'valid_until'     => $validated['valid_until'],
+            'tax'             => 18,
+            'subtotal'        => $subtotal,
+            'tax_amount'      => $taxAmount,
+            'total_amount'    => $totalAmount,
+            'lead_id'         => $validated['lead_id'] ?? null,
+            'notes'           => $validated['notes'] ?? null,
+            'is_approved'     => false,
+            'created_by'      => auth()->id(),
+            'bill_to_address' => $request->bill_to_address,
+            'ship_to_address' => $request->ship_to_address,
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
-            // 1. Calculate totals
-            $subtotal = 0;
-            foreach ($validated['items'] as $item) {
-                $rowTotal  = ($item['qty'] * $item['unit_price']) - $item['discount'];
-                $subtotal += max($rowTotal, 0);
-            }
+        foreach ($validated['items'] as $item) {
 
-            $taxAmount   = round($subtotal * (18 / 100), 2);
-            $totalAmount = round($subtotal + $taxAmount, 2);
+            $rowTotal = max(
+                ($item['qty'] * $item['unit_price']) - $item['discount'],
+                0
+            );
 
-            // 2. Create quotation
-            $quotation = Quotation::create([
-                'quotation_no'   => Quotation::generateQuotationNo(),
-                'quotation_date' => $validated['quotation_date'],
-                'valid_until'    => $validated['valid_until'],
-                'tax'            => 18,
-                'subtotal'       => $subtotal,
-                'tax_amount'     => $taxAmount,
-                'total_amount'   => $totalAmount,
-                'lead_id'        => $validated['lead_id'],
-                'notes'          => $validated['notes'] ?? null,
-                'is_approved'    => false,
-                'created_by'    => Auth::user()->id,
-                'bill_to_address'    => $request->bill_to_address,
-                'ship_to_address'    => $request->ship_to_address,
+            QuotationItem::create([
+                'quotation_id' => $quotation->id,
+                'product_id'   => $item['product_id'],
+                'description'  => $item['description'] ?? null,
+                'qty'          => $item['qty'],
+                'unit_price'   => $item['unit_price'],
+                'discount'     => $item['discount'],
+                'total'        => $rowTotal,
             ]);
+        }
 
-            // 3. Save line items
-            foreach ($validated['items'] as $item) {
-                $rowTotal = max(($item['qty'] * $item['unit_price']) - $item['discount'], 0);
+        return $quotation;
+    });
 
-                QuotationItem::create([
-                    'quotation_id' => $quotation->id,
-                    'product_id'   => $item['product_id'],
-                    'description'  => $item['description'] ?? null,
-                    'qty'          => $item['qty'],
-                    'unit_price'   => $item['unit_price'],
-                    'discount'     => $item['discount'],
-                    'total'        => $rowTotal,
-                ]);
-            }
-        });
+    // API Response
+      if ($request->expectsJson() || $request->is('api/*')) {
 
-        return redirect()->route('quotations.index')
-            ->with('success', 'Quotation created successfully.');
+        return response()->json([
+            'status' => true,
+            'message' => 'Quotation created successfully.',
+            'data' => $quotation->load('items')
+        ], 201);
     }
+
+    // Web Response
+    return redirect()
+        ->route('quotations.index')
+        ->with('success', 'Quotation created successfully.');
+}
 
     // ── Show ──────────────────────────────────────────────────────────────────
 
@@ -193,12 +240,10 @@ class QuotationController extends Controller
 
     public function apiStore(Request $request): JsonResponse
     {
-        // Reuse the same store logic via a shared private method
-        // For brevity, delegate to store() after faking redirect
         $request->validate([
             'lead_id'        => ['required', 'exists:leads,id'],
             'quotation_date' => ['required', 'date'],
-            'valid_until'    => ['required', 'date'],
+            'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
             'tax'            => ['required', 'numeric'],
             'items'          => ['required', 'array', 'min:1'],
             'items.*.product_id'  => ['required', 'exists:products,id'],
@@ -218,18 +263,21 @@ class QuotationController extends Controller
             $taxAmount   = round($subtotal * ($request->tax / 100), 2);
             $totalAmount = round($subtotal + $taxAmount, 2);
 
-            $quotation = Quotation::create([
-                'quotation_no'   => Quotation::generateQuotationNo(),
-                'quotation_date' => $request->quotation_date,
-                'valid_until'    => $request->valid_until,
-                'tax'            => $request->tax,
+              $quotation = Quotation::create([
+                  'quotation_no'   => Quotation::generateQuotationNo(),
+                  'quotation_date' => $request->quotation_date,
+                  'valid_until'    => $request->valid_until,
+                  'tax'            => $request->tax,
                 'subtotal'       => $subtotal,
                 'tax_amount'     => $taxAmount,
-                'total_amount'   => $totalAmount,
-                'lead_id'        => $request->lead_id,
-                'notes'          => $request->notes,
-                'is_approved'    => false,
-            ]);
+                  'total_amount'   => $totalAmount,
+                  'lead_id'        => $request->lead_id,
+                  'notes'          => $request->notes,
+                  'is_approved'    => false,
+                  'created_by'     => $request->user_id,
+                  'bill_to_address' => $request->bill_to_address,
+                  'ship_to_address' => $request->ship_to_address,
+              ]);
 
             foreach ($request->items as $item) {
                 QuotationItem::create([
@@ -245,16 +293,112 @@ class QuotationController extends Controller
         });
 
         return response()->json([
+            'status'    => true,
             'message'   => 'Quotation created.',
             'quotation' => $quotation->load('items'),
         ], 201);
     }
 
+    public function apiShow(Quotation $quotation): JsonResponse
+    {
+        return response()->json([
+            'status' => true,
+            'quotation' => $quotation->load(['lead', 'approver', 'createdBy', 'items.product']),
+        ]);
+    }
+
+    public function apiUpdate(Request $request, Quotation $quotation): JsonResponse
+    {
+        $validated = $request->validate([
+            'lead_id'        => ['required', 'exists:leads,id'],
+            'quotation_date' => ['required', 'date'],
+            'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
+            'tax'            => ['required', 'numeric'],
+            'notes'          => ['nullable', 'string'],
+            'items'                  => ['required', 'array', 'min:1'],
+            'items.*.product_id'     => ['required', 'exists:products,id'],
+            'items.*.description'    => ['nullable', 'string'],
+            'items.*.qty'            => ['required', 'numeric', 'min:0.01'],
+            'items.*.unit_price'     => ['required', 'numeric', 'min:0'],
+            'items.*.discount'       => ['required', 'numeric', 'min:0'],
+        ]);
+
+        DB::transaction(function () use ($validated, $request, $quotation) {
+            $subtotal = 0;
+
+            foreach ($validated['items'] as $item) {
+                $subtotal += max(($item['qty'] * $item['unit_price']) - $item['discount'], 0);
+            }
+
+            $taxAmount = round($subtotal * ($validated['tax'] / 100), 2);
+            $totalAmount = round($subtotal + $taxAmount, 2);
+
+            $quotation->update([
+                'lead_id'         => $validated['lead_id'],
+                'quotation_date'  => $validated['quotation_date'],
+                'valid_until'     => $validated['valid_until'],
+                'tax'             => $validated['tax'],
+                'subtotal'        => $subtotal,
+                'tax_amount'      => $taxAmount,
+                'total_amount'    => $totalAmount,
+                'notes'           => $validated['notes'] ?? null,
+                'bill_to_address' => $request->bill_to_address,
+                'ship_to_address' => $request->ship_to_address,
+            ]);
+
+            $quotation->items()->delete();
+
+            foreach ($validated['items'] as $item) {
+                QuotationItem::create([
+                    'quotation_id' => $quotation->id,
+                    'product_id'   => $item['product_id'],
+                    'description'  => $item['description'] ?? null,
+                    'qty'          => $item['qty'],
+                    'unit_price'   => $item['unit_price'],
+                    'discount'     => $item['discount'],
+                    'total'        => max(($item['qty'] * $item['unit_price']) - $item['discount'], 0),
+                ]);
+            }
+        });
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Quotation updated successfully.',
+            'quotation' => $quotation->load(['lead', 'approver', 'createdBy', 'items.product']),
+        ]);
+    }
+
     public function downloadPdf($id)
     {
         $quotation = Quotation::with('items', 'createdBy')->findOrFail($id);
+         $branchId = auth()->user()->branch_id;
 
-        $pdf = Pdf::loadView('pages.quotations.quotation_format_1', compact('quotation'))
+        $settings = QuotationSetting::where('branch_id', $branchId)->get();;
+
+        $quoteSetting = [
+            'logo' => $settings->where('key', 'logo')->first()?->value,
+            'theme_color' => $settings->where('key', 'theme_color')->first()?->value,
+            'secondary_color' => $settings->where('key', 'secondary_color')->first()?->value,
+            'prefix' => $settings->where('key', 'prefix')->first()?->value,
+            'number_padding' => $settings->where('key', 'number_padding')->first()?->value,
+            'terms' => $settings->where('key', 'terms')->first()?->value,
+            'company_address' => $settings->where('key', 'company_address')->first()?->value,
+            'company_name' => $settings->where('key', 'company_name')->first()?->value,
+            'company_phone' => $settings->where('key', 'company_phone')->first()?->value,
+            'company_email' => $settings->where('key', 'company_email')->first()?->value,
+            'company_gstin' => $settings->where('key', 'company_gstin')->first()?->value,
+            'bank_name' => $settings->where('key', 'bank_name')->first()?->value,
+            'bank_account' => $settings->where('key', 'bank_account')->first()?->value,
+            'bank_ifsc' => $settings->where('key', 'bank_ifsc')->first()?->value,
+            'watermark_text' => $settings->where('key', 'watermark_text')->first()?->value,
+            'signature' => $settings->where('key', 'signature')->first()?->value,
+            'account_name' => $settings->where('key', 'account_name')->first()?->value,
+            'bank_branch' => $settings->where('key', 'bank_branch')->first()?->value,
+            'bank_upi' => $settings->where('key', 'bank_upi')->first()?->value,
+        ];
+
+
+        $pdf = Pdf::loadView('pages.quotations.quotation_format_1', compact('quotation', 'quoteSetting'))
                   ->setPaper('a4', 'portrait')
                   ->setOptions([
                       'defaultFont'  => 'DejaVu Sans',
