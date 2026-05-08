@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\Branch;
+use App\Models\Company;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -27,7 +28,7 @@ class UserController extends Controller
                 $q->where(fn($q2) =>
                     $q2->where('name', 'like', '%'.$request->search.'%')
                        ->orWhere('email', 'like', '%'.$request->search.'%')
-                       ->orWhere('phone', 'like', '%'.$request->search.'%')
+                       ->orWhere('designation', 'like', '%'.$request->search.'%')
                 )
             )
             ->when($request->branch_id, fn($q) =>
@@ -58,6 +59,14 @@ class UserController extends Controller
     {
         // $this->authorize('users.manage');
 
+        $company = $this->currentCompany();
+
+        if ($company && $company->activeUsers()->count() >= $company->user_limit) {
+            return redirect()
+                ->route('users.index')
+                ->with('error', 'User limit reached for this company. Please contact admin to increase the limit.');
+        }
+
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $roles    = Role::orderBy('name')->get();
 
@@ -69,9 +78,18 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request)
     {
+        $company = $this->currentCompany();
 
+        if ($company && $company->activeUsers()->count() >= $company->user_limit) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'User limit reached for this company. Please contact admin to increase the limit.');
+        }
 
         $data = $request->validated();
+        $data['is_active'] = $request->boolean('is_active');
+        $data['company_id'] = auth()->user()?->company_id;
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
@@ -86,6 +104,7 @@ class UserController extends Controller
         // Assign role via Spatie
         if ($request->filled('role')) {
             $user->assignRole($request->role);
+            $this->syncCompanySuperAdmin($user, $request->role);
         }
 
         return redirect()
@@ -119,7 +138,7 @@ class UserController extends Controller
         $roles       = Role::orderBy('display_name')->get();
         $currentRole = $user->roles->first()?->name;
 
-        return view('users.edit', compact('user', 'branches', 'roles', 'currentRole'));
+        return view('pages.users.edit', compact('user', 'branches', 'roles', 'currentRole'));
     }
 
     /**
@@ -130,6 +149,7 @@ class UserController extends Controller
         // $this->authorize('users.manage');
 
         $data = $request->validated();
+        $data['is_active'] = $request->boolean('is_active');
 
         // Handle avatar
         if ($request->hasFile('avatar')) {
@@ -152,6 +172,9 @@ class UserController extends Controller
         // Sync role
         if ($request->filled('role')) {
             $user->syncRoles([$request->role]);
+            $this->syncCompanySuperAdmin($user, $request->role);
+        } else {
+            $this->syncCompanySuperAdmin($user, null);
         }
 
         return redirect()
@@ -170,8 +193,12 @@ class UserController extends Controller
             return back()->with('error', 'You cannot delete your own account.');
         }
 
-        if ($user->hasRole('super_admin')) {
+        if ($user->isSystemAdmin()) {
             return back()->with('error', 'Super admin accounts cannot be deleted.');
+        }
+
+        if ($this->isCurrentCompanySuperAdmin($user)) {
+            return back()->with('error', 'Company admin account cannot be deleted. Assign another company admin first.');
         }
 
         $user->delete();
@@ -190,6 +217,10 @@ class UserController extends Controller
 
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot deactivate your own account.');
+        }
+
+        if ($this->isCurrentCompanySuperAdmin($user)) {
+            return back()->with('error', 'Company admin account cannot be deactivated. Assign another company admin first.');
         }
 
         $user->update(['is_active' => !$user->is_active]);
@@ -219,5 +250,60 @@ class UserController extends Controller
     public function authIndex()
     {
         return view('pages.auth_menu.index');
+    }
+
+    private function currentCompany(): ?Company
+    {
+        $companyId = auth()->user()?->company_id;
+
+        if (! $companyId) {
+            return null;
+        }
+
+        return Company::find($companyId);
+    }
+
+    private function syncCompanySuperAdmin(User $user, ?string $roleName): void
+    {
+        if (! $user->company_id) {
+            return;
+        }
+
+        $company = Company::find($user->company_id);
+
+        if (! $company) {
+            return;
+        }
+
+        $companyAdminRole = Role::tenantRoleName('company_admin', $company->id);
+
+        if ($roleName === $companyAdminRole) {
+            if ($company->super_admin_user_id && (int) $company->super_admin_user_id !== (int) $user->id) {
+                $previousSuperAdmin = User::find($company->super_admin_user_id);
+
+                if ($previousSuperAdmin) {
+                    $previousSuperAdmin->removeRole($companyAdminRole);
+                }
+            }
+
+            $company->update(['super_admin_user_id' => $user->id]);
+
+            return;
+        }
+
+        if ((int) $company->super_admin_user_id === (int) $user->id) {
+            $company->update(['super_admin_user_id' => null]);
+        }
+    }
+
+    private function isCurrentCompanySuperAdmin(User $user): bool
+    {
+        if (! $user->company_id) {
+            return false;
+        }
+
+        return Company::whereKey($user->company_id)
+            ->where('super_admin_user_id', $user->id)
+            ->exists();
     }
 }

@@ -14,6 +14,7 @@
     var LEAD_ID   = cfg.leadId   || 0;
     var API_BASE  = cfg.apiBase  || '/api/v1';
     var CSRF      = cfg.csrf     || '';
+    var IS_ADMIN  = !!cfg.isAdmin;
 
     /* ── Local state ─────────────────────────────────────────────── */
     var ppState = {
@@ -171,8 +172,9 @@
                     name       : p.name,
                     description: p.description || '',
                     price      : p.price,
+                    originalPrice: p.price,
                     qty        : 1,
-                    disc       : 0,
+                    disc       : parseFloat(p.discount_percent || 0),
                     remarks    : '',
                 };
             }
@@ -202,7 +204,11 @@
             return '<tr data-pid="' + pid + '">' +
                 '<td class="pp-td-name"><strong>' + escHtml(p.name) + '</strong>' +
                     '<div class="pp-td-desc">' + escHtml(p.description) + '</div></td>' +
-                '<td class="pp-td-price">' + fmt(p.price) + '</td>' +
+                '<td class="pp-td-price">' +
+                    '<input type="number" class="ppf-inp ni" value="' + p.price + '" step="0.01" min="0" ' +
+                    'data-pid="' + pid + '" onchange="PP.ppUpdateRow(this,\'price\')">' +
+                    '<div class="pp-td-desc">Base ' + fmt(p.originalPrice) + '</div>' +
+                '</td>' +
                 '<td class="pp-td-qty">' +
                     '<input type="number" class="ppf-inp ni pp-qty-inp" value="' + p.qty + '" ' +
                     'min="1" data-pid="' + pid + '" onchange="PP.ppUpdateRow(this,\'qty\')">' +
@@ -252,11 +258,14 @@
     /** Submit the Add Product form */
     PP.ppSubmitDeal = function () {
         var dealName = (el('pp-deal-name') || {}).value || '';
-        console.log(dealName);
         if (!dealName.trim()) { toast('Please enter a Deal Name.', 'error'); return; }
 
         var products = Object.values(ppState.selected);
         if (products.length === 0) { toast('Select at least one product.', 'error'); return; }
+        if (!IS_ADMIN && hasPriceChange(products)) {
+            toast('Price was changed. Please send a price change request for admin approval.', 'error');
+            return;
+        }
 
         var btnEl = el('pp-submit-deal-btn');
         if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Saving…'; }
@@ -285,6 +294,48 @@
         })
         .finally(function () {
             if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Create Deal'; }
+        });
+    };
+
+    PP.ppSubmitPriceRequest = function () {
+        var dealName = (el('pp-deal-name') || {}).value || '';
+        if (!dealName.trim()) { toast('Please enter a Deal Name.', 'error'); return; }
+
+        var products = Object.values(ppState.selected);
+        if (products.length === 0) { toast('Select at least one product.', 'error'); return; }
+        if (!hasPriceChange(products)) {
+            toast('Change at least one product price before sending a request.', 'error');
+            return;
+        }
+
+        var btnEl = el('pp-submit-price-request-btn');
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Sending…'; }
+
+        api('POST', '/lead-product-price-requests', {
+            lead_id   : LEAD_ID,
+            deal_name : dealName.trim(),
+            products  : products.filter(function (p) {
+                return normalizePrice(p.price) !== normalizePrice(p.originalPrice);
+            }).map(function (p) {
+                return {
+                    product_id            : p.id,
+                    requested_unit_price  : p.price,
+                    quantity              : p.qty,
+                    discount_percent      : p.disc,
+                    remarks               : p.remarks,
+                };
+            }),
+        })
+        .then(function () {
+            PP.ppHideModal('pp-modal-add-product');
+            toast('Price request sent to admin.');
+        })
+        .catch(function (err) {
+            var msg = (err.errors && Object.values(err.errors)[0]) || err.message || 'Failed to send request.';
+            toast(msg, 'error');
+        })
+        .finally(function () {
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Send Price Request'; }
         });
     };
 
@@ -731,6 +782,16 @@
 
     function todayStr() {
         return new Date().toISOString().split('T')[0];
+    }
+
+    function normalizePrice(value) {
+        return parseFloat(parseFloat(value || 0).toFixed(2));
+    }
+
+    function hasPriceChange(products) {
+        return products.some(function (p) {
+            return normalizePrice(p.price) !== normalizePrice(p.originalPrice);
+        });
     }
 
     function escHtml(str) {

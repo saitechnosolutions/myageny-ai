@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lead extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BelongsToCompany;
 
     protected static ?array $sourceOptionsCache = null;
     protected static ?array $statusOptionsCache = null;
@@ -26,10 +27,11 @@ class Lead extends Model
         'priority',
         'deal_value',
         'remarks',
+        'company_id',
         'branch_id',
         'assigned_to',
         'created_by',
-        
+
     ];
 
     protected $casts = [
@@ -143,10 +145,7 @@ class Lead extends Model
         return self::PRIORITY_COLORS[$this->priority] ?? ['bg' => '#f5f4f6', 'text' => '#7c7c7c', 'border' => '#e1dee3'];
     }
 
-    public function getStatusLabelAttribute(): string
-    {
-        return static::statusOptions()[$this->lead_status] ?? $this->lead_status;
-    }
+
 
     public function getPriorityLabelAttribute(): string
     {
@@ -172,6 +171,11 @@ class Lead extends Model
             if (!$lead->created_by && auth()->check()) {
                 $lead->created_by = auth()->id();
             }
+
+            if (!$lead->company_id && auth()->check()) {
+                $lead->company_id = auth()->user()?->company_id;
+            }
+
             if (!$lead->lead_date) {
                 $lead->lead_date = now()->toDateString();
             }

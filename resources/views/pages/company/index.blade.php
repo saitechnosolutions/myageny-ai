@@ -62,7 +62,9 @@
         </div>
         <div class="cmp-actions">
             <a href="{{ route('dashboard') }}" class="cmp-btn cmp-btn-ghost">Back</a>
+            @if(auth()->user()->isSystemAdmin())
             <a href="{{ route('companies.create') }}" class="cmp-btn cmp-btn-primary">Add Company</a>
+            @endif
         </div>
     </div>
 
@@ -139,12 +141,14 @@
                                     <td>
                                         <div class="cmp-actions-row">
                                             <a href="{{ route('companies.show', $company) }}" class="cmp-icon-btn" title="View">View</a>
+                                            @if(auth()->user()->isSystemAdmin())
                                             <a href="{{ route('companies.edit', $company) }}" class="cmp-icon-btn" title="Edit">Edit</a>
                                             <form action="{{ route('companies.destroy', $company) }}" method="POST" onsubmit="return confirm('Delete this company?')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="cmp-icon-btn danger" title="Delete">Del</button>
                                             </form>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

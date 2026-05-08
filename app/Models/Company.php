@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
@@ -18,6 +19,7 @@ class Company extends Model
         'company_status',
         'facebook_client_id',
         'facebook_client_secret',
+        'super_admin_user_id',
     ];
 
     protected function casts(): array
@@ -30,5 +32,20 @@ class Company extends Model
     public function getStatusLabelAttribute(): string
     {
         return $this->company_status === 'active' ? 'Activate' : 'Deactivate';
+    }
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function activeUsers(): HasMany
+    {
+        return $this->users()->where('is_active', true);
+    }
+
+    public function getUserLimitAttribute(): int
+    {
+        return (int) $this->number_of_accounts;
     }
 }

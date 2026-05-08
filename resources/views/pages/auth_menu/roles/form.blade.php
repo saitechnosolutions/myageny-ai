@@ -31,6 +31,19 @@
             </div>
 
             <div class="auth-field">
+                <label>Department</label>
+                <select name="department_id">
+                    <option value="">Select Department</option>
+                    @foreach($departments as $department)
+                        <option value="{{ $department->id }}" @selected((string) old('department_id', $role->department_id ?? '') === (string) $department->id)>
+                            {{ $department->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('department_id')<div class="auth-error">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="auth-field">
                 <label>Description</label>
                 <textarea name="description" rows="4" placeholder="Short description for this role">{{ old('description', $role->description ?? '') }}</textarea>
                 @error('description')<div class="auth-error">{{ $message }}</div>@enderror

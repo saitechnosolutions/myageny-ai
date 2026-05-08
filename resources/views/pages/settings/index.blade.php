@@ -109,6 +109,8 @@
 .settings-card.attribute::after { background: #14b8a6; }
 .settings-card.quotation::after { background: #0ea5e9; }
 .settings-card.facebook::after { background: #2563eb; }
+.settings-card.department::after { background: #059669; }
+.settings-card.holiday::after { background: #ef4444; }
 .settings-card-icon {
     width: 54px;
     height: 54px;
@@ -150,6 +152,14 @@
 .settings-card-icon.facebook {
     background: linear-gradient(135deg, #eff6ff, #dbeafe);
     color: #1d4ed8;
+}
+.settings-card-icon.department {
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    color: #047857;
+}
+.settings-card-icon.holiday {
+    background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+    color: #be123c;
 }
 .settings-card-title {
     margin: 0 0 8px;
@@ -218,6 +228,8 @@
     </div>
 
     <div class="settings-grid">
+
+        @can('lead_status.menuview')
         <a href="{{ route('settings.lead-statuses.index') }}" class="settings-card status">
             <div class="settings-card-icon status">
                 <i class="bi bi-signpost-split"></i>
@@ -229,7 +241,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('lead_source.menuview')
         <a href="{{ route('settings.lead-sources.index') }}" class="settings-card source">
             <div class="settings-card-icon source">
                 <i class="bi bi-broadcast-pin"></i>
@@ -241,7 +255,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('outcome_category.menuview')
         <a href="{{ route('settings.outcome-categories.index') }}" class="settings-card outcome">
             <div class="settings-card-icon outcome">
                 <i class="bi bi-collection"></i>
@@ -253,7 +269,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('outcome_sub_category.menuview')
         <a href="{{ route('settings.outcome-sub-categories.index') }}" class="settings-card subcategory">
             <div class="settings-card-icon subcategory">
                 <i class="bi bi-diagram-2"></i>
@@ -265,7 +283,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('product_category.menuview')
         <a href="{{ route('settings.product-category.index') }}" class="settings-card product-category">
             <div class="settings-card-icon product-category">
                 <i class="bi bi-grid-1x2"></i>
@@ -277,7 +297,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('product_attributes.menuview')
         <a href="{{ route('settings.product-attribute.index') }}" class="settings-card attribute">
             <div class="settings-card-icon attribute">
                 <i class="bi bi-sliders"></i>
@@ -289,7 +311,38 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('departments.menuview')
+        <a href="{{ route('settings.departments.index') }}" class="settings-card department">
+            <div class="settings-card-icon department">
+                <i class="bi bi-people"></i>
+            </div>
+            <h4 class="settings-card-title">Departments</h4>
+            <p class="settings-card-text">Maintain department master data for HR structure, onboarding alignment, and employee organization.</p>
+            <span class="settings-card-link">
+                Open Departments
+                <i class="bi bi-arrow-right"></i>
+            </span>
+        </a>
+        @endcan
+
+        @can('holiday_calendar.menuview')
+
+        <a href="{{ route('settings.holiday-calendars.index') }}" class="settings-card holiday">
+            <div class="settings-card-icon holiday">
+                <i class="bi bi-calendar-event"></i>
+            </div>
+            <h4 class="settings-card-title">Holiday Calendar</h4>
+            <p class="settings-card-text">Manage company holidays, import annual calendars from Excel, and view them in a monthly calendar layout.</p>
+            <span class="settings-card-link">
+                Open Holiday Calendar
+                <i class="bi bi-arrow-right"></i>
+            </span>
+        </a>
+        @endcan
+
+        @can('quotation_settings.menuview')
         <a href="/settings/quotation-setting" class="settings-card quotation">
             <div class="settings-card-icon quotation">
                 <i class="bi bi-file-earmark-richtext"></i>
@@ -301,7 +354,9 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
 
+        @can('facebook_integration.menuview')
         <a href="/settings/facebook-integration" class="settings-card facebook">
             <div class="settings-card-icon facebook">
                 <i class="bi bi-facebook"></i>
@@ -313,6 +368,7 @@
                 <i class="bi bi-arrow-right"></i>
             </span>
         </a>
+        @endcan
     </div>
 </div>
 @endsection

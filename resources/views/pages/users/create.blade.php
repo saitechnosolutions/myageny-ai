@@ -212,6 +212,7 @@
                             @php
                                 $roleColors = [
                                     'super_admin'      => '#f59e0b',
+                                    'company_admin'    => '#dc2626',
                                     'admin'            => '#ea580c',
                                     'team_leader'      => '#16a34a',
                                     'bde'              => '#2563eb',
@@ -222,6 +223,7 @@
                                 ];
                                 $roleDescriptions = [
                                     'super_admin'      => 'Full system access',
+                                    'company_admin'    => 'Company super admin access',
                                     'admin'            => 'Branch-level admin',
                                     'team_leader'      => 'Team management',
                                     'bde'              => 'Lead management',
@@ -233,8 +235,11 @@
                             @endphp
                             @foreach($roles as $role)
                             @php
-                                $color = $roleColors[$role->name] ?? '#9e9e9e';
-                                $desc  = $roleDescriptions[$role->name] ?? '';
+                                $roleKey = \Illuminate\Support\Str::contains($role->name, '__')
+                                    ? \Illuminate\Support\Str::afterLast($role->name, '__')
+                                    : $role->name;
+                                $color = $roleColors[$roleKey] ?? '#9e9e9e';
+                                $desc  = $roleDescriptions[$roleKey] ?? '';
                                 $isSelected = old('role') === $role->name;
                             @endphp
                             <label class="ufrm-role-option {{ $isSelected ? 'selected' : '' }}" onclick="selectRole(this)">

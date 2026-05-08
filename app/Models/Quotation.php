@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,48 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Quotation extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToCompany;
+
+    public const GST_RATE = 18.0;
+    public const DEFAULT_SELLER_STATE = 'Tamil Nadu';
+    public const INDIAN_STATES = [
+        'Andhra Pradesh',
+        'Arunachal Pradesh',
+        'Assam',
+        'Bihar',
+        'Chhattisgarh',
+        'Goa',
+        'Gujarat',
+        'Haryana',
+        'Himachal Pradesh',
+        'Jharkhand',
+        'Karnataka',
+        'Kerala',
+        'Madhya Pradesh',
+        'Maharashtra',
+        'Manipur',
+        'Meghalaya',
+        'Mizoram',
+        'Nagaland',
+        'Odisha',
+        'Punjab',
+        'Rajasthan',
+        'Sikkim',
+        'Tamil Nadu',
+        'Telangana',
+        'Tripura',
+        'Uttar Pradesh',
+        'Uttarakhand',
+        'West Bengal',
+        'Andaman and Nicobar Islands',
+        'Chandigarh',
+        'Dadra and Nagar Haveli and Daman and Diu',
+        'Delhi',
+        'Jammu and Kashmir',
+        'Ladakh',
+        'Lakshadweep',
+        'Puducherry',
+    ];
 
     protected $fillable = [
         'quotation_no',
@@ -24,9 +66,20 @@ class Quotation extends Model
         'approved_by',
         'approved_at',
         'notes',
+        'company_id',
         'created_by',
         'bill_to_address',
-        'ship_to_address'
+        'ship_to_address',
+        'gst_number',
+        'customer_state',
+        'seller_state',
+        'tax_type',
+        'cgst_rate',
+        'sgst_rate',
+        'igst_rate',
+        'cgst_amount',
+        'sgst_amount',
+        'igst_amount',
     ];
 
     protected $casts = [
@@ -38,6 +91,12 @@ class Quotation extends Model
         'subtotal'       => 'decimal:2',
         'tax_amount'     => 'decimal:2',
         'total_amount'   => 'decimal:2',
+        'cgst_rate'      => 'decimal:2',
+        'sgst_rate'      => 'decimal:2',
+        'igst_rate'      => 'decimal:2',
+        'cgst_amount'    => 'decimal:2',
+        'sgst_amount'    => 'decimal:2',
+        'igst_amount'    => 'decimal:2',
     ];
 
     // ── Relationships ──────────────────────────────────────────────────────────
@@ -74,6 +133,7 @@ class Quotation extends Model
         $prefix = "QT-{$year}-";
 
         $last = static::where('quotation_no', 'like', "{$prefix}%")
+            ->when(auth()->check() && auth()->user()?->company_id, fn ($query) => $query->where('company_id', auth()->user()->company_id))
             ->orderByDesc('id')
             ->value('quotation_no');
 
@@ -88,5 +148,102 @@ class Quotation extends Model
     public function getStatusLabelAttribute(): string
     {
         return $this->is_approved ? 'Approved' : 'Pending';
+    }
+
+    public static function normalizeState(?string $state): ?string
+    {
+        if (! $state) {
+            return null;
+        }
+
+        $normalized = str($state)->lower()->squish()->value();
+
+        foreach (self::INDIAN_STATES as $candidate) {
+            if (str($candidate)->lower()->value() === $normalized) {
+                return $candidate;
+            }
+        }
+
+        return ucwords($normalized);
+    }
+
+    public static function inferStateFromGstin(?string $gstNumber): ?string
+    {
+        $normalized = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) $gstNumber));
+
+        if (strlen($normalized) < 2 || ! ctype_digit(substr($normalized, 0, 2))) {
+            return null;
+        }
+
+        return [
+            '01' => 'Jammu and Kashmir',
+            '02' => 'Himachal Pradesh',
+            '03' => 'Punjab',
+            '04' => 'Chandigarh',
+            '05' => 'Uttarakhand',
+            '06' => 'Haryana',
+            '07' => 'Delhi',
+            '08' => 'Rajasthan',
+            '09' => 'Uttar Pradesh',
+            '10' => 'Bihar',
+            '11' => 'Sikkim',
+            '12' => 'Arunachal Pradesh',
+            '13' => 'Nagaland',
+            '14' => 'Manipur',
+            '15' => 'Mizoram',
+            '16' => 'Tripura',
+            '17' => 'Meghalaya',
+            '18' => 'Assam',
+            '19' => 'West Bengal',
+            '20' => 'Jharkhand',
+            '21' => 'Odisha',
+            '22' => 'Chhattisgarh',
+            '23' => 'Madhya Pradesh',
+            '24' => 'Gujarat',
+            '26' => 'Dadra and Nagar Haveli and Daman and Diu',
+            '27' => 'Maharashtra',
+            '29' => 'Karnataka',
+            '30' => 'Goa',
+            '31' => 'Lakshadweep',
+            '32' => 'Kerala',
+            '33' => 'Tamil Nadu',
+            '34' => 'Puducherry',
+            '36' => 'Telangana',
+            '37' => 'Andhra Pradesh',
+            '38' => 'Ladakh',
+        ][substr($normalized, 0, 2)] ?? null;
+    }
+
+    public static function calculateTaxBreakup(float $subtotal, ?string $customerState, ?string $sellerState = null): array
+    {
+        $sellerState = self::normalizeState($sellerState ?: self::DEFAULT_SELLER_STATE) ?? self::DEFAULT_SELLER_STATE;
+        $customerState = self::normalizeState($customerState);
+
+        $taxRate = self::GST_RATE;
+        $isIntraState = $customerState !== null && strcasecmp($customerState, $sellerState) === 0;
+
+        $cgstRate = $isIntraState ? round($taxRate / 2, 2) : 0.0;
+        $sgstRate = $isIntraState ? round($taxRate / 2, 2) : 0.0;
+        $igstRate = $isIntraState ? 0.0 : $taxRate;
+
+        $cgstAmount = round($subtotal * ($cgstRate / 100), 2);
+        $sgstAmount = round($subtotal * ($sgstRate / 100), 2);
+        $igstAmount = round($subtotal * ($igstRate / 100), 2);
+        $taxAmount = round($cgstAmount + $sgstAmount + $igstAmount, 2);
+
+        return [
+            'seller_state' => $sellerState,
+            'customer_state' => $customerState,
+            'tax_type' => $isIntraState ? 'cgst_sgst' : 'igst',
+            'tax_rate' => $taxRate,
+            'cgst_rate' => $cgstRate,
+            'sgst_rate' => $sgstRate,
+            'igst_rate' => $igstRate,
+            'cgst_amount' => $cgstAmount,
+            'sgst_amount' => $sgstAmount,
+            'igst_amount' => $igstAmount,
+            'tax_amount' => $taxAmount,
+            'total_amount' => round($subtotal + $taxAmount, 2),
+        ];
     }
 }

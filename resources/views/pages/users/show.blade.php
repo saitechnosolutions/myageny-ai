@@ -187,8 +187,9 @@
                         @php
                             $role = $user->roles->first();
                             $directPermissions = $user->permissions;
-                            $roleColors = ['super_admin'=>['bg'=>'#fef9c3','color'=>'#92400e'],'admin'=>['bg'=>'#fff7ed','color'=>'#ea580c'],'team_leader'=>['bg'=>'#f0fdf4','color'=>'#15803d'],'bde'=>['bg'=>'#eff6ff','color'=>'#2563eb'],'hr_manager'=>['bg'=>'#faf5ff','color'=>'#7c3aed'],'accounts_manager'=>['bg'=>'#f0fdfa','color'=>'#0f766e'],'staff'=>['bg'=>'#f5f4f6','color'=>'#7c7c7c']];
-                            $rc = $roleColors[$role?->name ?? 'staff'] ?? ['bg'=>'#f5f4f6','color'=>'#7c7c7c'];
+                            $roleColors = ['super_admin'=>['bg'=>'#fef9c3','color'=>'#92400e'],'company_admin'=>['bg'=>'#fef2f2','color'=>'#b91c1c'],'admin'=>['bg'=>'#fff7ed','color'=>'#ea580c'],'team_leader'=>['bg'=>'#f0fdf4','color'=>'#15803d'],'bde'=>['bg'=>'#eff6ff','color'=>'#2563eb'],'hr_manager'=>['bg'=>'#faf5ff','color'=>'#7c3aed'],'accounts_manager'=>['bg'=>'#f0fdfa','color'=>'#0f766e'],'staff'=>['bg'=>'#f5f4f6','color'=>'#7c7c7c']];
+                            $roleKey = $role && \Illuminate\Support\Str::contains($role->name, '__') ? \Illuminate\Support\Str::afterLast($role->name, '__') : ($role?->name ?? 'staff');
+                            $rc = $roleColors[$roleKey] ?? ['bg'=>'#f5f4f6','color'=>'#7c7c7c'];
                         @endphp
                         <div class="ushow-role-badge" style="background:{{ $rc['bg'] }};color:{{ $rc['color'] }}">
                             🛡️ {{ $role?->display_name ?? 'No Role' }}

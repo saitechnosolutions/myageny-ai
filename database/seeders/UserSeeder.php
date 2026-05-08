@@ -2,11 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 class UserSeeder extends Seeder
 {
@@ -16,7 +17,13 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Create Super Admin Role (if not exists)
-        $role = Role::firstOrCreate(['name' => 'Super Admin']);
+        $role = Role::firstOrCreate(
+            ['name' => 'super_admin', 'guard_name' => 'web'],
+            ['display_name' => 'Super Admin', 'description' => 'Full CRM access across all modules.']
+        );
+
+        Permission::ensureCrmPermissions();
+        $role->syncPermissions(Permission::withoutGlobalScopes()->get());
 
         // Create User
         $user = User::updateOrCreate(
@@ -28,6 +35,6 @@ class UserSeeder extends Seeder
         );
 
         // Assign Role
-        $user->assignRole($role);
+        $user->syncRoles([$role]);
     }
 }

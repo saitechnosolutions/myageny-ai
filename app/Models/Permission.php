@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToCompany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission as SpatiePermission;
+
+class Permission extends SpatiePermission
+{
+    use BelongsToCompany;
+
+    private const CRM_PERMISSION_MAP = [
+        'dashboard' => ['view'],
+        'masters' => ['view'],
+        'products' => ['menuview', 'view', 'create', 'edit', 'delete'],
+        'form_customization' => ['menuview'],
+        'leads' => ['menuview', 'view', 'create', 'edit', 'delete', 'update'],
+        'call_updates' => ['menuview', 'view', 'create', 'delete'],
+        'quotations' => ['menuview', 'view', 'create', 'delete', 'approve'],
+        'price_requests' => ['menuview', 'view', 'create', 'approve', 'reject'],
+        'settings' => ['menuview', 'view', 'manage'],
+        'authentication' => ['menuview', 'view', 'manage'],
+        'users' => ['view', 'manage'],
+        'roles' => ['view', 'manage'],
+        'permissions' => ['view', 'manage'],
+        'companies' => ['view', 'manage'],
+    ];
+
+    protected $fillable = [
+        'name',
+        'guard_name',
+        'display_name',
+        'module',
+        'description',
+        'company_id',
+    ];
+
+    public static function tenantPermissionName(string $module, string $action, ?int $companyId): string
+    {
+        $permission = $module . '.' . $action;
+
+        if (! $companyId) {
+            return $permission;
+        }
+
+        return 'company_' . $companyId . '__' . $permission;
+    }
+
+    public static function tenantPermissionKey(string $permission, ?int $companyId): string
+    {
+        if (! $companyId || str_contains($permission, '__')) {
+            return $permission;
+        }
+
+        return 'company_' . $companyId . '__' . $permission;
+    }
+
+    public static function ensureCrmPermissions(?int $companyId = null): Collection
+    {
+        $permissions = collect();
+
+        foreach (self::CRM_PERMISSION_MAP as $module => $actions) {
+            $moduleLabel = Str::title(str_replace('_', ' ', $module));
+
+            foreach ($actions as $action) {
+                $permissions->push(
+                    static::withoutGlobalScopes()->firstOrCreate(
+                        [
+                            'name' => static::tenantPermissionName($module, $action, $companyId),
+                            'guard_name' => 'web',
+                        ],
+                        [
+                            'display_name' => Str::title(str_replace('_', ' ', $action)) . ' ' . $moduleLabel,
+                            'module' => $module,
+                            'description' => 'Allows users to ' . str_replace('_', ' ', $action) . ' ' . strtolower($moduleLabel) . '.',
+                            'company_id' => $companyId,
+                        ]
+                    )
+                );
+            }
+        }
+
+        return $permissions;
+    }
+}

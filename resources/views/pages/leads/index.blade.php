@@ -4,13 +4,13 @@
 
 @push('styles')
 <style>
-/* ════════════════════════════════════════════
-   LEAD INDEX — Full filter + table
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   LEAD INDEX â€” Full filter + table
    Theme: Clean white, orange accent, data-rich
-════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 .ld-page { display:flex; flex-direction:column; height:100%; overflow:hidden; background:#f4f5f7; font-family:'Inter',sans-serif; }
 
-/* ── Topbar ── */
+/* â”€â”€ Topbar â”€â”€ */
 .ld-topbar { display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:60px; flex-shrink:0; background:#fff; border-bottom:1px solid #e1dee3; position:sticky; top:0; z-index:30; }
 .ld-page-title { font-size:18px; font-weight:800; color:#121212; }
 .ld-breadcrumb { font-size:12px; color:#9e9e9e; margin-top:2px; }
@@ -21,7 +21,7 @@
 .ld-btn-outline { background:#fff; color:#121212; border:1px solid #e1dee3; }
 .ld-btn-outline:hover { border-color:#fe5f04; color:#fe5f04; }
 
-/* ── Filter Bar ── */
+/* â”€â”€ Filter Bar â”€â”€ */
 .ld-filter-wrap-outer { background:#fff; border-bottom:1px solid #e1dee3; position:sticky; top:60px; z-index:25; }
 .ld-filter-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 28px; }
 .ld-filter-label { font-size:11px; font-weight:800; color:#9e9e9e; text-transform:uppercase; letter-spacing:.8px; white-space:nowrap; display:flex; align-items:center; gap:5px; margin-right:4px; }
@@ -54,23 +54,81 @@
 .ld-search-input { padding:7px 12px 7px 32px; border:1px solid #e1dee3; border-radius:8px; font-size:12px; font-family:inherit; outline:none; background:#f8f8f8; color:#121212; transition:all .15s; min-width:200px; }
 .ld-search-input:focus { border-color:#fe5f04; background:#fff; box-shadow:0 0 0 3px rgba(254,95,4,.1); }
 
-/* ── Body ── */
+/* â”€â”€ Body â”€â”€ */
 .ld-body { flex:1; overflow-y:auto; padding:18px 28px 32px; display:flex; flex-direction:column; gap:14px; }
 .ld-body::-webkit-scrollbar { width:5px; }
 .ld-body::-webkit-scrollbar-thumb { background:#e1dee3; border-radius:3px; }
 
 @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-/* ── Stats ── */
-.ld-stats-row { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; animation:fadeUp .35s ease both; }
-.ld-stat { background:#fff; border:1px solid #e1dee3; border-radius:11px; padding:13px 15px; transition:box-shadow .2s; }
-.ld-stat:hover { box-shadow:0 4px 16px rgba(0,0,0,.06); }
-.ld-stat-icon { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
-.ld-stat-label { font-size:10px; font-weight:700; color:#9e9e9e; text-transform:uppercase; letter-spacing:.4px; }
-.ld-stat-value { font-size:20px; font-weight:800; color:#121212; line-height:1; margin-top:3px; }
-.ld-stat-sub { font-size:10px; color:#9e9e9e; margin-top:2px; }
+/* â”€â”€ Stats â”€â”€ */
+.ld-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; animation:fadeUp .35s ease both; }
+.ld-stat {
+    position:relative;
+    overflow:hidden;
+    background:linear-gradient(180deg,#ffffff 0%, #fffdfa 100%);
+    border:1px solid #e7e1de;
+    border-radius:18px;
+    padding:12px 14px 11px;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    box-shadow:0 10px 24px rgba(18,18,18,.04);
+}
+.ld-stat::before {
+    content:'';
+    position:absolute;
+    inset:0 0 auto 0;
+    height:4px;
+    background:var(--stat-color, #fe5f04);
+}
+.ld-stat:hover {
+    transform:translateY(-2px);
+    box-shadow:0 16px 32px rgba(18,18,18,.08);
+    border-color:#ddd2cb;
+}
+.ld-stat-top {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:10px;
+}
+.ld-stat-icon {
+    width:36px;
+    height:36px;
+    border-radius:11px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
+}
+.ld-stat-trend {
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:5px 9px;
+    border-radius:999px;
+    background:#fff7f1;
+    border:1px solid #fde2cf;
+    color:var(--stat-color, #fe5f04);
+    font-size:10px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    white-space:nowrap;
+}
+.ld-stat-label { font-size:10px; font-weight:800; color:#9e9e9e; text-transform:uppercase; letter-spacing:.5px; }
+.ld-stat-value { font-size:24px; font-weight:900; color:#121212; line-height:1; margin-top:4px; letter-spacing:-.03em; }
+.ld-stat-sub {
+    font-size:11px;
+    color:#7c7c7c;
+    margin-top:8px;
+    padding-top:8px;
+    border-top:1px solid #f2ece8;
+    line-height:1.4;
+}
 
-/* ── Table Card ── */
+/* â”€â”€ Table Card â”€â”€ */
 .ld-table-card { background:#fff; border:1px solid #e1dee3; border-radius:13px; overflow:hidden; animation:fadeUp .35s .1s ease both; }
 .ld-table-top { display:flex; justify-content:space-between; align-items:center; padding:13px 18px; border-bottom:1px solid #f0eef2; }
 .ld-table-title { font-size:14px; font-weight:700; color:#121212; }
@@ -92,6 +150,10 @@
 .ld-co-contact { font-size:11px; color:#9e9e9e; margin-top:1px; }
 .ld-id { font-family:monospace; font-size:11px; color:#9e9e9e; }
 .ld-mobile { font-size:12px; color:#7c7c7c; font-family:monospace; }
+.ld-mobile a,
+.ld-email-text a { color:inherit; text-decoration:none; }
+.ld-mobile a:hover,
+.ld-email-text a:hover { color:#fe5f04; text-decoration:underline; }
 .ld-email-text { font-size:11px; color:#9e9e9e; }
 .ld-deal { font-size:13px; font-weight:700; color:#121212; }
 .ld-date { font-size:12px; color:#7c7c7c; }
@@ -148,6 +210,14 @@
 .ld-modal-btn { flex:1; padding:10px; border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; border:none; transition:all .15s; }
 .ld-modal-cancel { background:#f5f4f6; color:#7c7c7c; border:1px solid #e1dee3; }
 .ld-modal-delete { background:linear-gradient(135deg,#dc2626,#ef4444); color:#fff; box-shadow:0 4px 12px rgba(220,38,38,.3); }
+
+@media (max-width: 1200px) {
+    .ld-stats-row { grid-template-columns:repeat(2,1fr); }
+}
+
+@media (max-width: 700px) {
+    .ld-stats-row { grid-template-columns:1fr; }
+}
 </style>
 @endpush
 
@@ -158,7 +228,7 @@
     <div class="ld-topbar">
         <div>
             <div class="ld-page-title">Leads</div>
-            <div class="ld-breadcrumb">Sales › Leads</div>
+            <div class="ld-breadcrumb">Sales â€º Leads</div>
         </div>
         <div class="ld-topbar-right">
             <a href="{{ route('leads.create') }}" class="ld-btn ld-btn-primary">
@@ -168,7 +238,7 @@
         </div>
     </div>
 
-    {{-- ══ FILTER BAR ══ --}}
+    {{-- â•â• FILTER BAR â•â• --}}
     <div class="ld-filter-wrap-outer">
     <form method="GET" action="{{ route('leads.index') }}" id="filterForm">
         <div class="ld-filter-bar">
@@ -176,13 +246,13 @@
             {{-- Search --}}
             <div class="ld-search-box">
                 <svg class="ld-search-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" name="search" class="ld-search-input" placeholder="Company, contact, email…"
+                <input type="text" name="search" class="ld-search-input" placeholder="Company, contact, emailâ€¦"
                        value="{{ request('search') }}" oninput="delaySubmit()">
             </div>
 
             <span class="ld-filter-label">
                 <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                Filters
+
                 <span class="ld-filter-count" id="fCount" style="display:none">0</span>
             </span>
 
@@ -274,7 +344,7 @@
                         <input type="date" name="date_from" class="ld-fi-input" id="f_date_from"
                                value="{{ request('date_from') }}" onchange="updateFilters()" style="min-width:130px;">
                     </div>
-                    <span class="ld-date-sep">→</span>
+                    <span class="ld-date-sep">â†’</span>
                     <div class="ld-fw">
                         <svg class="ld-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         <input type="date" name="date_to" class="ld-fi-input" id="f_date_to"
@@ -323,23 +393,25 @@
 
         {{-- Stats Row --}}
         <div class="ld-stats-row">
+
             @php
                 $statItems = [
-                    ['label'=>'Total Leads',    'value'=> $stats['total'],     'sub'=>'All time',           'color'=>'#fe5f04','bg'=>'#fff0e6','icon'=>'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'],
-                    ['label'=>'New',            'value'=> $stats['new'],       'sub'=>'Awaiting action',    'color'=>'#2563eb','bg'=>'#eff6ff','icon'=>'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'],
-                    ['label'=>'Won',            'value'=> $stats['won'],       'sub'=>'Closed deals',       'color'=>'#16a34a','bg'=>'#f0fdf4','icon'=>'<polyline points="20 6 9 17 4 12"/>'],
-                    ['label'=>'Lost',           'value'=> $stats['lost'],      'sub'=>'Closed losses',      'color'=>'#dc2626','bg'=>'#fef2f2','icon'=>'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'],
-                    ['label'=>'Pipeline Value', 'value'=> '₹'.number_format($stats['pipeline']/100000,1).'L','sub'=>'Active pipeline','color'=>'#7c3aed','bg'=>'#faf5ff','icon'=>'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
-                    ['label'=>'High Priority',  'value'=> $stats['high_priority'],'sub'=>'Active, high',   'color'=>'#b45309','bg'=>'#fffbeb','icon'=>'<path d="M3 16l4-4 4 4 4-6 4 4"/>'],
+                    ['label'=>'Total Leads',         'value'=> $stats['total'],          'sub'=>'Matching current filters', 'color'=>'#fe5f04','bg'=>'#fff0e6','icon'=>'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'],
+                    ['label'=>'Total Product Count', 'value'=> $stats['total_products'], 'sub'=>'Products linked to leads', 'color'=>'#2563eb','bg'=>'#eff6ff','icon'=>'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>'],
+                    ['label'=>'Pipeline Value',      'value'=> '₹'.number_format($stats['pipeline'], 2), 'sub'=>'Value across selected leads', 'color'=>'#7c3aed','bg'=>'#faf5ff','icon'=>'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'],
+                    ['label'=>'Untouched Leads Count',     'value'=> $stats['new'],            'sub'=>'No call updates yet',      'color'=>'#16a34a','bg'=>'#f0fdf4','icon'=>'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'],
                 ];
             @endphp
             @foreach($statItems as $s)
-            <div class="ld-stat">
-                <div class="ld-stat-icon" style="background:{{ $s['bg'] }}">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="{{ $s['color'] }}" stroke-width="2">{!! $s['icon'] !!}</svg>
+            <div class="ld-stat" style="--stat-color: {{ $s['color'] }}">
+                <div class="ld-stat-top">
+                    <div class="ld-stat-icon" style="background:{{ $s['bg'] }}">
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="{{ $s['color'] }}" stroke-width="2">{!! $s['icon'] !!}</svg>
+                    </div>
+                    <div class="ld-stat-trend">Summary</div>
                 </div>
                 <div class="ld-stat-label">{{ $s['label'] }}</div>
-                <div class="ld-stat-value" style="color:{{ $s['color'] }}">{{ $s['value'] }}</div>
+                <div class="ld-stat-value">{{ $s['value'] }}</div>
                 <div class="ld-stat-sub">{{ $s['sub'] }}</div>
             </div>
             @endforeach
@@ -353,14 +425,14 @@
                     <div class="ld-table-sub">Recent automation runs across workflows</div>
                 </div>
                 <div class="ld-results">
-                    Showing <strong>{{ $leads->firstItem() ?? 0 }}–{{ $leads->lastItem() ?? 0 }}</strong>
+                    Showing <strong>{{ $leads->firstItem() ?? 0 }}â€“{{ $leads->lastItem() ?? 0 }}</strong>
                     of <strong>{{ $leads->total() }}</strong> leads
                 </div>
             </div>
 
             @if($leads->isEmpty())
             <div class="ld-empty">
-                <div class="ld-empty-icon">📋</div>
+                <div class="ld-empty-icon">ðŸ“‹</div>
                 <div class="ld-empty-title">No leads found</div>
                 <p style="font-size:13px">Try adjusting your filters or <a href="{{ route('leads.create') }}" style="color:#fe5f04;font-weight:700">add a new lead</a>.</p>
             </div>
@@ -376,8 +448,6 @@
                             <th>Company / Contact</th>
                             <th>Mobile</th>
                             <th>Source</th>
-                            <th>Product</th>
-                            <th>Status</th>
                             <th>Priority</th>
                             <th>Deal Value</th>
                             <th>Assigned To</th>
@@ -409,9 +479,13 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="ld-mobile">{{ $lead->mobile_number }}</div>
+                                <div class="ld-mobile">
+                                    <a href="tel:{{ $lead->mobile_number }}" onclick="event.stopPropagation()">{{ $lead->mobile_number }}</a>
+                                </div>
                                 @if($lead->email)
-                                <div class="ld-email-text">{{ $lead->email }}</div>
+                                <div class="ld-email-text">
+                                    <a href="mailto:{{ $lead->email }}" onclick="event.stopPropagation()">{{ $lead->email }}</a>
+                                </div>
                                 @endif
                             </td>
                             <td>
@@ -419,19 +493,14 @@
                                     {{ $lead->source_label }}
                                 </span>
                             </td>
-                            <td style="font-size:12px;color:#7c7c7c;">{{ $lead->product_name ?? '—' }}</td>
-                            <td>
-                                <span class="ld-badge" style="background:{{ $sc['bg'] }};color:{{ $sc['text'] }};border-color:{{ $sc['border'] }}">
-                                    <span class="ld-dot" style="background:{{ $sc['text'] }}"></span>
-                                    {{ $lead->status_label }}
-                                </span>
-                            </td>
+
+
                             <td>
                                 <span class="ld-badge {{ $priClass }}">
                                     {{ $lead->priority_label }}
                                 </span>
                             </td>
-                            <td><span class="ld-deal">{{ $lead->formatted_deal_value }}</span></td>
+                            <td><span class="ld-deal">{{ number_format($lead->products->sum('total_price'), 2) }}</span></td>
                             <td>
                                 @if($lead->assignedTo)
                                 <div class="ld-owner">
@@ -444,20 +513,26 @@
                                 <span style="color:#9e9e9e;font-size:12px">Unassigned</span>
                                 @endif
                             </td>
-                            <td><span class="ld-branch">{{ $lead->branch?->name ?? '—' }}</span></td>
+                            <td><span class="ld-branch">{{ $lead->branch?->name ?? 'â€”' }}</span></td>
                             <td><span class="ld-date">{{ $lead->lead_date->format('d M Y') }}</span></td>
                             <td onclick="event.stopPropagation()">
                                 <div class="ld-actions">
+                                    @can('leads.view')
                                     <a href="{{ route('leads.show', $lead) }}" class="ld-act-btn" title="View">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                     </a>
+                                    @endcan
+                                    @can('leads.edit')
                                     <a href="{{ route('leads.edit', $lead) }}" class="ld-act-btn edit" title="Edit">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                     </a>
+                                    @endcan
+                                    @can('leads.delete')
                                     <button class="ld-act-btn del" title="Delete"
                                         onclick="confirmDelete({{ $lead->id }}, '{{ addslashes($lead->company_name) }}')">
                                         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
                                     </button>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
@@ -475,11 +550,11 @@
             <div class="ld-pag">
                 <div class="ld-pag-info">Page {{ $leads->currentPage() }} of {{ $leads->lastPage() }}</div>
                 <div class="ld-pag-links">
-                    <a href="{{ $leads->previousPageUrl() ?? '#' }}" class="ld-pag-link {{ !$leads->onFirstPage() ? '' : 'disabled' }}">‹</a>
+                    <a href="{{ $leads->previousPageUrl() ?? '#' }}" class="ld-pag-link {{ !$leads->onFirstPage() ? '' : 'disabled' }}">â€¹</a>
                     @foreach($leads->getUrlRange(max(1,$leads->currentPage()-2), min($leads->lastPage(),$leads->currentPage()+2)) as $page => $url)
                     <a href="{{ $url }}" class="ld-pag-link {{ $page == $leads->currentPage() ? 'active':'' }}">{{ $page }}</a>
                     @endforeach
-                    <a href="{{ $leads->nextPageUrl() ?? '#' }}" class="ld-pag-link {{ $leads->hasMorePages() ? '':'disabled' }}">›</a>
+                    <a href="{{ $leads->nextPageUrl() ?? '#' }}" class="ld-pag-link {{ $leads->hasMorePages() ? '':'disabled' }}">â€º</a>
                 </div>
             </div>
             @endif
@@ -529,7 +604,7 @@ function updateFilters() {
         if (el && el.value) {
             count++;
             const display = el.tagName === 'SELECT' ? el.options[el.selectedIndex].text : el.value;
-            chips.push(`<span class="ld-chip" onclick="clearF('${id}')">${cfg.label}: ${display} ×</span>`);
+            chips.push(`<span class="ld-chip" onclick="clearF('${id}')">${cfg.label}: ${display} Ã—</span>`);
         }
     });
     const cnt = document.getElementById('fCount');

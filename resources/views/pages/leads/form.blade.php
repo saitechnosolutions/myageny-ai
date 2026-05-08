@@ -9,6 +9,7 @@
     $old = fn($field, $default = '') => old($field, $isEdit ? $lead->{$field} : $default);
     $currentStatus = $old('lead_status');
     $currentPriority = $old('priority', 'medium');
+    $leadDateValue = old('lead_date', $isEdit && $lead->lead_date ? $lead->lead_date->format('Y-m-d') : now()->toDateString());
 @endphp
 
 <div class="lf-grid">
@@ -76,7 +77,7 @@
                         <div class="lf-iw">
                             <svg class="lf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             <input type="date" name="lead_date" class="lf-inp {{ $errors->has('lead_date') ? 'err' : '' }}"
-                                   value="{{ $old('lead_date', now()->toDateString()) }}" required readonly>
+                                   value="{{ $leadDateValue }}" required readonly>
                         </div>
                         @error('lead_date')<div class="lf-err">{{ $message }}</div>@enderror
                     </div>
@@ -119,23 +120,11 @@
                         </div>
                         @error('lead_source')<div class="lf-err">{{ $message }}</div>@enderror
                     </div>
-                    <div class="lf-group">
-                        <label class="lf-label">Deal Value</label>
-                        <div class="lf-iw">
-                            <svg class="lf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                            <input type="number" name="deal_value" class="lf-inp" step="0.01" min="0"
-                                   placeholder="0.00" value="{{ $old('deal_value') }}">
-                        </div>
-                        <div class="lf-hint">Enter amount in ₹ (INR)</div>
-                    </div>
-                </div>
-
-                <div class="lf-row">
-                    <div class="lf-group">
-                        <label class="lf-label">Assigned To</label>
+                   <div class="lf-group">
+                        <label class="lf-label">Assigned To <span class="lf-req">*</span></label>
                         <div class="lf-iw">
                             <svg class="lf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            <select name="assigned_to" class="lf-sel">
+                            <select name="assigned_to" class="lf-sel {{ $errors->has('assigned_to') ? 'err' : '' }}" required>
                                 <option value="">— Unassigned —</option>
                                 @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ $old('assigned_to') == $user->id ? 'selected' : '' }}>
@@ -145,12 +134,17 @@
                             </select>
                             <svg class="lf-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
+                        @error('assigned_to')<div class="lf-err">{{ $message }}</div>@enderror
                     </div>
+                </div>
+
+                <div class="lf-row">
+
                     <div class="lf-group">
-                        <label class="lf-label">Branch</label>
+                        <label class="lf-label">Branch <span class="lf-req">*</span></label>
                         <div class="lf-iw">
                             <svg class="lf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                            <select name="branch_id" class="lf-sel">
+                            <select name="branch_id" class="lf-sel {{ $errors->has('branch_id') ? 'err' : '' }}" required>
                                 <option value="">— No Branch —</option>
                                 @foreach($branches as $branch)
                                 <option value="{{ $branch->id }}" {{ $old('branch_id') == $branch->id ? 'selected' : '' }}>
@@ -160,6 +154,7 @@
                             </select>
                             <svg class="lf-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </div>
+                        @error('branch_id')<div class="lf-err">{{ $message }}</div>@enderror
                     </div>
                 </div>
             </div>
@@ -198,7 +193,7 @@
     <div class="lf-right">
 
         {{-- Lead Status Picker --}}
-        <div class="lf-card">
+        {{--  <div class="lf-card">
             <div class="lf-card-head">
                 <div class="lf-card-ico" style="background:#f0fdf4">
                     <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
@@ -223,7 +218,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div>  --}}
 
         {{-- Priority Picker --}}
         <div class="lf-card">

@@ -280,7 +280,7 @@ tbody tr:last-child td { border-bottom: none; }
             <div class="lsp-grid-2" style="gap:18px;">
 
                 {{-- Left --}}
-                <div style="display:flex;flex-direction:column;gap:14px;">
+                <div class="lsp-stack">
 
                     <div class="lsp-card">
                         <div class="lsp-card-head"><div class="lsp-card-title">📋 Contact Information</div></div>
@@ -309,19 +309,20 @@ tbody tr:last-child td { border-bottom: none; }
                 </div>
 
                 {{-- Right --}}
-                <div style="display:flex;flex-direction:column;gap:14px;">
+                <div class="lsp-stack">
 
 
                     <div class="lsp-card">
                         <div class="lsp-card-head"><div class="lsp-card-title">💰 Deal & Status</div></div>
                         <div class="lsp-card-body">
-                            <div class="lsp-info-grid" style="margin-bottom:14px;">
-                                <div class="lsp-info-item"><div class="lsp-il">Deal Value</div><div class="lsp-deal-big">{{ number_format($lead->products->sum('total_price'), 2) }}</div></div>
-                                <div class="lsp-info-item">
-                                    {{--  <div class="lsp-il">Priority</div>
-                                    <div><span class="lsp-badge" style="background:{{ $pc['bg'] }};color:{{ $pc['text'] }};border-color:{{ $pc['border'] }}">{{ $lead->priority_label }}</span></div>
-                                      --}}
-                                      <div class="lsp-info-item"><div class="lsp-il">Number Of Products</div><div class="lsp-deal-big">{{ $lead->products->count() ?? 0 }}</div></div>
+                            <div class="lsp-stat-grid">
+                                <div class="lsp-stat-box">
+                                    <div class="lsp-il">Deal Value</div>
+                                    <div class="lsp-deal-big">₹{{ number_format($lead->products->sum('total_price'), 2) }}</div>
+                                </div>
+                                <div class="lsp-stat-box blue">
+                                    <div class="lsp-il">Number Of Products</div>
+                                    <div class="lsp-deal-big">{{ $lead->products->count() ?? 0 }}</div>
                                 </div>
                             </div>
                             {{--  <div style="margin-bottom:6px;font-size:11px;font-weight:700;color:#3d3d3d;text-transform:uppercase;letter-spacing:.4px;">Quick Status Change</div>
@@ -337,10 +338,12 @@ tbody tr:last-child td { border-bottom: none; }
                                 </div>
                             </form>  --}}
 
-                            <div class="lsp-info-grid" style="margin-bottom:14px;">
-
-                                <div class="lsp-info-item">
-                                    <div class="lsp-il">Age Of Lead</div><div style="font-weight:bold">{{ $lead->created_at->diffForHumans() }}</div></div>
+                            <div class="lsp-meta-line">
+                                <div>
+                                    <div class="lsp-il">Current Status</div>
+                                    <div class="lsp-meta-value">{{ $lead->status_label }}</div>
+                                </div>
+                                <span class="lsp-age-pill">{{ $lead->created_at->diffForHumans() }}</span>
                             </div>
                         </div>
                     </div>
@@ -348,6 +351,7 @@ tbody tr:last-child td { border-bottom: none; }
                     <div class="lsp-card">
                         <div class="lsp-card-head"><div class="lsp-card-title">⚠️ Danger Zone</div></div>
                         <div class="lsp-card-body">
+                            <p class="lsp-danger-note">Delete this lead only if you are sure. This action removes the lead record and cannot be undone.</p>
                             <form method="POST" action="{{ route('leads.destroy', $lead) }}"
                                   onsubmit="return confirm('Permanently delete this lead?')">
                                 @csrf @method('DELETE')
@@ -373,7 +377,7 @@ tbody tr:last-child td { border-bottom: none; }
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <h3 style="font-size:15px;font-weight:700;color:var(--text);">📞 Call History</h3>
                         <div>
-<span style="font-size:12px;color:var(--orange);">{{ $incomingCallCount }} Incoming Call records</span>
+
 <span style="font-size:12px;color:var(--muted);"> | </span>
                         <span style="font-size:12px;color:var(--orange);">{{ $outGoingcallCount }} Outgoing Call records</span>
                         </div>

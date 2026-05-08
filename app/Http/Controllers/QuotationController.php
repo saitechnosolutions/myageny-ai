@@ -70,9 +70,17 @@ class QuotationController extends Controller
      */
     public function create($leadId = null): View
     {
-        $lead= Lead::find($leadId);
+        $lead = $leadId ? Lead::with('branch')->findOrFail($leadId) : null;
         $leads    = Lead::orderBy('contact_name')->get(['id', 'contact_name', 'company_name']);
-        $products = Product::orderBy('product_name')->get(['id', 'product_name', 'description', 'final_price', 'base_price']);
+        $products = Product::orderBy('product_name')->get([
+            'id',
+            'product_name',
+            'description',
+            'final_price',
+            'base_price',
+            'discount_type',
+            'discount_value',
+        ]);
 
         $selectedLeadId = $leadId;
 
@@ -80,7 +88,9 @@ class QuotationController extends Controller
             'quotation_no'   => Quotation::generateQuotationNo(),
             'quotation_date' => now()->toDateString(),
             'valid_until'    => now()->addDays(7)->toDateString(),
-            'tax'            => 0,
+            'tax'            => Quotation::GST_RATE,
+            'seller_state'   => $lead?->branch?->state ?: Quotation::DEFAULT_SELLER_STATE,
+            'customer_state' => 'Tamil Nadu',
         ];
 
         return view('pages.quotations.create', compact('leads', 'products', 'selectedLeadId', 'defaults', 'lead', 'leadId'));
@@ -98,7 +108,8 @@ class QuotationController extends Controller
         'lead_id'        => ['nullable'],
         'quotation_date' => ['required', 'date'],
         'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
-
+        'gst_number'     => ['nullable', 'string', 'max:20'],
+        'customer_state' => ['required', 'string', 'max:100'],
         'notes'          => ['nullable', 'string'],
 
         // Line items
@@ -111,6 +122,13 @@ class QuotationController extends Controller
     ]);
 
     $quotation = DB::transaction(function () use ($validated, $request) {
+        $lead = ! empty($validated['lead_id'])
+            ? Lead::with('branch')->findOrFail($validated['lead_id'])
+            : null;
+
+        foreach ($validated['items'] as $item) {
+            Product::findOrFail($item['product_id']);
+        }
 
         $subtotal = 0;
 
@@ -121,24 +139,38 @@ class QuotationController extends Controller
             $subtotal += max($rowTotal, 0);
         }
 
-        $taxAmount = round($subtotal * (18 / 100), 2);
-
-        $totalAmount = round($subtotal + $taxAmount, 2);
+        $customerState = Quotation::normalizeState($validated['customer_state'])
+            ?: Quotation::inferStateFromGstin($validated['gst_number'])
+            ?: 'Tamil Nadu';
+        $sellerState = Quotation::normalizeState($lead?->branch?->state ?: Quotation::DEFAULT_SELLER_STATE)
+            ?: Quotation::DEFAULT_SELLER_STATE;
+        $taxBreakup = Quotation::calculateTaxBreakup($subtotal, $customerState, $sellerState);
 
         $quotation = Quotation::create([
             'quotation_no'    => Quotation::generateQuotationNo(),
             'quotation_date'  => $validated['quotation_date'],
             'valid_until'     => $validated['valid_until'],
-            'tax'             => 18,
+            'tax'             => $taxBreakup['tax_rate'],
             'subtotal'        => $subtotal,
-            'tax_amount'      => $taxAmount,
-            'total_amount'    => $totalAmount,
+            'tax_amount'      => $taxBreakup['tax_amount'],
+            'total_amount'    => $taxBreakup['total_amount'],
             'lead_id'         => $validated['lead_id'] ?? null,
+            'company_id'      => auth()->user()?->company_id,
             'notes'           => $validated['notes'] ?? null,
             'is_approved'     => false,
             'created_by'      => auth()->id(),
             'bill_to_address' => $request->bill_to_address,
             'ship_to_address' => $request->ship_to_address,
+            'gst_number'      => strtoupper((string) ($validated['gst_number'] ?? '')) ?: null,
+            'customer_state'  => $taxBreakup['customer_state'],
+            'seller_state'    => $taxBreakup['seller_state'],
+            'tax_type'        => $taxBreakup['tax_type'],
+            'cgst_rate'       => $taxBreakup['cgst_rate'],
+            'sgst_rate'       => $taxBreakup['sgst_rate'],
+            'igst_rate'       => $taxBreakup['igst_rate'],
+            'cgst_amount'     => $taxBreakup['cgst_amount'],
+            'sgst_amount'     => $taxBreakup['sgst_amount'],
+            'igst_amount'     => $taxBreakup['igst_amount'],
         ]);
 
         foreach ($validated['items'] as $item) {
@@ -150,6 +182,7 @@ class QuotationController extends Controller
 
             QuotationItem::create([
                 'quotation_id' => $quotation->id,
+                'company_id'   => $quotation->company_id,
                 'product_id'   => $item['product_id'],
                 'description'  => $item['description'] ?? null,
                 'qty'          => $item['qty'],
@@ -244,7 +277,8 @@ class QuotationController extends Controller
             'lead_id'        => ['required', 'exists:leads,id'],
             'quotation_date' => ['required', 'date'],
             'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
-            'tax'            => ['required', 'numeric'],
+            'gst_number'     => ['nullable', 'string', 'max:20'],
+            'customer_state' => ['required', 'string', 'max:100'],
             'items'          => ['required', 'array', 'min:1'],
             'items.*.product_id'  => ['required', 'exists:products,id'],
             'items.*.qty'         => ['required', 'numeric'],
@@ -255,33 +289,55 @@ class QuotationController extends Controller
         $quotation = null;
 
         DB::transaction(function () use ($request, &$quotation) {
+            $lead = Lead::with('branch')->findOrFail($request->lead_id);
+
+            foreach ($request->items as $item) {
+                Product::findOrFail($item['product_id']);
+            }
+
             $subtotal = 0;
             foreach ($request->items as $item) {
                 $subtotal += max(($item['qty'] * $item['unit_price']) - $item['discount'], 0);
             }
 
-            $taxAmount   = round($subtotal * ($request->tax / 100), 2);
-            $totalAmount = round($subtotal + $taxAmount, 2);
+            $customerState = Quotation::normalizeState($request->customer_state)
+                ?: Quotation::inferStateFromGstin($request->gst_number)
+                ?: 'Tamil Nadu';
+            $sellerState = Quotation::normalizeState($lead->branch?->state ?: Quotation::DEFAULT_SELLER_STATE)
+                ?: Quotation::DEFAULT_SELLER_STATE;
+            $taxBreakup = Quotation::calculateTaxBreakup($subtotal, $customerState, $sellerState);
 
               $quotation = Quotation::create([
                   'quotation_no'   => Quotation::generateQuotationNo(),
                   'quotation_date' => $request->quotation_date,
                   'valid_until'    => $request->valid_until,
-                  'tax'            => $request->tax,
+                  'tax'            => $taxBreakup['tax_rate'],
                 'subtotal'       => $subtotal,
-                'tax_amount'     => $taxAmount,
-                  'total_amount'   => $totalAmount,
+                'tax_amount'     => $taxBreakup['tax_amount'],
+                  'total_amount'   => $taxBreakup['total_amount'],
                   'lead_id'        => $request->lead_id,
+                  'company_id'     => $request->user()?->company_id,
                   'notes'          => $request->notes,
                   'is_approved'    => false,
                   'created_by'     => $request->user_id,
                   'bill_to_address' => $request->bill_to_address,
                   'ship_to_address' => $request->ship_to_address,
+                  'gst_number'     => strtoupper((string) ($request->gst_number ?? '')) ?: null,
+                  'customer_state' => $taxBreakup['customer_state'],
+                  'seller_state'   => $taxBreakup['seller_state'],
+                  'tax_type'       => $taxBreakup['tax_type'],
+                  'cgst_rate'      => $taxBreakup['cgst_rate'],
+                  'sgst_rate'      => $taxBreakup['sgst_rate'],
+                  'igst_rate'      => $taxBreakup['igst_rate'],
+                  'cgst_amount'    => $taxBreakup['cgst_amount'],
+                  'sgst_amount'    => $taxBreakup['sgst_amount'],
+                  'igst_amount'    => $taxBreakup['igst_amount'],
               ]);
 
             foreach ($request->items as $item) {
                 QuotationItem::create([
                     'quotation_id' => $quotation->id,
+                    'company_id'   => $quotation->company_id,
                     'product_id'   => $item['product_id'],
                     'description'  => $item['description'] ?? null,
                     'qty'          => $item['qty'],
@@ -313,7 +369,8 @@ class QuotationController extends Controller
             'lead_id'        => ['required', 'exists:leads,id'],
             'quotation_date' => ['required', 'date'],
             'valid_until'    => ['required', 'date', 'after_or_equal:quotation_date'],
-            'tax'            => ['required', 'numeric'],
+            'gst_number'     => ['nullable', 'string', 'max:20'],
+            'customer_state' => ['required', 'string', 'max:100'],
             'notes'          => ['nullable', 'string'],
             'items'                  => ['required', 'array', 'min:1'],
             'items.*.product_id'     => ['required', 'exists:products,id'],
@@ -324,26 +381,46 @@ class QuotationController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $quotation) {
+            $lead = Lead::with('branch')->findOrFail($validated['lead_id']);
+
+            foreach ($validated['items'] as $item) {
+                Product::findOrFail($item['product_id']);
+            }
+
             $subtotal = 0;
 
             foreach ($validated['items'] as $item) {
                 $subtotal += max(($item['qty'] * $item['unit_price']) - $item['discount'], 0);
             }
 
-            $taxAmount = round($subtotal * ($validated['tax'] / 100), 2);
-            $totalAmount = round($subtotal + $taxAmount, 2);
+            $customerState = Quotation::normalizeState($validated['customer_state'])
+                ?: Quotation::inferStateFromGstin($validated['gst_number'])
+                ?: 'Tamil Nadu';
+            $sellerState = Quotation::normalizeState($lead->branch?->state ?: Quotation::DEFAULT_SELLER_STATE)
+                ?: Quotation::DEFAULT_SELLER_STATE;
+            $taxBreakup = Quotation::calculateTaxBreakup($subtotal, $customerState, $sellerState);
 
             $quotation->update([
                 'lead_id'         => $validated['lead_id'],
                 'quotation_date'  => $validated['quotation_date'],
                 'valid_until'     => $validated['valid_until'],
-                'tax'             => $validated['tax'],
+                'tax'             => $taxBreakup['tax_rate'],
                 'subtotal'        => $subtotal,
-                'tax_amount'      => $taxAmount,
-                'total_amount'    => $totalAmount,
+                'tax_amount'      => $taxBreakup['tax_amount'],
+                'total_amount'    => $taxBreakup['total_amount'],
                 'notes'           => $validated['notes'] ?? null,
                 'bill_to_address' => $request->bill_to_address,
                 'ship_to_address' => $request->ship_to_address,
+                'gst_number'      => strtoupper((string) ($validated['gst_number'] ?? '')) ?: null,
+                'customer_state'  => $taxBreakup['customer_state'],
+                'seller_state'    => $taxBreakup['seller_state'],
+                'tax_type'        => $taxBreakup['tax_type'],
+                'cgst_rate'       => $taxBreakup['cgst_rate'],
+                'sgst_rate'       => $taxBreakup['sgst_rate'],
+                'igst_rate'       => $taxBreakup['igst_rate'],
+                'cgst_amount'     => $taxBreakup['cgst_amount'],
+                'sgst_amount'     => $taxBreakup['sgst_amount'],
+                'igst_amount'     => $taxBreakup['igst_amount'],
             ]);
 
             $quotation->items()->delete();
@@ -351,6 +428,7 @@ class QuotationController extends Controller
             foreach ($validated['items'] as $item) {
                 QuotationItem::create([
                     'quotation_id' => $quotation->id,
+                    'company_id'   => $quotation->company_id,
                     'product_id'   => $item['product_id'],
                     'description'  => $item['description'] ?? null,
                     'qty'          => $item['qty'],
@@ -370,8 +448,10 @@ class QuotationController extends Controller
 
     public function downloadPdf($id)
     {
-        $quotation = Quotation::with('items', 'createdBy')->findOrFail($id);
-         $branchId = auth()->user()->branch_id;
+        $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy')->findOrFail($id);
+
+        $branchId = auth()->user()?->branch_id
+            ?? $quotation->lead->createdBy?->branch_id;
 
         $settings = QuotationSetting::where('branch_id', $branchId)->get();;
 

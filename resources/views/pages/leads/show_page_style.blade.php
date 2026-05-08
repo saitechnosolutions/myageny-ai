@@ -82,12 +82,28 @@
 /* ── Layout helpers ── */
 .lsp-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .lsp-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.lsp-stack { display:flex; flex-direction:column; gap:14px; }
 
 /* ── Cards ── */
-.lsp-card { background:#fff; border:1px solid var(--border); border-radius:13px; overflow:hidden; }
-.lsp-card-head { display:flex; justify-content:space-between; align-items:center; padding:13px 18px; border-bottom:1px solid #f0eef2; }
-.lsp-card-title { font-size:14px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:7px; }
-.lsp-card-body  { padding:16px 18px; }
+.lsp-card {
+    background:linear-gradient(180deg,#ffffff 0%, #fffdfb 100%);
+    border:1px solid var(--border);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 10px 30px rgba(18,18,18,.04);
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.lsp-card:hover { transform:translateY(-2px); box-shadow:0 16px 36px rgba(18,18,18,.07); border-color:#d9d2d8; }
+.lsp-card-head {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px 18px;
+    border-bottom:1px solid #f3edf1;
+    background:linear-gradient(180deg,#fffaf7 0%, #ffffff 100%);
+}
+.lsp-card-title { font-size:14px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:7px; }
+.lsp-card-body  { padding:18px; }
 
 /* ── Forms ── */
 .lsp-form-row { display:grid; gap:12px; }
@@ -106,6 +122,23 @@
 }
 .lsp-inp::placeholder, .lsp-ta::placeholder { color:#c0bbb7; }
 .lsp-inp:focus, .lsp-sel:focus, .lsp-ta:focus { border-color:var(--orange); background:#fff; box-shadow:0 0 0 3px rgba(254,95,4,.1); }
+.lsp-sel {
+    background:
+        linear-gradient(180deg,#fff7f1 0%, #fff2e8 100%);
+    border-color:#f7c9ac;
+    color:#c2410c;
+}
+.lsp-sel:hover { border-color:var(--orange2); }
+.lsp-inp[type="date"] {
+    background:linear-gradient(180deg,#fff7f1 0%, #fff2e8 100%);
+    border-color:#f7c9ac;
+    color:#c2410c;
+}
+.lsp-inp[type="date"]::-webkit-calendar-picker-indicator {
+    cursor:pointer;
+    filter: sepia(1) saturate(8) hue-rotate(345deg) brightness(.95);
+    opacity:.9;
+}
 .lsp-inp.no-ico, .lsp-sel.no-ico { padding-left:11px; }
 .lsp-sel { appearance:none; -webkit-appearance:none; cursor:pointer; }
 .lsp-sel-caret { position:absolute; right:9px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted); width:11px; height:11px; }
@@ -131,14 +164,79 @@
    PANEL 1 — Lead Info (2-col)
 ══════════════════════════════════════════ */
 .lsp-info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.lsp-info-item .lsp-il { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:3px; }
-.lsp-info-item .lsp-iv { font-size:13px; font-weight:600; color:var(--text); }
+.lsp-info-item {
+    padding:13px 14px;
+    border:1px solid #f0e9ee;
+    border-radius:14px;
+    background:linear-gradient(180deg,#ffffff 0%, #fbfbfc 100%);
+}
+.lsp-info-item .lsp-il { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:6px; }
+.lsp-info-item .lsp-iv { font-size:13px; font-weight:700; color:var(--text); line-height:1.45; }
 .lsp-info-item .lsp-iv a { color:var(--blue); text-decoration:none; }
 .lsp-info-item .lsp-iv a:hover { text-decoration:underline; }
-.lsp-remarks-box { background:var(--soft); border:1px solid #f0eef2; border-radius:9px; padding:12px; font-size:13px; color:#2e2e2e; line-height:1.7; }
-.lsp-deal-big { font-size:26px; font-weight:800; color:var(--text); }
+.lsp-remarks-box {
+    background:linear-gradient(180deg,#fffaf7 0%, #ffffff 100%);
+    border:1px solid #f1e7de;
+    border-radius:14px;
+    padding:14px 15px;
+    font-size:13px;
+    color:#2e2e2e;
+    line-height:1.75;
+}
+.lsp-deal-big { font-size:28px; font-weight:900; color:var(--text); line-height:1; letter-spacing:-.02em; }
 .lsp-status-select { appearance:none; -webkit-appearance:none; width:100%; padding:8px 28px 8px 11px; border:1px solid var(--border); border-radius:9px; font-size:13px; font-family:inherit; color:var(--text); background:var(--soft); outline:none; cursor:pointer; }
-.lsp-status-select:focus { border-color:var(--orange); background:#fff; }
+.lsp-status-select { background:linear-gradient(180deg,#fff7f1 0%, #fff2e8 100%); border-color:#f7c9ac; color:#c2410c; }
+.lsp-status-select:focus { border-color:var(--orange); background:#fff; box-shadow:0 0 0 3px rgba(254,95,4,.1); }
+.lsp-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+.lsp-stat-box {
+    position:relative;
+    overflow:hidden;
+    padding:15px 16px;
+    border-radius:16px;
+    border:1px solid #efe7ed;
+    background:linear-gradient(135deg,#ffffff 0%, #fff7f1 100%);
+}
+.lsp-stat-box::before {
+    content:'';
+    position:absolute;
+    inset:0 auto 0 0;
+    width:4px;
+    background:linear-gradient(180deg,var(--orange),var(--orange2));
+}
+.lsp-stat-box.blue::before { background:linear-gradient(180deg,#2563eb,#60a5fa); }
+.lsp-stat-box .lsp-il { margin-bottom:8px; }
+.lsp-meta-line {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 14px;
+    border:1px solid #f0e9ee;
+    border-radius:14px;
+    background:#fff;
+}
+.lsp-meta-value { font-size:13px; font-weight:700; color:var(--text); }
+.lsp-age-pill {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#fff4ea;
+    color:#c2410c;
+    border:1px solid #fed7aa;
+    font-size:11px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+}
+.lsp-danger-note {
+    margin-top:0;
+    margin-bottom:12px;
+    font-size:12px;
+    line-height:1.6;
+    color:#7c7c7c;
+}
 
 /* ══════════════════════════════════════════
    PANEL 2 — Call Updates
@@ -256,4 +354,12 @@
 .lsp-qt-pr { display:flex; gap:32px; font-size:12px; color:var(--muted); }
 .lsp-qt-pr.grand { font-size:14px; font-weight:800; color:var(--text); }
 .lsp-qt-pr span:last-child { min-width:80px; text-align:right; font-weight:600; }
+
+@media (max-width: 980px) {
+    .lsp-grid-2 { grid-template-columns:1fr; }
+    .lsp-info-grid { grid-template-columns:1fr; }
+    .lsp-stat-grid { grid-template-columns:1fr; }
+    .lsp-hero { align-items:flex-start; flex-wrap:wrap; }
+    .lsp-hero-right { margin-left:0; justify-content:flex-start; }
+}
 </style>

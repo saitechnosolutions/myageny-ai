@@ -317,14 +317,26 @@
                     <div class="ppf-rel">
                         <svg class="ppf-ico" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/></svg>
 
-                        <select class="form-select select2" name="product_name">
+                        <select class="form-select select2" name="product_name" id="pp-product-select">
                             @php
                                 $allProducts = App\Models\Product::where('status', 'active')->get();
                             @endphp
                             <option value="" selected>-- Choose Products --</option>
                             @if($allProducts)
                                 @foreach ($allProducts as $allProduct)
-                                    <option value="{{ $allProduct->id }}">{{ $allProduct->category?->name }} | {{ $allProduct->package_name }}</option>
+                                    @php
+                                        $discountPercent = $allProduct->discount_type === 'percentage'
+                                            ? (float) $allProduct->discount_value
+                                            : ((float) $allProduct->base_price > 0
+                                                ? round(((float) $allProduct->discount_value / (float) $allProduct->base_price) * 100, 2)
+                                                : 0);
+                                    @endphp
+                                    <option
+                                        value="{{ $allProduct->id }}"
+                                        data-description="{{ $allProduct->description ?? '' }}"
+                                        data-unit-price="{{ (float) ($allProduct->final_price ?? $allProduct->base_price ?? 0) }}"
+                                        data-discount-percent="{{ $discountPercent }}"
+                                    >{{ $allProduct->category?->name }} | {{ $allProduct->package_name }}</option>
                                 @endforeach
                             @endif
                         </select>
@@ -582,6 +594,41 @@
     };
 
     /* ── 4. Payment mode tile picker ────────────────────────────── */
+    function ppApplySelectedProduct() {
+        var select = document.getElementById('pp-product-select');
+        if (!select) return;
+
+        var option = select.options[select.selectedIndex];
+        var priceInput = document.getElementById('pp-price');
+        var discInput = document.getElementById('pp-disc');
+        var descInput = document.querySelector('textarea[name="description"]');
+
+        if (!option || !option.value) {
+            if (priceInput) priceInput.value = '';
+            if (discInput) discInput.value = 0;
+            if (descInput) descInput.value = '';
+            window.ppCalc();
+            return;
+        }
+
+        if (priceInput) {
+            priceInput.value = parseFloat(option.dataset.unitPrice || 0).toFixed(2);
+        }
+        if (discInput) {
+            discInput.value = parseFloat(option.dataset.discountPercent || 0).toFixed(2);
+        }
+        if (descInput && !descInput.value.trim()) {
+            descInput.value = option.dataset.description || '';
+        }
+
+        window.ppCalc();
+    }
+
+    var ppProductSelect = document.getElementById('pp-product-select');
+    if (ppProductSelect) {
+        ppProductSelect.addEventListener('change', ppApplySelectedProduct);
+    }
+
     window.ppPickMode = function (tile) {
         document.querySelectorAll('.ppf-mode-tile').forEach(function (t) { t.classList.remove('pp-sel'); });
         tile.classList.add('pp-sel');

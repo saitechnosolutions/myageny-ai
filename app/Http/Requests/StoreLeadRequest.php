@@ -22,13 +22,12 @@ class StoreLeadRequest extends FormRequest
             'mobile_number' => ['required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:150'],
             'lead_source'   => ['required', 'string', Rule::in(Lead::sourceKeys())],
-            'lead_status'   => ['required', 'string', Rule::in(Lead::statusKeys())],
             'product_name'  => ['nullable', 'string', 'max:100'],
-            'assigned_to'   => ['nullable', 'exists:users,id'],
+            'assigned_to'   => ['required', 'exists:users,id'],
             'priority'      => ['required', 'in:low,medium,high'],
             'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string', 'max:2000'],
-            'branch_id'     => ['nullable', 'exists:branches,id'],
+            'branch_id'     => ['required', 'exists:branches,id'],
 
         ];
     }
@@ -41,6 +40,8 @@ class StoreLeadRequest extends FormRequest
             'lead_date.required'     => 'Lead date is required.',
             'mobile_number.required' => 'Mobile number is required.',
             'lead_source.required'   => 'Please select a lead source.',
+            'assigned_to.required'   => 'Please select an assigned user.',
+            'branch_id.required'     => 'Please select a branch.',
             'lead_status.required'   => 'Please select a lead status.',
             'priority.required'      => 'Please select a priority level.',
         ];

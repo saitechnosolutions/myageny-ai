@@ -4,17 +4,18 @@
 // ================================================================
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class LeadCallUpdate extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToCompany;
 
     protected $fillable = [
         'lead_id','user_id','called_at','call_type',
         'duration_minutes','outcome','notes','next_follow_up','followup_time',
-        'outcome_subcategory'
+        'outcome_subcategory','company_id'
     ];
 
     protected $casts = [

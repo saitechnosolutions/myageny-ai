@@ -3,12 +3,14 @@
 use App\Http\Controllers\AdminDashboardProductController;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\App\AuthController as MobileAuthController;
+use App\Http\Controllers\App\DailyAttendanceController as MobileDailyAttendanceController;
 use App\Http\Controllers\App\DashboardController as MobileDashboardController;
 use App\Http\Controllers\App\LeadController as MobileLeadController;
 use App\Http\Controllers\App\LeadShowController as MobileLeadShowController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadFormFieldController;
 use App\Http\Controllers\LeadProductController;
+use App\Http\Controllers\LeadProductPriceRequestController;
 use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\QuotationController;
@@ -41,6 +43,7 @@ use Illuminate\Support\Facades\Route;
     // ── Lead Products (Deals) ──────────────────────────────────────
     Route::get ('lead-products/{lead_id}', [LeadProductController::class, 'index']);
     Route::post('lead-products',           [LeadProductController::class, 'store']);
+    Route::post('lead-product-price-requests', [LeadProductPriceRequestController::class, 'store']);
     Route::put ('lead-products/status',    [LeadProductController::class, 'updateStatus']);
     Route::delete('lead-products/{id}',    [LeadProductController::class, 'destroy']);
 
@@ -100,6 +103,12 @@ Route::patch('/quotation/{quotation}', [QuotationController::class, 'apiUpdate']
 */
 Route::middleware('auth:sanctum')->prefix('mobile')->name('mobile.')->group(function () {
     Route::get('dashboard', [MobileDashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('attendance')->name('attendance.')->group(function () {
+        Route::post('check-in', [MobileDailyAttendanceController::class, 'attendanceCheckIn'])->name('check-in');
+        Route::post('check-out', [MobileDailyAttendanceController::class, 'attendanceCheckOut'])->name('check-out');
+        Route::get('daily-list', [MobileDailyAttendanceController::class, 'dailyAttendanceList'])->name('daily-list');
+    });
 });
 
 /*

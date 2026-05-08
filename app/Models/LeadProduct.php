@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class LeadProduct extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BelongsToCompany;
 
 
 
@@ -26,7 +27,7 @@ class LeadProduct extends Model
         'product_name', 'description',
         'unit_price', 'quantity', 'discount_percent',
         'remarks', 'product_status',
-        'amount_paid', 'created_by',
+        'amount_paid', 'created_by', 'company_id',
     ];
 
     protected $casts = [

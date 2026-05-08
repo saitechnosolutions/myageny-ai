@@ -3,7 +3,7 @@
 @section('title', 'Edit User — ' . $user->name)
 
 @push('styles')
-@include('users._form_styles')
+@include('pages.users.form_styles')
 <style>
 /* Edit-specific extras */
 .ufrm-current-role-note {
@@ -247,13 +247,16 @@
                         @error('role')<div class="ufrm-error" style="margin-bottom:8px">{{ $message }}</div>@enderror
                         <div class="ufrm-role-grid">
                             @php
-                                $roleColors = ['super_admin'=>'#f59e0b','admin'=>'#ea580c','team_leader'=>'#16a34a','bde'=>'#2563eb','hr_manager'=>'#7c3aed','accounts_manager'=>'#0f766e','project_manager'=>'#be123c','staff'=>'#7c7c7c'];
-                                $roleDescriptions = ['super_admin'=>'Full system access','admin'=>'Branch-level admin','team_leader'=>'Team management','bde'=>'Lead management','hr_manager'=>'HR operations','accounts_manager'=>'Finance & billing','project_manager'=>'Project tracking','staff'=>'Read-only access'];
+                                $roleColors = ['super_admin'=>'#f59e0b','company_admin'=>'#dc2626','admin'=>'#ea580c','team_leader'=>'#16a34a','bde'=>'#2563eb','hr_manager'=>'#7c3aed','accounts_manager'=>'#0f766e','project_manager'=>'#be123c','staff'=>'#7c7c7c'];
+                                $roleDescriptions = ['super_admin'=>'Full system access','company_admin'=>'Company super admin access','admin'=>'Branch-level admin','team_leader'=>'Team management','bde'=>'Lead management','hr_manager'=>'HR operations','accounts_manager'=>'Finance & billing','project_manager'=>'Project tracking','staff'=>'Read-only access'];
                             @endphp
                             @foreach($roles as $role)
                             @php
-                                $color = $roleColors[$role->name] ?? '#9e9e9e';
-                                $desc  = $roleDescriptions[$role->name] ?? '';
+                                $roleKey = \Illuminate\Support\Str::contains($role->name, '__')
+                                    ? \Illuminate\Support\Str::afterLast($role->name, '__')
+                                    : $role->name;
+                                $color = $roleColors[$roleKey] ?? '#9e9e9e';
+                                $desc  = $roleDescriptions[$roleKey] ?? '';
                                 $isSelected = old('role', $currentRole) === $role->name;
                             @endphp
                             <label class="ufrm-role-option {{ $isSelected ? 'selected' : '' }}" onclick="selectRole(this)">
@@ -271,7 +274,7 @@
                 </div>
 
                 {{-- Danger Zone --}}
-                @if($user->id !== auth()->id() && !$user->hasRole('super_admin'))
+                @if($user->id !== auth()->id() && !$user->isSystemAdmin() && !($user->company && $user->company->super_admin_user_id === $user->id))
                 <div class="ufrm-card ufrm-danger-zone">
                     <div class="ufrm-card-head">
                         <div>

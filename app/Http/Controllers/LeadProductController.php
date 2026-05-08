@@ -36,6 +36,13 @@ class LeadProductController extends Controller
                 'description' => $p->description,
                 'price'       => (float) $p->final_price,
                 'base_price'  => (float) $p->base_price,
+                'discount_type' => $p->discount_type,
+                'discount_value' => (float) $p->discount_value,
+                'discount_percent' => $p->discount_type === 'percentage'
+                    ? (float) $p->discount_value
+                    : ((float) $p->base_price > 0
+                        ? round(((float) $p->discount_value / (float) $p->base_price) * 100, 2)
+                        : 0),
             ]);
 
         return response()->json(['data' => $products]);
@@ -55,6 +62,13 @@ class LeadProductController extends Controller
                 'description' => $product->description,
                 'price'       => (float) $product->final_price,
                 'base_price'  => (float) $product->base_price,
+                'discount_type' => $product->discount_type,
+                'discount_value' => (float) $product->discount_value,
+                'discount_percent' => $product->discount_type === 'percentage'
+                    ? (float) $product->discount_value
+                    : ((float) $product->base_price > 0
+                        ? round(((float) $product->discount_value / (float) $product->base_price) * 100, 2)
+                        : 0),
                 'attributes'  => $product->attributeValues->map(fn($av) => [
                     'name'  => $av->attribute->name,
                     'value' => $av->value,
@@ -120,7 +134,7 @@ class LeadProductController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-
+        $user = auth()->user();
 
         $v = Validator::make($request->all(), [
             'lead_id'            => ['required', 'exists:leads,id'],
@@ -135,6 +149,20 @@ class LeadProductController extends Controller
 
         if ($v->fails()) {
             return response()->json(['errors' => $v->errors()], 422);
+        }
+
+        if (!$this->isAdmin($user)) {
+            foreach ($request->products as $row) {
+                $product = Product::findOrFail($row['product_id']);
+                $requestedPrice = round((float) ($row['unit_price'] ?? $product->final_price), 2);
+                $defaultPrice = round((float) $product->final_price, 2);
+
+                if ($requestedPrice !== $defaultPrice) {
+                    return response()->json([
+                        'message' => 'Price was changed. Please send a price change request for admin approval.',
+                    ], 422);
+                }
+            }
         }
 
         $created = DB::transaction(function () use ($request) {
@@ -303,5 +331,14 @@ class LeadProductController extends Controller
             'message' => 'Payment removed.',
             'product' => $lp->fresh()->toJsPayload(),
         ]);
+    }
+
+    protected function isAdmin($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $user->hasAnyRole(['super_admin', 'Super Admin', 'admin']);
     }
 }

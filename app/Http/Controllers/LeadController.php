@@ -9,6 +9,8 @@ use App\Http\Resources\LeadSourceCollection;
 use App\Http\Resources\LeadStatusCollection;
 use App\Models\Branch;
 use App\Models\Lead;
+use App\Models\LeadProduct;
+use App\Models\LeadProductPriceRequest;
 use App\Models\LeadSource;
 use App\Models\LeadStatus;
 use App\Models\OutcomeCategory;
@@ -23,7 +25,7 @@ class LeadController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Lead::with(['branch', 'assignedTo', 'createdBy'])
+        $query = Lead::with(['branch', 'assignedTo', 'createdBy', 'products'])
             ->latest('lead_date');
 
         // ── Filters ──────────────────────────────────────────────
@@ -74,6 +76,8 @@ class LeadController extends Controller
             $query->whereDate('lead_date', '<=', $request->date_to);
         }
 
+        $activeLeadIds = (clone $query)->pluck('leads.id');
+
         $leads    = $query->paginate(15)->withQueryString();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $users    = User::where('is_active', true)->orderBy('name')->get();
@@ -81,12 +85,10 @@ class LeadController extends Controller
 
         // Stats for top cards
         $stats = [
-            'total'       => Lead::count(),
-            'new'         => Lead::where('lead_status', 'new')->count(),
-            'won'         => Lead::where('lead_status', 'won')->count(),
-            'lost'        => Lead::where('lead_status', 'lost')->count(),
-            'pipeline'    => Lead::whereNotIn('lead_status', ['won','lost'])->sum('deal_value'),
-            'high_priority'=> Lead::where('priority', 'high')->whereNotIn('lead_status', ['won','lost'])->count(),
+            'total'         => $activeLeadIds->count(),
+            'total_products'=> LeadProduct::whereIn('lead_id', $activeLeadIds)->count(),
+            'pipeline'      => LeadProduct::whereIn('lead_id', $activeLeadIds)->sum('total_price'),
+            'new'           => Lead::whereIn('id', $activeLeadIds)->whereDoesntHave('callUpdates')->count(),
         ];
 
         return view('pages.leads.index', compact('leads', 'branches', 'users', 'products', 'stats'));
@@ -108,7 +110,15 @@ class LeadController extends Controller
      */
     public function store(StoreLeadRequest $request)
     {
-        $lead = Lead::create($request->validated());
+        $assignedUser = User::findOrFail($request->assigned_to);
+
+        if (auth()->user()?->company_id !== null && (int) $assignedUser->company_id !== (int) auth()->user()->company_id) {
+            abort(403);
+        }
+
+        $lead = Lead::create(array_merge($request->validated(), [
+            'company_id' => auth()->user()?->company_id,
+        ]));
 
         return redirect()
             ->route('leads.show', $lead)
@@ -122,8 +132,11 @@ class LeadController extends Controller
     {
         $lead->load(['branch', 'assignedTo', 'createdBy', 'quotations']);
         $outcomes = OutcomeCategory::get();
+        $pendingPriceRequestCount = LeadProductPriceRequest::where('lead_id', $lead->id)
+            ->where('status', 'pending')
+            ->count();
 
-        return view('pages.leads.show', compact('lead', 'outcomes'));
+        return view('pages.leads.show', compact('lead', 'outcomes', 'pendingPriceRequestCount'));
     }
 
     /**
@@ -142,6 +155,12 @@ class LeadController extends Controller
      */
     public function update(UpdateLeadRequest $request, Lead $lead)
     {
+        $assignedUser = User::findOrFail($request->assigned_to);
+
+        if (auth()->user()?->company_id !== null && (int) $assignedUser->company_id !== (int) auth()->user()->company_id) {
+            abort(403);
+        }
+
         $lead->update($request->validated());
 
         return redirect()

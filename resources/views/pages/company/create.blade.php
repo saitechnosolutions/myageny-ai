@@ -50,7 +50,7 @@
             <div class="cform-card">
                 <div class="cform-card-head">
                     <div class="cform-card-title">Company Details</div>
-                    <div class="cform-card-sub">Create a company profile with contact and Facebook credentials</div>
+                    <div class="cform-card-sub">Create a company profile, set the user limit, and provision the company super admin.</div>
                 </div>
 
                 <div class="cform-card-body">
@@ -73,9 +73,37 @@
                     </div>
 
                     <div class="cform-group">
-                        <label class="cform-label">Number of Accounts</label>
+                        <label class="cform-label">Number of Users</label>
                         <input type="number" min="1" name="number_of_accounts" class="cform-input" value="{{ old('number_of_accounts', 1) }}" required>
                         @error('number_of_accounts')<div class="cform-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="cform-group full" style="margin-top:8px;">
+                        <label class="cform-label" style="font-size:14px;color:#121212;">Company Super Admin</label>
+                        <div style="font-size:12px;color:#9e9e9e;">This user will manage users, roles, permissions, and CRM data only for this company.</div>
+                    </div>
+
+                    <div class="cform-group">
+                        <label class="cform-label">Super Admin Name</label>
+                        <input type="text" name="super_admin_name" class="cform-input" value="{{ old('super_admin_name') }}" required>
+                        @error('super_admin_name')<div class="cform-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="cform-group">
+                        <label class="cform-label">Super Admin Email</label>
+                        <input type="email" name="super_admin_email" class="cform-input" value="{{ old('super_admin_email') }}" required>
+                        @error('super_admin_email')<div class="cform-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="cform-group">
+                        <label class="cform-label">Super Admin Password</label>
+                        <input type="password" name="super_admin_password" class="cform-input" required>
+                        @error('super_admin_password')<div class="cform-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="cform-group">
+                        <label class="cform-label">Confirm Password</label>
+                        <input type="password" name="super_admin_password_confirmation" class="cform-input" required>
                     </div>
 
                     <div class="cform-group full">

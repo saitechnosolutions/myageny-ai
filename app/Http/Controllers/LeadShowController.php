@@ -40,6 +40,7 @@ class LeadShowController extends Controller
         $data['called_at'] = date("Y-m-d H:i:s");
         $data['outcome_subcategory'] = $request->outcome_sub_category_id;
         $data['user_id'] = auth()->id();
+        $data['company_id'] = $lead->company_id;
 
         LeadCallUpdate::create($data);
 
@@ -108,6 +109,7 @@ class LeadShowController extends Controller
         $data['lead_id']          = $lead->id;
         $data['discount_percent'] = $data['discount_percent'] ?? 0;
         $data['payment_status']   = 'pending';
+        $data['company_id']       = $lead->company_id;
 
         \App\Models\LeadProduct::create($data);
 
@@ -217,6 +219,7 @@ class LeadShowController extends Controller
 
         $quotation = Quotation::create([
             'lead_id'          => $lead->id,
+            'company_id'       => $lead->company_id,
             'created_by'       => auth()->id(),
             'quotation_date'   => $data['quotation_date'],
             'valid_until'      => $data['valid_until'] ?? null,
@@ -231,6 +234,7 @@ class LeadShowController extends Controller
         foreach ($data['items'] as $i => $item) {
             QuotationItem::create([
                 'quotation_id'     => $quotation->id,
+                'company_id'       => $lead->company_id,
                 'product_name'     => $item['product_name'],
                 'description'      => $item['description'] ?? null,
                 'quantity'         => $item['quantity'],

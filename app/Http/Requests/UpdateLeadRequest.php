@@ -21,11 +21,11 @@ class UpdateLeadRequest extends FormRequest
             'lead_source'   => ['required', 'string', Rule::in(Lead::sourceKeys())],
             'lead_status'   => ['required', 'string', Rule::in(Lead::statusKeys())],
             'product_name'  => ['nullable', 'string', 'max:100'],
-            'assigned_to'   => ['nullable', 'exists:users,id'],
+            'assigned_to'   => ['required', 'exists:users,id'],
             'priority'      => ['required', 'in:low,medium,high'],
             'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string', 'max:2000'],
-            'branch_id'     => ['nullable', 'exists:branches,id'],
+            'branch_id'     => ['required', 'exists:branches,id'],
         ];
     }
 }

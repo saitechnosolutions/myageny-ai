@@ -54,7 +54,9 @@
             <div class="cshow-breadcrumb">Companies > {{ $company->company_name }}</div>
         </div>
         <div class="cshow-actions">
+            @if(auth()->user()->isSystemAdmin())
             <a href="{{ route('companies.edit', $company) }}" class="cshow-btn cshow-btn-primary">Edit Company</a>
+            @endif
             <a href="{{ route('companies.index') }}" class="cshow-btn cshow-btn-ghost">Back</a>
         </div>
     </div>

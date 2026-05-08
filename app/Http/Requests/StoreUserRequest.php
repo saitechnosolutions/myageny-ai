@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Role;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreUserRequest extends FormRequest
@@ -13,6 +14,8 @@ class StoreUserRequest extends FormRequest
 
     public function rules(): array
     {
+        $companyId = auth()->user()?->company_id;
+
         return [
             'name'                  => ['required', 'string', 'max:100'],
             'email'                 => ['required', 'email', 'max:150', 'unique:users,email'],
@@ -20,7 +23,21 @@ class StoreUserRequest extends FormRequest
             'password'              => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required'],
             'branch_id'             => ['nullable', 'exists:branches,id'],
-            'role'                  => ['required', 'exists:roles,name'],
+            'role'                  => [
+                'required',
+                function (string $attribute, mixed $value, \Closure $fail) use ($companyId) {
+                    $role = Role::withoutGlobalScopes()->where('name', $value)->first();
+
+                    if (! $role) {
+                        $fail('Selected role does not exist.');
+                        return;
+                    }
+
+                    if ($companyId !== null && (int) $role->company_id !== (int) $companyId) {
+                        $fail('Selected role does not belong to your company.');
+                    }
+                },
+            ],
             'is_active'             => ['boolean'],
             'avatar'                => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];

@@ -2,46 +2,28 @@
 
 namespace Database\Seeders;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class SuperAdminSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
-     public function run(): void
+    public function run(): void
     {
-        // Create Super Admin Role
-        $role = Role::firstOrCreate(['name' => 'Super Admin']);
+        $role = Role::firstOrCreate(
+            ['name' => 'super_admin', 'guard_name' => 'web'],
+            ['display_name' => 'Super Admin', 'description' => 'Full CRM access across all modules.']
+        );
 
-        // Create All Permissions (example list — customize as needed)
-        $permissions = [
-            'dashboard.view',
+        Permission::ensureCrmPermissions();
 
-            'user.create',
-            'user.view',
-            'user.edit',
-            'user.delete',
+        $role->syncPermissions(Permission::withoutGlobalScopes()->get());
 
-            'lead.create',
-            'lead.view',
-            'lead.edit',
-            'lead.delete',
-        ];
-
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
-        }
-
-        // Assign all permissions to Super Admin
-        $role->syncPermissions(Permission::all());
-
-        // Create Super Admin User
         $user = User::updateOrCreate(
             ['email' => 'admin@gmail.com'],
             [
@@ -50,7 +32,6 @@ class SuperAdminSeeder extends Seeder
             ]
         );
 
-        // Assign Role
-        $user->assignRole($role);
+        $user->syncRoles([$role]);
     }
 }

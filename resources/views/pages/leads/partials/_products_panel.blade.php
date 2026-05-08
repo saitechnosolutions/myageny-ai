@@ -13,6 +13,7 @@
     $totalPending = $totalValue - $totalPaid;
     $prodCount    = $lead->products->count();
     $converted    = $lead->products->where('product_status','converted')->count();
+    $canApproveLeadPriceRequests = auth()->user()?->hasAnyRole(['super_admin', 'Super Admin', 'admin']);
 @endphp
 
 {{-- ══════════════════════════════════════════════════════
@@ -251,6 +252,15 @@
 <div class="pp-toolbar">
     <div class="pp-toolbar-title">🤝 Deals &amp; Products</div>
     <div class="pp-toolbar-right">
+        @if($canApproveLeadPriceRequests)
+        <a href="{{ route('lead-price-requests.index', ['lead_id' => $lead->id, 'status' => 'pending']) }}"
+           class="pp-act-btn pp-btn-hist">
+            Pending Requests
+            @if(!empty($pendingPriceRequestCount))
+                ({{ $pendingPriceRequestCount }})
+            @endif
+        </a>
+        @endif
         {{-- Loading indicator for AJAX refresh --}}
         <div id="pp-deals-loading" class="pp-loading-wrap" style="display:none;padding:0">
             <div class="pp-spinner" style="width:18px;height:18px;border-width:2px"></div>
@@ -350,6 +360,16 @@
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 Create Deal
+            </button>
+            <button type="button" id="pp-submit-price-request-btn" class="ppf-btn pp-btn-hist"
+                    style="justify-content:center"
+                    onclick="PP.ppSubmitPriceRequest()">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3v12"></path>
+                    <path d="m8 11 4 4 4-4"></path>
+                    <path d="M5 21h14"></path>
+                </svg>
+                Send Price Request
             </button>
             <button type="button" class="ppf-btn ppf-btn-sec"
                     onclick="PP.ppHideModal('pp-modal-add-product')">Cancel</button>
@@ -494,11 +514,10 @@ window.PP_CONFIG = {
     leadId  : {{ $lead->id }},
     apiBase : '{{ rtrim(env("APP_URL"), "/") }}/api',
     csrf    : {!! json_encode(csrf_token()) !!},
+    isAdmin : {{ $canApproveLeadPriceRequests ? 'true' : 'false' }},
 };
 window.PP = window.PP || {};
 </script>
 <script src="{{ asset('js/products-panel.js') }}"></script>
 
 @endpush
-
-

@@ -14,7 +14,7 @@
 .auth-field { margin-bottom:16px; }
 .auth-field:last-child { margin-bottom:0; }
 .auth-field label { display:block; font-size:12px; font-weight:700; color:#555; margin-bottom:8px; }
-.auth-field input, .auth-field textarea { width:100%; border:1px solid #e1dee3; border-radius:10px; padding:11px 12px; font-size:13px; font-family:inherit; background:#fff; }
+.auth-field input, .auth-field textarea, .auth-field select { width:100%; border:1px solid #e1dee3; border-radius:10px; padding:11px 12px; font-size:13px; font-family:inherit; background:#fff; }
 .auth-field textarea { resize:vertical; }
 .auth-perm-groups { display:flex; flex-direction:column; gap:14px; max-height:560px; overflow:auto; }
 .auth-perm-group { border:1px solid #f0eef2; border-radius:12px; padding:14px; }

@@ -23,6 +23,9 @@ class StoreCompanyRequest extends FormRequest
             'company_status'         => ['required', Rule::in(['active', 'inactive'])],
             'facebook_client_id'     => ['required', 'string', 'max:255'],
             'facebook_client_secret' => ['required', 'string', 'max:255'],
+            'super_admin_name'       => ['required', 'string', 'max:100'],
+            'super_admin_email'      => ['required', 'email', 'max:150', 'unique:users,email'],
+            'super_admin_password'   => ['required', 'string', 'min:8', 'confirmed'],
         ];
     }
 }

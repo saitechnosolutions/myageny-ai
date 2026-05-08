@@ -2,18 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BelongsToCompany;
 
     protected $fillable = [
         'product_category_id', 'package_name', 'sku',
         'base_price', 'tax_type', 'tax_value', 'discount_type', 'discount_value',
-        'final_price', 'description', 'status', 'sort_order', 'product_name'
+        'final_price', 'description', 'status', 'sort_order', 'product_name',
+        'company_id',
     ];
 
     protected $casts = [

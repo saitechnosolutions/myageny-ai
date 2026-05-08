@@ -10,7 +10,6 @@
 .back-link    { color:#9e9e9e; font-size:13px; text-decoration:none; }
 .back-link:hover{ color:#fe5f04; }
 
-/* Card */
 .qt-card {
     background:#fff; border:1px solid #e1dee3;
     border-radius:14px; overflow:hidden; margin-bottom:20px;
@@ -29,12 +28,10 @@
     padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600;
 }
 
-/* Info Grid */
 .info-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
 .info-item label { font-size:11px; font-weight:600; color:#9e9e9e; display:block; margin-bottom:4px; }
 .info-item span  { font-size:14px; font-weight:500; color:#121212; }
 
-/* Table */
 .qt-table{ width:100%; border-collapse:collapse; }
 .qt-table th{
     padding:10px 14px; font-size:11px; font-weight:600;
@@ -47,13 +44,11 @@
 }
 .qt-table tbody tr:last-child td { border-bottom:none; }
 
-/* Totals */
 .totals-section{ display:flex; justify-content:flex-end; padding-top:18px; border-top:1px solid #f0f0f0; }
 .totals-box{ min-width:260px; display:flex; flex-direction:column; gap:10px; }
 .totals-line { display:flex; justify-content:space-between; font-size:13px; color:#444; }
 .totals-line.grand { font-size:16px; font-weight:700; color:#121212; padding-top:10px; border-top:1px solid #e1dee3; }
 
-/* Actions */
 .action-row{ display:flex; gap:10px; flex-wrap:wrap; }
 .btn-approve{
     display:inline-flex; align-items:center; gap:6px;
@@ -105,7 +100,6 @@
         <div class="alert-success">{{ session('success') }}</div>
     @endif
 
-    {{-- ── Quotation Info ── --}}
     <div class="qt-card">
         <div class="qt-card-header">
             <span class="qt-no">{{ $quotation->quotation_no }}</span>
@@ -119,11 +113,11 @@
             <div class="info-grid">
                 <div class="info-item">
                     <label>Lead</label>
-                    <span>{{ $quotation->lead->name ?? '—' }}</span>
+                    <span>{{ $quotation->lead->contact_name ?? '-' }}</span>
                 </div>
                 <div class="info-item">
                     <label>Company</label>
-                    <span>{{ $quotation->lead->company_name ?? '—' }}</span>
+                    <span>{{ $quotation->lead->company_name ?? '-' }}</span>
                 </div>
                 <div class="info-item">
                     <label>Quotation Date</label>
@@ -134,16 +128,23 @@
                     <span>{{ $quotation->valid_until->format('d M Y') }}</span>
                 </div>
                 <div class="info-item">
-                    <label>Tax</label>
-                    <span>{{ $quotation->tax }}%</span>
+                    <label>Tax Type</label>
+                    <span>{{ $quotation->tax_type === 'igst' ? 'IGST' : 'CGST + SGST' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Client GST</label>
+                    <span>{{ $quotation->gst_number ?: '-' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Customer State</label>
+                    <span>{{ $quotation->customer_state ?: '-' }}</span>
                 </div>
                 <div class="info-item">
                     <label>Approved By</label>
-                    <span>{{ $quotation->approver->name ?? '—' }}</span>
+                    <span>{{ $quotation->approver->name ?? '-' }}</span>
                 </div>
             </div>
 
-            {{-- Items Table --}}
             <table class="qt-table">
                 <thead>
                     <tr>
@@ -160,8 +161,8 @@
                     @foreach($quotation->items as $i => $item)
                     <tr>
                         <td>{{ $i + 1 }}</td>
-                        <td><strong>{{ $item->product->name ?? '—' }}</strong></td>
-                        <td style="color:#6e6e6e">{{ $item->description ?: '—' }}</td>
+                        <td><strong>{{ $item->product->product_name ?? '-' }}</strong></td>
+                        <td style="color:#6e6e6e">{{ $item->description ?: '-' }}</td>
                         <td style="text-align:center">{{ $item->qty }}</td>
                         <td style="text-align:right">₹{{ number_format($item->unit_price, 2) }}</td>
                         <td style="text-align:right">₹{{ number_format($item->discount, 2) }}</td>
@@ -171,17 +172,27 @@
                 </tbody>
             </table>
 
-            {{-- Totals --}}
             <div class="totals-section">
                 <div class="totals-box">
                     <div class="totals-line">
                         <span>Subtotal</span>
                         <span>₹{{ number_format($quotation->subtotal, 2) }}</span>
                     </div>
+                    @if($quotation->igst_amount > 0)
                     <div class="totals-line">
-                        <span>Tax ({{ $quotation->tax }}%)</span>
-                        <span>₹{{ number_format($quotation->tax_amount, 2) }}</span>
+                        <span>IGST ({{ number_format($quotation->igst_rate, 2) }}%)</span>
+                        <span>₹{{ number_format($quotation->igst_amount, 2) }}</span>
                     </div>
+                    @else
+                    <div class="totals-line">
+                        <span>CGST ({{ number_format($quotation->cgst_rate, 2) }}%)</span>
+                        <span>₹{{ number_format($quotation->cgst_amount, 2) }}</span>
+                    </div>
+                    <div class="totals-line">
+                        <span>SGST ({{ number_format($quotation->sgst_rate, 2) }}%)</span>
+                        <span>₹{{ number_format($quotation->sgst_amount, 2) }}</span>
+                    </div>
+                    @endif
                     <div class="totals-line grand">
                         <span>Grand Total</span>
                         <span>₹{{ number_format($quotation->total_amount, 2) }}</span>
@@ -189,7 +200,6 @@
                 </div>
             </div>
 
-            {{-- Notes --}}
             @if($quotation->notes)
             <div style="margin-top:20px;padding-top:18px;border-top:1px solid #f0f0f0">
                 <div style="font-size:11px;font-weight:600;color:#9e9e9e;margin-bottom:6px">NOTES</div>

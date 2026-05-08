@@ -1,333 +1,202 @@
-{{-- resources/views/quotations/pdf.blade.php --}}
-{{-- Used by DomPDF / barryvdh/laravel-dompdf --}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <style>
-    /* DomPDF works best with basic CSS – no Google Fonts, no flex/grid */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'DejaVu Sans', sans-serif;
-      font-size: 11px;
-      color: #0f1923;
-      background: #fff;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: {{ $quoteSetting['theme_color'] }};
-      color: #fff;
-      padding: 20px 28px;
-      overflow: hidden;
-    }
+    body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #0f1923; background: #fff; }
+    .header { background: {{ $quoteSetting['theme_color'] }}; color: #fff; padding: 20px 28px; overflow: hidden; }
     .header-left  { float: left; width: 60%; }
     .header-right { float: right; width: 38%; text-align: right; }
     .clearfix::after { content: ''; display: table; clear: both; }
-
-    .brand-name {
-      font-size: 15px;
-      font-weight: bold;
-      color: #fff;
-      margin-bottom: 4px;
-    }
     .brand-sub { font-size: 9px; color: #fff; line-height: 1.6; }
-    .gstin-badge {
-      display: inline-block;
-      background: {{ $quoteSetting['secondary_color'] }};
-      color: #fff;
-      font-size: 9px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      margin-top: 5px;
-    }
-
+    .gstin-badge { display: inline-block; background: {{ $quoteSetting['secondary_color'] }}; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 3px; margin-top: 5px; }
     .estimate-word { font-size: 30px; color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; }
     .est-meta { font-size: 10px; color: rgba(255,255,255,.8); line-height: 1.8; margin-top: 6px; }
     .est-meta strong { color: #fff; }
-
-    /* ── Addresses ── */
     .addr-row { overflow: hidden; border-bottom: 1px solid #d8dde5; }
     .addr-cell { float: left; width: 50%; padding: 14px 28px; }
     .addr-cell + .addr-cell { border-left: 1px solid #d8dde5; }
-    .addr-label {
-      font-size: 8px;
-      font-weight: bold;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: #5a6472;
-      margin-bottom: 6px;
-    }
+    .addr-label { font-size: 8px; font-weight: bold; letter-spacing: .1em; text-transform: uppercase; color: #5a6472; margin-bottom: 6px; }
     .addr-name { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
     .addr-text { font-size: 10px; color: #5a6472; line-height: 1.6; }
-    .gstin-pill {
-      display: inline-block;
-      background: #fdf4e7;
-      color: #c8973a;
-      font-size: 9px;
-      font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 3px;
-      margin-top: 5px;
-    }
-
-    /* ── Table ── */
+    .gstin-pill { display: inline-block; background: #fdf4e7; color: #c8973a; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin-top: 5px; }
     .table-wrap { padding: 0 28px; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
     thead tr { background: {{ $quoteSetting['theme_color'] }}; color: #fff; }
-    thead th {
-      padding: 8px 8px;
-      text-align: left;
-      font-size: 8.5px;
-      font-weight: bold;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-    thead th.r { text-align: right; }
-    thead th.c { text-align: center; }
-
+    thead th { padding: 8px; text-align: left; font-size: 8.5px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase; }
+    thead th.r, tbody td.r { text-align: right; }
+    thead th.c, tbody td.c { text-align: center; }
     tbody tr { border-bottom: 1px solid #e5e8ed; }
     tbody tr:nth-child(even) { background: #f9fafb; }
-    tbody td { padding: 8px 8px; vertical-align: top; }
-    tbody td.c { text-align: center; }
-    tbody td.r { text-align: right; }
-
+    tbody td { padding: 8px; vertical-align: top; }
     .item-title { font-weight: bold; }
     .item-sub { font-size: 9px; color: #5a6472; margin-top: 2px; line-height: 1.5; }
-    .hsn { background: #edf0f4; color: #5a6472; font-size: 9px; padding: 1px 5px; border-radius: 3px; }
-    .zero { color: #bbb; }
-
-    /* ── Totals ── */
-    .totals-outer { overflow: hidden; padding: 16px 28px; border-top: 2px solid #d8dde5; }
-    .totals-box { float: right; width: 280px; }
-    .t-row { overflow: hidden; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 11px; }
-    .t-row:last-child { border-bottom: none; }
-    .t-lbl { float: left; color: #5a6472; }
-    .t-val { float: right; font-weight: 600; }
-    .t-grand {
-      background: {{ $quoteSetting['theme_color'] }};
-      color: #fff;
-      padding: 10px 12px;
-      overflow: hidden;
-      border-radius: 4px;
-      margin-top: 6px;
-    }
-    .t-grand .t-lbl { color: #fff; font-weight: bold; font-size: 12px; }
-    .t-grand .t-val { color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; font-size: 16px; }
-
-    /* ── Words bar ── */
-    .words-bar {
-      background: #fdf4e7;
-      border-top: 1px solid #f0e0bc;
-      padding: 8px 28px;
-      font-size: 10px;
-      color: {{ $quoteSetting['secondary_color'] }};
-      font-weight: bold;
-    }
+    .words-bar { background: #fdf4e7; border-top: 1px solid #f0e0bc; padding: 8px 28px; font-size: 10px; color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; }
     .words-bar span { color: #5a6472; font-weight: normal; margin-right: 4px; }
-
-    /* ── Footer ── */
+    .totals-outer { overflow: hidden; padding: 16px 28px; border-top: 2px solid #d8dde5; }
+    .totals-box { float: right; width: 300px; }
+    .t-row { overflow: hidden; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 11px; }
+    .t-val { float: right; font-weight: 600; }
+    .t-grand { background: {{ $quoteSetting['theme_color'] }}; color: #fff; padding: 10px 12px; overflow: hidden; border-radius: 4px; margin-top: 6px; }
+    .t-grand .t-val { color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; font-size: 16px; }
     .footer-row { overflow: hidden; border-top: 2px solid #d8dde5; }
     .foot-cell { float: left; width: 50%; padding: 16px 28px; }
     .foot-cell + .foot-cell { border-left: 1px solid #d8dde5; }
-    .foot-label {
-      font-size: 8px;
-      font-weight: bold;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: #5a6472;
-      margin-bottom: 8px;
-    }
-    .bk-row { overflow: hidden; padding: 4px 0; border-bottom: 1px dashed #eee; font-size: 10px; }
-    .bk-row:last-child { border-bottom: none; }
-    .bk-k { float: left; color: #5a6472; }
-    .bk-v { float: right; font-weight: 600; }
-    .upi {
-      display: inline-block;
-      background: #fdf4e7;
-      color: #c8973a;
-      font-size: 9px;
-      font-weight: bold;
-      padding: 3px 8px;
-      border-radius: 3px;
-      margin-top: 8px;
-    }
+    .foot-label { font-size: 8px; font-weight: bold; letter-spacing: .1em; text-transform: uppercase; color: #5a6472; margin-bottom: 8px; }
+    .bk-row { padding: 4px 0; border-bottom: 1px dashed #eee; font-size: 10px; }
+    .upi { display: inline-block; background: #fdf4e7; color: #c8973a; font-size: 9px; font-weight: bold; padding: 3px 8px; border-radius: 3px; margin-top: 8px; }
     .note { font-size: 10px; color: #5a6472; margin-top: 10px; }
     .sig-space { height: 48px; }
     .sig-line { border-top: 1px solid #0f1923; padding-top: 4px; font-size: 9px; font-weight: bold; letter-spacing: .05em; text-transform: uppercase; color: #5a6472; }
-    .preview {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-30deg);
-
-    font-size: 60px;
-    font-weight: bold;
-    color: rgba(0, 0, 0, 0.08); /* light transparent */
-
-    text-align: center;
-    width: 80%;
-
-    white-space: normal;
-    overflow-wrap: break-word;
-    pointer-events: none; /* click-through */
-}
-
-.footer-final
-{
-    position: absolute;
-    bottom:0;
-    background: #fdf4e7;
-    padding:10px;
-    width:100%;
-    text-align:center
-}
+    .preview { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 60px; font-weight: bold; color: rgba(0, 0, 0, 0.08); text-align: center; width: 80%; white-space: normal; overflow-wrap: break-word; pointer-events: none; }
+    .footer-final { position: absolute; bottom:0; background: #fdf4e7; padding:10px; width:100%; text-align:center; }
   </style>
 </head>
 <body>
+@php
+  $logoBase64 = null;
+  if (!empty($quoteSetting['logo']) && file_exists(public_path($quoteSetting['logo']))) {
+      $path = public_path($quoteSetting['logo']);
+      $type = pathinfo($path, PATHINFO_EXTENSION);
+      $data = file_get_contents($path);
+      $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+  }
 
-{{-- HEADER --}}
-<div class="header clearfix">
-  <div class="header-left">
-     @php
-    $path = public_path($quoteSetting['logo']);
-    $type = pathinfo($path, PATHINFO_EXTENSION);
-    $data = file_get_contents($path);
-    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+  $signatureBase64 = null;
+  if (!empty($quoteSetting['signature']) && file_exists(public_path($quoteSetting['signature']))) {
+      $path = public_path($quoteSetting['signature']);
+      $type = pathinfo($path, PATHINFO_EXTENSION);
+      $data = file_get_contents($path);
+      $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+  }
 @endphp
 
-<div style="margin-bottom:10px;width:180px;background-color:#fff;padding:10px;border-radius:10px">
-    <img src="{{ $base64 }}" style="width:175px">
-</div>
-
-    {{--  <div class="brand-name">Brilliant Pavers</div>  --}}
-    <div class="brand-sub">
-      297A, D.R.Shelders, Shakthi Garden, Chidambaram Nagar, <br>
-      Poompogar Nagar, Saravanampatti, <br>Coimbatore, Tamil Nadu 641035.
+<div class="header clearfix">
+  <div class="header-left">
+    @if($logoBase64)
+    <div style="margin-bottom:10px;width:180px;background-color:#fff;padding:10px;border-radius:10px">
+      <img src="{{ $logoBase64 }}" style="width:175px">
     </div>
-    <span class="gstin-badge">GSTIN: </span>
+    @endif
+    <div class="brand-sub">
+      {{ $quoteSetting['company_name'] }}<br>
+      {{ $quoteSetting['company_address'] }}
+    </div>
+    <span class="gstin-badge">GSTIN: {{ $quoteSetting['company_gstin'] }}</span>
   </div>
   <div class="header-right">
     <div class="estimate-word">Quotation</div>
     <div class="est-meta">
-      <strong>{{ $quotation->estimate_number }}</strong><br>
-      Date: <strong>{{ \Carbon\Carbon::parse($quotation->estimate_date)->format('d/m/Y') }}</strong><br>
-      Place of Supply: <strong>Tamil Nadu (33)</strong><br>
+      <strong>{{ $quotation->quotation_no }}</strong><br>
+      Date: <strong>{{ \Carbon\Carbon::parse($quotation->quotation_date)->format('d/m/Y') }}</strong><br>
+      Place of Supply: <strong>{{ $quotation->customer_state ?: ($quotation->seller_state ?: 'Tamil Nadu') }}</strong><br>
       Sales Person: <strong>{{ $quotation->createdBy?->name }}</strong>
     </div>
   </div>
 </div>
 
-{{-- ADDRESSES --}}
 <div class="addr-row clearfix">
   <div class="addr-cell">
     <div class="addr-label">Bill To</div>
     <div class="addr-name" style="text-transform: uppercase">{{ $quotation->lead->company_name }}</div>
     <div class="addr-text">{{ $quotation->bill_to_address }}</div>
-    @if(isset($quotation->client_gstin))
-        <span class="gstin-pill">GSTIN: {{ $quotation->client_gstin }}</span>
+    @if($quotation->gst_number)
+      <span class="gstin-pill">GSTIN: {{ $quotation->gst_number }}</span>
     @endif
   </div>
   <div class="addr-cell">
     <div class="addr-label">Ship To</div>
     <div class="addr-name" style="text-transform: uppercase">{{ $quotation->lead->company_name }}</div>
     <div class="addr-text">{{ $quotation->ship_to_address }}</div>
-    @if(isset($quotation->client_gstin))
-        <span class="gstin-pill">GSTIN: {{ $quotation->client_gstin }}</span>
+    @if($quotation->gst_number)
+      <span class="gstin-pill">GSTIN: {{ $quotation->gst_number }}</span>
     @endif
-
   </div>
 </div>
 
-{{-- ITEMS TABLE --}}
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
         <th style="width:24px;">#</th>
         <th>Item &amp; Description</th>
-        <th class="c" style="width:54px;">HSN/SAC</th>
         <th class="c" style="width:36px;">Qty</th>
         <th class="r" style="width:80px;">Rate (₹)</th>
+        <th class="r" style="width:80px;">Discount (₹)</th>
         <th class="r" style="width:80px;">Amount (₹)</th>
       </tr>
     </thead>
     <tbody>
       @foreach($quotation->items as $i => $item)
       <tr>
-        <td style="color:#5a6472;">{{ $i + 1 }}</td>
+        <td>{{ $i + 1 }}</td>
         <td>
           <div class="item-title">{{ $item->product?->product_name }}</div>
           @if($item->description)
             <div class="item-sub">{!! nl2br(e($item->description)) !!}</div>
           @endif
         </td>
-        <td class="c"><span class="hsn">{{ $item->hsn_sac }}</span></td>
         <td class="c">{{ number_format($item->qty, 2) }}</td>
-        <td class="r {{ $item->unit_price == 0 ? 'zero' : '' }}">{{ number_format($item->unit_price, 2) }}</td>
-        <td class="r {{ $item->total == 0 ? 'zero' : '' }}">{{ number_format($item->total, 2) }}</td>
+        <td class="r">{{ number_format($item->unit_price, 2) }}</td>
+        <td class="r">{{ number_format($item->discount, 2) }}</td>
+        <td class="r">{{ number_format($item->total, 2) }}</td>
       </tr>
       @endforeach
     </tbody>
   </table>
 </div>
 
-{{-- WORDS BAR --}}
 <div class="words-bar">
   <span>Amount in Words:</span>{{ amount_in_words($quotation->total_amount) }}
 </div>
 
-{{-- TOTALS --}}
 <div class="totals-outer clearfix">
   <div class="totals-box">
     <div class="t-row clearfix"><span>Sub Total</span><span class="t-val">₹{{ number_format($quotation->subtotal, 2) }}</span></div>
-    <div class="t-row clearfix"><span >CGST 9%</span><span class="t-val">₹{{ number_format($quotation->tax_amount / 2, 2) }}</span></div>
-    <div class="t-row clearfix"><span >SGST 9%</span><span class="t-val">₹{{ number_format($quotation->tax_amount / 2, 2) }}</span></div>
-    <div class="t-row clearfix"><span >Rounding</span><span class="t-val">₹{{ number_format($quotation->rounding, 2) }}</span></div>
+    @if($quotation->igst_amount > 0)
+    <div class="t-row clearfix"><span>IGST {{ number_format($quotation->igst_rate, 2) }}%</span><span class="t-val">₹{{ number_format($quotation->igst_amount, 2) }}</span></div>
+    @else
+    <div class="t-row clearfix"><span>CGST {{ number_format($quotation->cgst_rate, 2) }}%</span><span class="t-val">₹{{ number_format($quotation->cgst_amount, 2) }}</span></div>
+    <div class="t-row clearfix"><span>SGST {{ number_format($quotation->sgst_rate, 2) }}%</span><span class="t-val">₹{{ number_format($quotation->sgst_amount, 2) }}</span></div>
+    @endif
     <div class="t-grand clearfix">
-      <span >Total</span>
+      <span>Total</span>
       <span class="t-val">₹{{ number_format($quotation->total_amount, 2) }}</span>
     </div>
   </div>
 </div>
 
-{{-- FOOTER --}}
 <div class="footer-row clearfix">
   <div class="foot-cell">
     <div class="foot-label">Bank Details</div>
-    <div class="bk-row clearfix"><span >Bank Name : </span><span >{{ $quoteSetting['bank_name'] }}</span></div>
-    <div class="bk-row clearfix">Account Name : {{ $quoteSetting['account_name'] }}</div>
-    <div class="bk-row clearfix">Account Number : {{ $quoteSetting['bank_account'] }}</div>
-    <div class="bk-row clearfix">IFSC Code : {{ $quoteSetting['bank_ifsc'] }}</div>
-    <div class="bk-row clearfix">Branch : {{ $quoteSetting['bank_branch'] }}</div>
+    <div class="bk-row">Bank Name : {{ $quoteSetting['bank_name'] }}</div>
+    <div class="bk-row">Account Name : {{ $quoteSetting['account_name'] }}</div>
+    <div class="bk-row">Account Number : {{ $quoteSetting['bank_account'] }}</div>
+    <div class="bk-row">IFSC Code : {{ $quoteSetting['bank_ifsc'] }}</div>
+    <div class="bk-row">Branch : {{ $quoteSetting['bank_branch'] }}</div>
     <span class="upi">UPI: {{ $quoteSetting['bank_upi'] }}</span>
     <p class="note">Looking forward for your business.</p>
   </div>
   <div class="foot-cell">
     <div class="foot-label">Authorized Signatory</div>
-    @php
-    $path = public_path($quoteSetting['signature']);
-    $type = pathinfo($path, PATHINFO_EXTENSION);
-    $data = file_get_contents($path);
-    $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-@endphp
-
-<div class="sig-space" style="margin-left:25px;margin-bottom:30px;margin-top:25px">
-    <img src="{{ $base64 }}" width="150">
-</div>
-    <div class="sig-line"> Sai Techno Solutions Pvt Ltd</div>
+    @if($signatureBase64)
+    <div class="sig-space" style="margin-left:25px;margin-bottom:30px;margin-top:25px">
+      <img src="{{ $signatureBase64 }}" width="150">
+    </div>
+    @else
+    <div class="sig-space"></div>
+    @endif
+    <div class="sig-line">{{ $quoteSetting['company_name'] }}</div>
   </div>
 </div>
 
-
-
 <div class="preview">
-    <h1>{{ $quoteSetting['watermark_text'] }}</h1>
+  <h1>{{ $quoteSetting['watermark_text'] }}</h1>
 </div>
 
 <div class="footer-final">
-    <a style="text-decoration:none;color:#0f1923" href="http://myagenci.ai/" target="_blank">Powered By Myagenci.ai</a>
+  <a style="text-decoration:none;color:#0f1923" href="http://myagenci.ai/" target="_blank">Powered By Myagenci.ai</a>
 </div>
 
 </body>

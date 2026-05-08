@@ -31,6 +31,8 @@
 .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .grid-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
 .grid-4{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
+.address-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; align-items:stretch; }
+.address-grid.same-address-mode{ grid-template-columns:minmax(0,1fr); }
 
 /* ── Inputs ──────────────────────────────────────────────── */
 .form-group       { display:flex; flex-direction:column; gap:6px; }
@@ -45,6 +47,37 @@
 .form-control:focus{ outline:none; border-color:#fe5f04; background:#fff; }
 textarea.form-control{ resize:vertical; min-height:80px; }
 .input-readonly{ background:#f4f4f4; color:#888; cursor:not-allowed; }
+.address-card{ padding:24px; margin-bottom:0; }
+.address-card .form-card-title{ margin-bottom:16px; }
+.address-card textarea.form-control{ min-height:132px; background:#fff; }
+.address-meta{ margin-top:-4px; margin-bottom:10px; font-size:12px; color:#8a8a8a; line-height:1.5; }
+.address-toggle-card{
+    display:flex; flex-direction:column; gap:10px; margin-top:14px; padding:12px 14px;
+    border:1px dashed #ffd0b3; border-radius:14px; background:linear-gradient(180deg,#fff9f5 0%,#fff 100%);
+}
+.address-toggle-title{
+    font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#a46a47;
+}
+.address-toggle-row{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.address-toggle-copy{
+    font-size:12px; line-height:1.5; color:#7b6a5e;
+}
+.address-switch{
+    position:relative; width:42px; height:24px; flex-shrink:0;
+}
+.address-switch input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+.address-slider{
+    position:absolute; inset:0; border-radius:999px; background:#fed7aa; transition:background .2s ease;
+}
+.address-slider::after{
+    content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%;
+    background:#fff; box-shadow:0 4px 12px rgba(15,23,42,.16); transition:transform .2s ease;
+}
+.address-switch input:checked + .address-slider{ background:#fb923c; }
+.address-switch input:checked + .address-slider::after{ transform:translateX(18px); }
+.ship-address-section.is-hidden{ display:none; }
 
 /* ── Products Table ──────────────────────────────────────── */
 .products-table-wrapper{ overflow-x:auto; }
@@ -135,6 +168,9 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
 /* ── Validation errors ───────────────────────────────────── */
 .is-invalid{ border-color:#e53935 !important; }
 .error-text{ color:#e53935; font-size:11px; margin-top:2px; }
+@media (max-width: 992px){
+    .address-grid{ grid-template-columns:1fr; }
+}
 </style>
 @endpush
 
@@ -195,26 +231,53 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                            value="{{ old('valid_until', $defaults['valid_until']) }}" required>
                     @error('valid_until')<div class="error-text">{{ $message }}</div>@enderror
                 </div>
-
+                <div class="form-group">
+                    <label class="form-label">Client GST Number</label>
+                    <input type="text" name="gst_number" id="gstNumberInput" class="form-control @error('gst_number') is-invalid @enderror"
+                           value="{{ old('gst_number') }}" placeholder="33ABCDE1234F1Z5" maxlength="20">
+                    @error('gst_number')<div class="error-text">{{ $message }}</div>@enderror
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Customer State <span style="color:#e53935">*</span></label>
+                    <select name="customer_state" id="customerStateInput" class="form-control @error('customer_state') is-invalid @enderror" required>
+                        @foreach(\App\Models\Quotation::INDIAN_STATES as $state)
+                            <option value="{{ $state }}" {{ old('customer_state', $defaults['customer_state']) === $state ? 'selected' : '' }}>{{ $state }}</option>
+                        @endforeach
+                    </select>
+                    <input type="hidden" id="sellerStateInput" value="{{ $defaults['seller_state'] }}">
+                    @error('customer_state')<div class="error-text">{{ $message }}</div>@enderror
+                </div>
 
             </div>
 
-             <div class="grid-2" style="margin-bottom:16px">
-             <div class="form-card">
+             <div class="address-grid same-address-mode" id="addressGrid" style="margin-bottom:16px">
+             <div class="form-card address-card">
             <div class="form-card-title">
                 <i class="bi bi-sticky-fill"></i> Bill To Address
             </div>
             <div class="form-group">
-                <textarea name="bill_to_address" class="form-control" placeholder="Address"></textarea>
+                <div class="address-meta">Enter the billing address exactly as it should appear on the quotation.</div>
+                <textarea name="bill_to_address" id="billToAddress" class="form-control" placeholder="Address">{{ old('bill_to_address') }}</textarea>
+            </div>
+            <div class="address-toggle-card">
+                <div class="address-toggle-title">Shipping Preference</div>
+                <div class="address-toggle-row">
+                    <div class="address-toggle-copy">Same as billing address</div>
+                    <label class="address-switch" for="sameAsBillingToggle">
+                        <input type="checkbox" id="sameAsBillingToggle" name="same_as_billing" value="1" {{ old('same_as_billing', '1') ? 'checked' : '' }}>
+                        <span class="address-slider"></span>
+                    </label>
+                </div>
             </div>
         </div>
 
-         <div class="form-card">
+         <div class="form-card address-card ship-address-section is-hidden" id="shipAddressSection">
             <div class="form-card-title">
                 <i class="bi bi-sticky-fill"></i> Ship To Address
             </div>
             <div class="form-group">
-                <textarea name="ship_to_address" class="form-control" placeholder="Address"></textarea>
+                <div class="address-meta">Use a separate shipping destination only when delivery differs from billing.</div>
+                <textarea name="ship_to_address" id="shipToAddress" class="form-control" placeholder="Address">{{ old('ship_to_address') }}</textarea>
             </div>
         </div>
         </div>
@@ -234,6 +297,8 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                     'text'        => $p->product_name,
                     'description' => $p->description ?? '',
                     'price'       => $p->base_price,
+                    'discount_type'  => $p->discount_type ?? 'fixed',
+                    'discount_value' => (float) ($p->discount_value ?? 0),
                 ])) !!}
             </script>
 
@@ -267,11 +332,11 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                         <span>Subtotal</span>
                         <span id="displaySubtotal">₹0.00</span>
                     </div>
-                    <div class="totals-line">
+                    <div class="totals-line" id="cgstLine">
                         <span>CGST (<span id="displayTaxPctCgst">0</span>%)</span>
                         <span id="displayTaxAmtCgst">₹0.00</span>
                     </div>
-                    <div class="totals-line">
+                    <div class="totals-line" id="sgstLine">
                         <span>SGST (<span id="displayTaxPctSgst">0</span>%)</span>
                         <span id="displayTaxAmtSgst">₹0.00</span>
                     </div>
@@ -280,6 +345,10 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
                         <span>Tax (<span id="displayTaxPct">0</span>%)</span>
                         <span id="displayTaxAmt">₹0.00</span>
                     </div>  --}}
+                    <div class="totals-line" id="igstLine" style="display:none;">
+                        <span>IGST (<span id="displayTaxPctIgst">0</span>%)</span>
+                        <span id="displayTaxAmtIgst">â‚¹0.00</span>
+                    </div>
                     <div class="totals-line grand">
                         <span>Grand Total</span>
                         <span id="displayTotal">₹0.00</span>
@@ -340,6 +409,8 @@ $(function () {
 
     /* ── Product data from Blade ─────────────────────────────────────────── */
     const PRODUCTS = JSON.parse(document.getElementById('productsData').textContent);
+    const GST_RATE = 18;
+    const sellerState = ($('#sellerStateInput').val() || 'Tamil Nadu').trim().toLowerCase();
     const productMap = {};
     PRODUCTS.forEach(p => { productMap[p.id] = p; });
 
@@ -348,6 +419,37 @@ $(function () {
     /* ── Helpers ─────────────────────────────────────────────────────────── */
     const fmt  = n => '₹' + parseFloat(n || 0).toFixed(2);
     const fnum = n => parseFloat(n || 0);
+
+    function getRow(rowOrElement) {
+        return $(rowOrElement).closest('tr');
+    }
+
+    function getDiscountAmount(row) {
+        const qty = fnum(row.find('.item-qty').val());
+        const price = fnum(row.find('.item-price').val());
+        const enteredDiscount = fnum(row.find('.item-disc').val());
+        const discountMode = row.data('discount-mode');
+        const discountType = row.data('product-discount-type');
+        const discountValue = fnum(row.data('product-discount-value'));
+
+        if (discountMode === 'product') {
+            if (discountType === 'percentage') {
+                return (qty * price) * (discountValue / 100);
+            }
+
+            return discountValue;
+        }
+
+        return enteredDiscount;
+    }
+
+    function syncDiscountInput(row) {
+        if (row.data('discount-mode') !== 'product') {
+            return;
+        }
+
+        row.find('.item-disc').val(getDiscountAmount(row).toFixed(2));
+    }
 
 
     let isAddingRow = false;
@@ -406,6 +508,9 @@ $(function () {
         `);
 
         $('#itemsBody').append(row);
+        row.data('discount-mode', data.discount_mode || 'manual');
+        row.data('product-discount-type', data.product_discount_type || 'fixed');
+        row.data('product-discount-value', fnum(data.product_discount_value || 0));
 
         /* Init Select2 on the new row's select */
         setTimeout(() => {
@@ -419,7 +524,7 @@ $(function () {
 }, 0);
 
         /* If editing with pre-filled product, recalculate */
-        if (data.product_id) recalcRow(idx);
+        if (data.product_id) recalcRow(row);
 
         return idx;
     }
@@ -429,11 +534,13 @@ $(function () {
     /* ── Recalculate one row total ───────────────────────────────────────── */
     function recalcRow(el) {
 
-    const row = $(el).closest('tr'); // 🔥 current row
+    const row = getRow(el); // current row
 
     const qty   = fnum(row.find('.item-qty').val());
     const price = fnum(row.find('.item-price').val());
-    const disc  = fnum(row.find('.item-disc').val());
+    const disc  = getDiscountAmount(row);
+
+    syncDiscountInput(row);
 
     const total = Math.max((qty * price) - disc, 0);
 
@@ -456,16 +563,26 @@ $(function () {
         subtotal += parseFloat($(this).text().replace('₹', '') || 0);
     });
 
-    const taxPctCgst  = 18/2;
-    const taxPctSgst  = 18/2;
-    const taxAmt  = subtotal * (taxPctCgst / 100);
-    const grand   = subtotal + taxAmt;
+    const customerState = ($('#customerStateInput').val() || '').trim().toLowerCase();
+    const isTamilNaduSale = customerState !== '' && customerState === sellerState;
+    const cgstRate = isTamilNaduSale ? (GST_RATE / 2) : 0;
+    const sgstRate = isTamilNaduSale ? (GST_RATE / 2) : 0;
+    const igstRate = isTamilNaduSale ? 0 : GST_RATE;
+    const cgstAmount = subtotal * (cgstRate / 100);
+    const sgstAmount = subtotal * (sgstRate / 100);
+    const igstAmount = subtotal * (igstRate / 100);
+    const grand = subtotal + cgstAmount + sgstAmount + igstAmount;
 
     $('#displaySubtotal').text(fmt(subtotal));
-    $('#displayTaxPctSgst').text(taxPctCgst.toFixed(2));
-    $('#displayTaxPctCgst').text(taxPctSgst.toFixed(2));
-    $('#displayTaxAmtCgst').text(fmt(taxAmt));
-    $('#displayTaxAmtSgst').text(fmt(taxAmt));
+    $('#displayTaxPctCgst').text(cgstRate.toFixed(2));
+    $('#displayTaxPctSgst').text(sgstRate.toFixed(2));
+    $('#displayTaxPctIgst').text(igstRate.toFixed(2));
+    $('#displayTaxAmtCgst').text(fmt(cgstAmount));
+    $('#displayTaxAmtSgst').text(fmt(sgstAmount));
+    $('#displayTaxAmtIgst').text(fmt(igstAmount));
+    $('#cgstLine').toggle(isTamilNaduSale);
+    $('#sgstLine').toggle(isTamilNaduSale);
+    $('#igstLine').toggle(!isTamilNaduSale);
     $('#displayTotal').text(fmt(grand));
 }
 
@@ -481,14 +598,22 @@ $(function () {
     if (prod) {
         row.find('.item-desc').val(prod.description);
         row.find('.item-price').val(parseFloat(prod.price).toFixed(2));
+        row.data('discount-mode', 'product');
+        row.data('product-discount-type', prod.discount_type || 'fixed');
+        row.data('product-discount-value', fnum(prod.discount_value || 0));
+        syncDiscountInput(row);
     } else {
         row.find('.item-desc').val('');
         row.find('.item-price').val('');
+        row.find('.item-disc').val('0.00');
+        row.data('discount-mode', 'manual');
+        row.data('product-discount-type', 'fixed');
+        row.data('product-discount-value', 0);
     }
 
     row.find('.item-price').trigger('change');
 
-    recalcRow(idx);
+    recalcRow(row);
 });
 
     /* ── Event: qty / price / discount change ────────────────────────────── */
@@ -496,23 +621,36 @@ $(function () {
 
     const row = $(this).closest('tr');
 
-    const qty   = parseFloat(row.find('.item-qty').val() || 0);
-    const price = parseFloat(row.find('.item-price').val() || 0);
-    const disc  = parseFloat(row.find('.item-disc').val() || 0); // %
+    if ($(this).hasClass('item-disc')) {
+        row.data('discount-mode', 'manual');
+    }
 
-    const subtotal = qty * price;
-
-    const discountAmount = subtotal * (disc / 100); // 🔥 % calculation
-
-    const total = Math.max(subtotal - discountAmount, 0);
-
-    row.find('.row-total-val').text('₹' + total.toFixed(2));
-
-    recalcTotals();
+    recalcRow(this);
 });
 
     /* ── Event: tax changes ──────────────────────────────────────────────── */
-    $('#taxInput').on('input change', recalcTotals);
+    $('#customerStateInput').on('change', recalcTotals);
+    $('#gstNumberInput').on('input', function () {
+        const gstin = ($(this).val() || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+        $(this).val(gstin);
+
+        const stateMap = {
+            '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
+            '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan',
+            '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh',
+            '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura',
+            '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand',
+            '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat',
+            '26': 'Dadra and Nagar Haveli and Daman and Diu', '27': 'Maharashtra', '29': 'Karnataka',
+            '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala', '33': 'Tamil Nadu',
+            '34': 'Puducherry', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh'
+        };
+
+        if (gstin.length >= 2 && stateMap[gstin.slice(0, 2)]) {
+            $('#customerStateInput').val(stateMap[gstin.slice(0, 2)]);
+            recalcTotals();
+        }
+    });
 
     /* ── Event: add row ──────────────────────────────────────────────────── */
     $(document).off('click', '#addRowBtn').on('click', '#addRowBtn', function () {
@@ -531,6 +669,39 @@ $(function () {
     $('#leadSelect').select2({ placeholder: '— Select Lead —', width: '100%' });
 
     /* ── Start with one empty row ────────────────────────────────────────── */
+    const sameAsBillingToggle = document.getElementById('sameAsBillingToggle');
+    const addressGrid = document.getElementById('addressGrid');
+    const shipAddressSection = document.getElementById('shipAddressSection');
+    const billToAddress = document.getElementById('billToAddress');
+    const shipToAddress = document.getElementById('shipToAddress');
+
+    function syncAddressVisibility() {
+        const sameAddress = sameAsBillingToggle ? sameAsBillingToggle.checked : true;
+
+        if (addressGrid) {
+            addressGrid.classList.toggle('same-address-mode', sameAddress);
+        }
+
+        if (shipAddressSection) {
+            shipAddressSection.classList.toggle('is-hidden', sameAddress);
+        }
+
+        if (sameAddress && billToAddress && shipToAddress) {
+            shipToAddress.value = billToAddress.value;
+        }
+    }
+
+    if (sameAsBillingToggle && billToAddress && shipToAddress) {
+        sameAsBillingToggle.addEventListener('change', syncAddressVisibility);
+        billToAddress.addEventListener('input', function () {
+            if (sameAsBillingToggle.checked) {
+                shipToAddress.value = billToAddress.value;
+            }
+        });
+
+        syncAddressVisibility();
+    }
+
 if ($('#itemsBody tr').length === 0) {
     addRow();
 }
@@ -540,6 +711,9 @@ if ($('#itemsBody tr').length === 0) {
         if ($('#itemsBody tr').length === 0) {
             alert('Please add at least one product.');
             return false;
+        }
+        if (sameAsBillingToggle && sameAsBillingToggle.checked && billToAddress && shipToAddress) {
+            shipToAddress.value = billToAddress.value;
         }
         $('#submitBtn').prop('disabled', true).html(
             '<i class="bi bi-hourglass-split"></i> Saving…'

@@ -213,6 +213,7 @@
     </div>
 
     <div class="authdash-grid">
+        @if(auth()->user()->isSystemAdmin())
         <a href="/companies" class="authdash-card companies">
             <div class="authdash-icon companies">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -232,7 +233,9 @@
                 </svg>
             </span>
         </a>
+        @endif
 
+        @can('users.view')
         <a href="{{ route('users.index') }}" class="authdash-card users">
             <div class="authdash-icon users">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -252,7 +255,9 @@
                 </svg>
             </span>
         </a>
+        @endcan
 
+        @can('roles.view')
         <a href="{{ route('auth.roles.index') }}" class="authdash-card roles">
             <div class="authdash-icon roles">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -270,7 +275,9 @@
                 </svg>
             </span>
         </a>
+        @endcan
 
+        @can('permissions.view')
         <a href="{{ route('auth.permissions.index') }}" class="authdash-card permissions">
             <div class="authdash-icon permissions">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -288,6 +295,7 @@
                 </svg>
             </span>
         </a>
+        @endcan
     </div>
 </div>
 @endsection

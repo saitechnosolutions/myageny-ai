@@ -57,6 +57,7 @@
                     <tr>
                         <th>Role</th>
                         <th>Key</th>
+                        <th>Department</th>
                         <th>Description</th>
                         <th>Users</th>
                         <th>Permissions</th>
@@ -71,6 +72,7 @@
                                 <div style="font-weight:700;">{{ $role->display_name ?: ucfirst(str_replace('_', ' ', $role->name)) }}</div>
                             </td>
                             <td><span class="auth-badge">{{ $role->name }}</span></td>
+                            <td class="auth-muted">{{ $role->department?->name ?: 'No department' }}</td>
                             <td class="auth-muted">{{ $role->description ?: 'No description added' }}</td>
                             <td>{{ $role->users_count }}</td>
                             <td>{{ $role->permissions->count() }}</td>

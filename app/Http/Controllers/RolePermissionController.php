@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class RolePermissionController extends Controller
 {
@@ -29,7 +30,7 @@ class RolePermissionController extends Controller
     public function rolesIndex()
     {
         $roles = Role::withCount('users')
-            ->with('permissions')
+            ->with(['permissions', 'department'])
             ->orderByRaw('COALESCE(display_name, name)')
             ->paginate(10)
             ->withQueryString();
@@ -42,12 +43,9 @@ class RolePermissionController extends Controller
      */
     public function rolesCreate()
     {
-        $permissions = Permission::orderBy('module')
-            ->orderByRaw('COALESCE(display_name, name)')
-            ->get()
-            ->groupBy(fn (Permission $permission) => $permission->module ?: 'general');
+        $departments = Department::orderBy('name')->get();
 
-        return view('pages.auth_menu.roles.create', compact('permissions'));
+        return view('pages.auth_menu.roles.create', compact('departments'));
     }
 
     /**
@@ -55,19 +53,32 @@ class RolePermissionController extends Controller
      */
     public function rolesStore(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
+
         $data = $request->validate([
-            'name'         => ['required', 'string', 'max:100', 'unique:roles,name'],
+            'name'         => ['required', 'string', 'max:100'],
             'display_name' => ['required', 'string', 'max:150'],
             'description'  => ['nullable', 'string', 'max:500'],
+            'department_id'=> ['nullable', 'exists:departments,id'],
             'permissions'  => ['nullable', 'array'],
             'permissions.*'=> ['exists:permissions,name'],
         ]);
 
+        $roleName = Role::tenantRoleName($data['name'], $companyId);
+
+        if (Role::withoutGlobalScopes()->where('name', $roleName)->exists()) {
+            return back()
+                ->withErrors(['name' => 'A role with this key already exists for this company.'])
+                ->withInput();
+        }
+
         $role = Role::create([
-            'name'         => Str::slug($data['name'], '_'),
+            'name'         => $roleName,
             'display_name' => $data['display_name'],
             'description'  => $data['description'] ?? null,
+            'department_id'=> $data['department_id'] ?? null,
             'guard_name'   => 'web',
+            'company_id'   => $companyId,
         ]);
 
         if (! empty($data['permissions'])) {
@@ -83,7 +94,9 @@ class RolePermissionController extends Controller
      */
     public function rolesEdit(Role $role)
     {
-        return view('pages.auth_menu.roles.edit', compact('role'));
+        $departments = Department::orderBy('name')->get();
+
+        return view('pages.auth_menu.roles.edit', compact('role', 'departments'));
     }
 
     /**
@@ -94,11 +107,13 @@ class RolePermissionController extends Controller
         $data = $request->validate([
             'display_name' => ['required', 'string', 'max:150'],
             'description'  => ['nullable', 'string', 'max:500'],
+            'department_id'=> ['nullable', 'exists:departments,id'],
         ]);
 
         $role->update([
             'display_name' => $data['display_name'],
             'description'  => $data['description'] ?? null,
+            'department_id'=> $data['department_id'] ?? null,
         ]);
         return redirect()->route('auth.roles.index')
             ->with('success', "Role '{$role->name}' updated successfully.");
@@ -138,6 +153,10 @@ class RolePermissionController extends Controller
     {
         if (strtolower(str_replace(' ', '_', $role->name)) === 'super_admin') {
             return back()->with('error', 'The super_admin role cannot be deleted.');
+        }
+
+        if ($role->company_id && $role->name === Role::tenantRoleName('company_admin', $role->company_id)) {
+            return back()->with('error', 'The company_admin role cannot be deleted.');
         }
 
         if ($role->users()->count() > 0) {
@@ -182,6 +201,8 @@ class RolePermissionController extends Controller
      */
     public function permissionsStore(Request $request)
     {
+        $companyId = auth()->user()?->company_id;
+
         $data = $request->validate([
             'module'       => ['required', 'string', 'max:50'],
             'actions'      => ['nullable', 'array'],
@@ -212,7 +233,7 @@ class RolePermissionController extends Controller
         $skippedPermissions = [];
 
         foreach ($actions as $action) {
-            $permissionName = $moduleKey . '.' . $action;
+            $permissionName = Permission::tenantPermissionName($moduleKey, $action, $companyId);
 
             $permission = Permission::firstOrCreate(
                 ['name' => $permissionName, 'guard_name' => 'web'],
@@ -220,6 +241,7 @@ class RolePermissionController extends Controller
                     'display_name' => Str::title($action . ' ' . $moduleName),
                     'module' => $moduleKey,
                     'description' => $data['description'] ?: ('Allows users to ' . $action . ' ' . strtolower($moduleName) . '.'),
+                    'company_id' => $companyId,
                 ]
             );
 
@@ -284,6 +306,8 @@ class RolePermissionController extends Controller
      */
     public function assignUserRole(Request $request, User $user)
     {
+        $companyId = auth()->user()?->company_id;
+
         $data = $request->validate([
             'roles'       => ['nullable', 'array'],
             'roles.*'     => ['exists:roles,name'],
@@ -291,12 +315,64 @@ class RolePermissionController extends Controller
             'permissions.*'=> ['exists:permissions,name'],
         ]);
 
+        if ($companyId !== null) {
+            $invalidRole = Role::withoutGlobalScopes()
+                ->whereIn('name', $data['roles'] ?? [])
+                ->where(function ($query) use ($companyId) {
+                    $query->whereNull('company_id')->orWhere('company_id', '!=', $companyId);
+                })
+                ->exists();
+
+            $invalidPermission = Permission::withoutGlobalScopes()
+                ->whereIn('name', $data['permissions'] ?? [])
+                ->where(function ($query) use ($companyId) {
+                    $query->whereNull('company_id')->orWhere('company_id', '!=', $companyId);
+                })
+                ->exists();
+
+            abort_if($invalidRole || $invalidPermission, 403);
+        }
+
         // Sync roles
         $user->syncRoles($data['roles'] ?? []);
 
         // Sync direct permissions (extra permissions beyond role)
         $user->syncPermissions($data['permissions'] ?? []);
 
+        $this->syncCompanySuperAdmin($user, $data['roles'] ?? []);
+
         return back()->with('success', "Roles and permissions updated for {$user->name}.");
+    }
+
+    private function syncCompanySuperAdmin(User $user, array $roleNames): void
+    {
+        if (! $user->company_id) {
+            return;
+        }
+
+        $companyAdminRole = Role::tenantRoleName('company_admin', $user->company_id);
+        $company = \App\Models\Company::find($user->company_id);
+
+        if (! $company) {
+            return;
+        }
+
+        if (in_array($companyAdminRole, $roleNames, true)) {
+            if ($company->super_admin_user_id && (int) $company->super_admin_user_id !== (int) $user->id) {
+                $previousSuperAdmin = User::find($company->super_admin_user_id);
+
+                if ($previousSuperAdmin) {
+                    $previousSuperAdmin->removeRole($companyAdminRole);
+                }
+            }
+
+            $company->update(['super_admin_user_id' => $user->id]);
+
+            return;
+        }
+
+        if ((int) $company->super_admin_user_id === (int) $user->id) {
+            $company->update(['super_admin_user_id' => null]);
+        }
     }
 }
