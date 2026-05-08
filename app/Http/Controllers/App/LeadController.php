@@ -61,20 +61,20 @@ class LeadController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('company_name',   'like', "%{$s}%")
-                  ->orWhere('contact_name', 'like', "%{$s}%")
-                  ->orWhere('mobile_number','like', "%{$s}%")
-                  ->orWhere('email',        'like', "%{$s}%")
-                  ->orWhereHas('product', fn($pq) => $pq->where('product_name', 'like', "%{$s}%"));
+                    ->orWhere('contact_name', 'like', "%{$s}%")
+                    ->orWhere('mobile_number', 'like', "%{$s}%")
+                    ->orWhere('email',        'like', "%{$s}%")
+                    ->orWhereHas('product', fn($pq) => $pq->where('product_name', 'like', "%{$s}%"));
             });
         }
 
         if ($request->filled('branch_id'))     $query->where('branch_id',    $request->branch_id);
-        if ($request->filled('mobile_number')) $query->where('mobile_number','like', '%'.$request->mobile_number.'%');
+        if ($request->filled('mobile_number')) $query->where('mobile_number', 'like', '%' . $request->mobile_number . '%');
         if ($request->filled('lead_source'))   $query->where('lead_source',  $request->lead_source);
         if ($request->filled('lead_status'))   $query->where('lead_status',  $request->lead_status);
         if ($request->filled('priority'))      $query->where('priority',     $request->priority);
         if ($request->filled('assigned_to'))   $query->where('assigned_to',  $request->assigned_to);
-        if ($request->filled('product_name'))  $query->whereHas('product', fn($pq) => $pq->where('product_name', 'like', '%'.$request->product_name.'%'));
+        if ($request->filled('product_name'))  $query->whereHas('product', fn($pq) => $pq->where('product_name', 'like', '%' . $request->product_name . '%'));
         if ($request->filled('date_from'))     $query->whereDate('lead_date', '>=', $request->date_from);
         if ($request->filled('date_to'))       $query->whereDate('lead_date', '<=', $request->date_to);
 
@@ -86,8 +86,8 @@ class LeadController extends Controller
             'new'           => Lead::where('lead_status', 'new')->count(),
             'won'           => Lead::where('lead_status', 'won')->count(),
             'lost'          => Lead::where('lead_status', 'lost')->count(),
-            'pipeline'      => Lead::whereNotIn('lead_status', ['won','lost'])->sum('deal_value'),
-            'high_priority' => Lead::where('priority', 'high')->whereNotIn('lead_status', ['won','lost'])->count(),
+            'pipeline'      => Lead::whereNotIn('lead_status', ['won', 'lost'])->sum('deal_value'),
+            'high_priority' => Lead::where('priority', 'high')->whereNotIn('lead_status', ['won', 'lost'])->count(),
         ];
 
         return response()->json([
@@ -129,11 +129,9 @@ class LeadController extends Controller
             'lead_date'     => ['nullable', 'date'],
             'mobile_number' => ['required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:255'],
-            'lead_source'   => ['required', 'string' ],
-            'lead_status'   => ['required', 'string'],
+            'lead_source'   => ['required', 'string'],
             'product_id'    => ['nullable', 'integer', 'exists:products,id'],
             'priority'      => ['required', 'string'],
-            'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string'],
             'branch_id'     => ['nullable', 'integer', 'exists:branches,id'],
             'assigned_to'   => ['nullable', 'integer', 'exists:users,id'],
@@ -206,8 +204,10 @@ class LeadController extends Controller
             'createdBy:id,name',
             'product:id,product_name',
             'callUpdates.user:id,name',
+            'callUpdates.outCome:id,name',
+            'callUpdates.outComeSubCategory:id,name',
             'reminders.user:id,name',
-            'products.payments.recordedBy:id,name', // ← loads LeadProduct → payments → recordedBy
+            'products.payments.recordedBy:id,name',
             'quotations.items',
             'quotations.createdBy:id,name',
         ]);
@@ -247,10 +247,8 @@ class LeadController extends Controller
             'mobile_number' => ['sometimes', 'required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:255'],
             'lead_source'   => ['sometimes', 'required', 'string', Rule::in(Lead::sourceKeys())],
-            'lead_status'   => ['sometimes', 'required', 'string', Rule::in(Lead::statusKeys())],
             'product_id'    => ['nullable', 'integer', 'exists:products,id'],
             'priority'      => ['sometimes', 'required', 'string', 'in:' . implode(',', array_keys(Lead::PRIORITIES))],
-            'deal_value'    => ['nullable', 'numeric', 'min:0'],
             'remarks'       => ['nullable', 'string'],
             'branch_id'     => ['nullable', 'integer', 'exists:branches,id'],
             'assigned_to'   => ['nullable', 'integer', 'exists:users,id'],
@@ -358,8 +356,8 @@ class LeadController extends Controller
                 'branches'       => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),
                 'users'          => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
                 'products'       => Product::where('is_active', true)
-                                        ->orderBy('product_name')
-                                        ->get(['id', 'product_name as name']),
+                    ->orderBy('product_name')
+                    ->get(['id', 'product_name as name']),
             ],
         ]);
     }
@@ -418,8 +416,8 @@ class LeadController extends Controller
                     'call_type'        => $c->call_type,
                     'call_type_label'  => $c->call_type_label,
                     'duration_minutes' => $c->duration_minutes,
-                    'outcome'          => $c->outcome,
-                    'outcome_label'    => $c->outcome_label,
+                    'outcome'          => $c->outCome?->name ?? $c->outcome,
+                    'outcome_label'    => $c->outComeSubCategory?->name ?? $c->outcome_subcategory,
                     'outcome_color'    => $c->outcome_color,
                     'notes'            => $c->notes,
                     'next_follow_up'   => $c->next_follow_up?->format('d M Y, h.i A'),

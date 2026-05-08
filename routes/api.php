@@ -12,7 +12,7 @@ use App\Http\Controllers\LeadFormFieldController;
 use App\Http\Controllers\LeadProductController;
 use App\Http\Controllers\LeadProductPriceRequestController;
 use App\Http\Controllers\OutcomeCategoryController;
-use App\Http\Controllers\ProductController;
+use App\Http\Controllers\App\AppApiController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -138,6 +138,8 @@ Route::middleware('auth:sanctum')->prefix('mobile/leads')->name('mobile.leads.')
     Route::post('/{lead}/reminders',                      [MobileLeadShowController::class, 'storeReminder'])->name('reminders.store');
     Route::patch('/{lead}/reminders/{reminder}/complete', [MobileLeadShowController::class, 'completeReminder'])->name('reminders.complete');
     Route::delete('/{lead}/reminders/{reminder}',         [MobileLeadShowController::class, 'destroyReminder'])->name('reminders.destroy');
+
+    Route::post('/reminder-list', [AppApiController::class, 'reminderList']);
 
     // ── Lead Products ───────────────────────────────────────────────
     Route::post('/{lead}/products',                   [MobileLeadShowController::class, 'storeProduct'])->name('products.store');

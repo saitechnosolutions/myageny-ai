@@ -448,7 +448,7 @@ class QuotationController extends Controller
 
     public function downloadPdf($id)
     {
-        $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy')->findOrFail($id);
+        $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy', 'lead.assignedTo')->findOrFail($id);
 
         $branchId = auth()->user()?->branch_id
             ?? $quotation->lead->createdBy?->branch_id;

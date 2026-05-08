@@ -80,9 +80,9 @@ class Lead extends Model
     }
 
     public function product()
-{
-    return $this->belongsTo(Product::class);
-}
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public static function sourceOptions(): array
     {
@@ -123,7 +123,7 @@ class Lead extends Model
     public function scopeForUser($query, $userId)
     {
         return $query->where('assigned_to', $userId)
-                     ->orWhere('created_by', $userId);
+            ->orWhere('created_by', $userId);
     }
 
     public function scopeForBranch($query, $branchId)
@@ -182,7 +182,7 @@ class Lead extends Model
         });
     }
 
-        public function callUpdates()
+    public function callUpdates()
     {
         return $this->hasMany(\App\Models\LeadCallUpdate::class)->latest('called_at');
     }
@@ -203,18 +203,18 @@ class Lead extends Model
     }
 
     public function show(Lead $lead)
-{
-    $lead->load([
-        'branch',
-        'assignedTo',
-        'createdBy',
-        'callUpdates.user',
-        'reminders.user',
-        'products',
-        'quotations.items',
-        'quotations.createdBy',
-    ]);
+    {
+        $lead->load([
+            'branch',
+            'assignedTo',
+            'createdBy',
+            'callUpdates.user',
+            'reminders.user',
+            'products',
+            'quotations.items',
+            'quotations.createdBy',
+        ]);
 
-    return view('leads.show', compact('lead'));
-}
+        return view('leads.show', compact('lead'));
+    }
 }
