@@ -140,13 +140,31 @@
                                     <td>{{ \Illuminate\Support\Str::limit($company->facebook_client_id, 18) }}</td>
                                     <td>
                                         <div class="cmp-actions-row">
-                                            <a href="{{ route('companies.show', $company) }}" class="cmp-icon-btn" title="View">View</a>
+                                            <a href="{{ route('companies.show', $company) }}" class="cmp-icon-btn" title="View" aria-label="View company">
+                                                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                                    <circle cx="12" cy="12" r="3"/>
+                                                </svg>
+                                            </a>
                                             @if(auth()->user()->isSystemAdmin())
-                                            <a href="{{ route('companies.edit', $company) }}" class="cmp-icon-btn" title="Edit">Edit</a>
+                                            <a href="{{ route('companies.edit', $company) }}" class="cmp-icon-btn" title="Edit" aria-label="Edit company">
+                                                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path d="M12 20h9"/>
+                                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                                                </svg>
+                                            </a>
                                             <form action="{{ route('companies.destroy', $company) }}" method="POST" onsubmit="return confirm('Delete this company?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="cmp-icon-btn danger" title="Delete">Del</button>
+                                                <button type="submit" class="cmp-icon-btn danger" title="Delete" aria-label="Delete company">
+                                                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <polyline points="3 6 5 6 21 6"/>
+                                                        <path d="M19 6l-1 14H6L5 6"/>
+                                                        <path d="M10 11v6"/>
+                                                        <path d="M14 11v6"/>
+                                                        <path d="M9 6V4h6v2"/>
+                                                    </svg>
+                                                </button>
                                             </form>
                                             @endif
                                         </div>

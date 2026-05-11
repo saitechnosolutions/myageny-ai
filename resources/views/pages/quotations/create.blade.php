@@ -487,8 +487,8 @@ $(function () {
                 </td>
                 <td class="td-price">
                     <input type="number" name="items[${idx}][unit_price]"
-                           class="form-control item-price" min="0" step="0.01"
-                           value="${data.unit_price || ''}" placeholder="0.00" required>
+                           class="form-control item-price input-readonly" min="0" step="0.01"
+                           value="${data.unit_price || ''}" placeholder="0.00" required readonly>
                 </td>
                 <td class="td-disc">
                     <input type="number" name="items[${idx}][discount]"

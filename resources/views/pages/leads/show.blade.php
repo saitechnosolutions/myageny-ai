@@ -165,6 +165,9 @@ tbody tr:last-child td { border-bottom: none; }
     $overdueRem    = $lead->reminders->where('is_completed', false)->filter(fn($r) => $r->remind_at->isPast())->count();
     $prodCount     = $lead->products->count();
     $qtCount       = $lead->quotations->count();
+    $customFieldValues = $lead->customFieldValues
+        ->filter(fn ($fieldValue) => $fieldValue->field && $fieldValue->field->is_active)
+        ->sortBy(fn ($fieldValue) => [$fieldValue->field->sort_order ?? 9999, strtolower($fieldValue->field->label ?? '')]);
 
     $totalValue    = $lead->products->sum('total_price');
     $totalPaid     = $lead->products->sum('amount_paid');
@@ -299,6 +302,31 @@ tbody tr:last-child td { border-bottom: none; }
                             </div>
                         </div>
                     </div>
+
+                    @if($customFieldValues->isNotEmpty())
+                    <div class="lsp-card">
+                        <div class="lsp-card-head"><div class="lsp-card-title">🧩 Custom Fields</div></div>
+                        <div class="lsp-card-body">
+                            <div class="lsp-info-grid">
+                                @foreach($customFieldValues as $fieldValue)
+                                <div class="lsp-info-item">
+                                    <div class="lsp-il">{{ $fieldValue->field->label }}</div>
+                                    <div class="lsp-iv">
+                                        @php
+                                            $displayValue = $fieldValue->value;
+                                            $decodedValue = json_decode((string) $fieldValue->value, true);
+                                            if (json_last_error() === JSON_ERROR_NONE && is_array($decodedValue)) {
+                                                $displayValue = implode(', ', array_filter($decodedValue, fn ($value) => $value !== null && $value !== ''));
+                                            }
+                                        @endphp
+                                        {{ $displayValue !== '' ? $displayValue : '—' }}
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                    @endif
 
                     <div class="lsp-card">
                         <div class="lsp-card-head"><div class="lsp-card-title">💬 Remarks</div></div>

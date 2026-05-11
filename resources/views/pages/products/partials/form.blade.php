@@ -63,6 +63,25 @@
             </select>
         </div>
 
+        @isset($users)
+        <div class="pm-field">
+            <label class="pm-label" for="assigned_to">Visible To</label>
+            <select id="assigned_to" name="assigned_to"
+                    class="pm-select @error('assigned_to') is-invalid @enderror">
+                <option value="">All mapped users</option>
+                @foreach($users as $user)
+                    <option value="{{ $user->id }}"
+                            @selected((string) old('assigned_to', $isEdit ? $product->assigned_to : '') === (string) $user->id)>
+                        {{ $user->name }}
+                    </option>
+                @endforeach
+            </select>
+            @error('assigned_to')
+                <span class="pm-error">{{ $message }}</span>
+            @enderror
+        </div>
+        @endisset
+
         {{-- Sort Order --}}
         {{--  <div class="pm-field pm-field--sm">
             <label class="pm-label" for="sort_order">Sort Order</label>

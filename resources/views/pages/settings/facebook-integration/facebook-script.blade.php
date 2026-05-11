@@ -114,37 +114,11 @@
         $containers.each(function () {
             var $container = $(this);
 
-            function updateSelectOptions() {
-                var selectedValues = [];
-
-                $container.find('.campaign-field-select').each(function () {
-                    var value = $(this).val();
-                    if (value && value !== 'Select the field') {
-                        selectedValues.push(value);
-                    }
-                });
-
-                $container.find('.campaign-field-select').each(function () {
-                    var currentValue = $(this).val();
-
-                    $(this).find('option').each(function () {
-                        var optionValue = $(this).val();
-
-                        if (!optionValue || optionValue === 'Select the field') {
-                            $(this).prop('hidden', false);
-                            return;
-                        }
-
-                        $(this).prop('hidden', selectedValues.includes(optionValue) && optionValue !== currentValue);
-                    });
-                });
-            }
-
             function checkAllFieldsMapped() {
                 var allMapped = true;
 
-                $container.find('.crm-field-select, .campaign-field-select').each(function () {
-                    if (!$(this).val() || $(this).val() === 'Select the field') {
+                $container.find('.crm-field-select').each(function () {
+                    if (!$(this).val()) {
                         allMapped = false;
                         return false;
                     }
@@ -153,7 +127,6 @@
                 $container.find('#map_multiple_fields').prop('disabled', !allMapped);
             }
 
-            updateSelectOptions();
             checkAllFieldsMapped();
         });
     }
@@ -327,21 +300,26 @@
         event.preventDefault();
 
         var $button = $(this);
-        var adid = $('#map_ad_id').val();
-        var accesstoken = $('#map_access_token').val();
-        var camId = $('#map_campaign_id').val();
-        var fieldMappings = [];
-        var campaignsArray = [];
+        var campaigns = [];
 
-        $('.crm-field-select').each(function (index) {
-            fieldMappings.push({
-                crmFieldId: $(this).val(),
-                campaignFieldId: $('.campaign-field-select').eq(index).val()
+        $('.fb-map-panel').each(function () {
+            var $panel = $(this);
+            var campaignId = $panel.find('.map_campaigns').val();
+            var fieldMappings = [];
+
+            $panel.find('.field-mapping-row').each(function () {
+                var $row = $(this);
+
+                fieldMappings.push({
+                    campaignFieldId: $row.find('.campaign-field-id').val(),
+                    crmFieldKey: $row.find('.crm-field-select').val()
+                });
             });
-        });
 
-        $('.map_campaigns').each(function () {
-            campaignsArray.push($(this).val());
+            campaigns.push({
+                campaignId: campaignId,
+                fieldMappings: fieldMappings
+            });
         });
 
         setLoading($button, 'Saving...');
@@ -353,11 +331,7 @@
                 'X-CSRF-TOKEN': csrfToken()
             },
             data: {
-                adid: adid,
-                accesstoken: accesstoken,
-                fieldMappings: fieldMappings,
-                cam_id: camId,
-                cams: campaignsArray
+                campaigns: campaigns
             },
             success: function (response) {
                 if (response && response.view) {
@@ -543,7 +517,7 @@
         });
     });
 
-    $(document).on('change', '.campaign-field-select, .crm-field-select', function () {
+    $(document).on('change', '.crm-field-select', function () {
         initFieldMapping($(this).closest('.fbmappingfields'));
     });
 })(jQuery);

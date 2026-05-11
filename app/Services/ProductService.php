@@ -71,7 +71,7 @@ class ProductService
             'product_category_id', 'package_name', 'sku',
             'base_price', 'tax_type', 'tax_value',
             'discount_type', 'discount_value',
-            'description', 'status', 'sort_order',
+            'description', 'status', 'sort_order', 'assigned_to',
         ]));
     }
 

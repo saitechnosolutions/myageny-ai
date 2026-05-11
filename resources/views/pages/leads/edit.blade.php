@@ -62,5 +62,85 @@ document.querySelectorAll('.lf-status-opt').forEach(el => {
         el.querySelector('input').checked=true;
     });
 });
+
+function toggleCustomFieldsByBranch() {
+    const branchValue = document.querySelector('[name="branch_id"]')?.value || '';
+
+    document.querySelectorAll('[data-custom-field]').forEach(field => {
+        const fieldBranchId = field.dataset.branchId || '';
+        const shouldShow = !fieldBranchId || (branchValue && fieldBranchId === branchValue);
+
+        field.style.display = shouldShow ? '' : 'none';
+
+        field.querySelectorAll('input, select, textarea').forEach(input => {
+            if (input.type === 'hidden') {
+                return;
+            }
+
+            if (shouldShow) {
+                if (input.dataset.wasRequired === 'true') {
+                    input.required = true;
+                }
+                input.disabled = false;
+            } else {
+                input.dataset.wasRequired = input.required ? 'true' : 'false';
+                input.required = false;
+                input.disabled = true;
+            }
+        });
+    });
+}
+
+function recalculateCustomFormulaFields() {
+    const values = {};
+
+    document.querySelectorAll('[data-field-name]').forEach(input => {
+        if (input.disabled || input.type === 'hidden') {
+            return;
+        }
+
+        const fieldName = input.dataset.fieldName;
+        let value = input.value;
+
+        if (input.type === 'radio') {
+            if (!input.checked) {
+                return;
+            }
+        }
+
+        values[fieldName] = isNaN(Number(value)) ? 0 : Number(value);
+    });
+
+    document.querySelectorAll('[data-calculation-formula]').forEach(calcInput => {
+        const formula = calcInput.dataset.calculationFormula || '';
+
+        if (!formula) {
+            return;
+        }
+
+        let expression = formula;
+        Object.entries(values).forEach(([fieldName, value]) => {
+            expression = expression.replaceAll(fieldName, value);
+        });
+
+        expression = expression.replace(/[^0-9+\-*/().\s]/g, '');
+
+        try {
+            const result = Function('"use strict"; return (' + expression + ')')();
+            calcInput.value = Number.isFinite(result) ? result : '';
+        } catch (error) {
+            calcInput.value = '';
+        }
+    });
+}
+
+document.querySelector('[name="branch_id"]')?.addEventListener('change', toggleCustomFieldsByBranch);
+document.querySelectorAll('[data-field-name]').forEach(input => {
+    input.addEventListener('input', recalculateCustomFormulaFields);
+    input.addEventListener('change', recalculateCustomFormulaFields);
+});
+
+toggleCustomFieldsByBranch();
+recalculateCustomFormulaFields();
 </script>
 @endpush

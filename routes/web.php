@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AiController;
+use App\Http\Controllers\AccessMappingController;
 use App\Http\Controllers\AssetEntryController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\LeadProductPriceRequestController;
 use App\Http\Controllers\LeadShowController;
 use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LeadStatusController;
+use App\Http\Controllers\MastersController;
 use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\OutcomeSubCategoryController;
 use App\Http\Controllers\ProductAttributeController;
@@ -80,6 +82,10 @@ Route::middleware(['auth'])->group(function () {
         return redirect()->route('leads.index');
     })->name('dashboard');
 
+    // Masters
+    Route::get('/masters', [MastersController::class, 'index'])
+        ->middleware('can:masters.view')
+        ->name('masters.index');
 
     Route::get('/authentications', [UserController::class, 'authIndex'])
         ->middleware('can:authentication.menuview')
@@ -101,6 +107,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/permissions/{permission}/edit', [RolePermissionController::class, 'permissionsEdit'])->middleware('can:permissions.manage')->name('permissions.edit');
         Route::put('/permissions/{permission}', [RolePermissionController::class, 'permissionsUpdate'])->middleware('can:permissions.manage')->name('permissions.update');
         Route::delete('/permissions/{permission}', [RolePermissionController::class, 'permissionsDestroy'])->middleware('can:permissions.manage')->name('permissions.destroy');
+
+        Route::get('/role-mappings', [AccessMappingController::class, 'roleIndex'])->middleware('can:roles.view')->name('role-mappings.index');
+        Route::put('/role-mappings', [AccessMappingController::class, 'roleUpdate'])->middleware('can:roles.manage')->name('role-mappings.update');
+        Route::get('/user-mappings', [AccessMappingController::class, 'userIndex'])->middleware('can:users.view')->name('user-mappings.index');
+        Route::post('/user-mappings', [AccessMappingController::class, 'userUpdate'])->middleware('can:users.manage')->name('user-mappings.update');
+        Route::delete('/user-mappings/{mapping}', [AccessMappingController::class, 'userDestroy'])->middleware('can:users.manage')->name('user-mappings.destroy');
 
         Route::post('/users/{user}/assign-role', [RolePermissionController::class, 'assignUserRole'])->middleware('can:users.manage')->name('users.assign-role');
     });
@@ -158,6 +170,7 @@ Route::middleware(['auth'])->group(function () {
 
         // ── Core CRUD ─────────────────────────────────────────
         Route::get('/',            [LeadController::class, 'index'])->middleware('can:leads.view')->name('index');
+        Route::get('/products',    [LeadController::class, 'productsIndex'])->middleware('can:leads.view')->name('products.index');
         Route::get('/create',      [LeadController::class, 'create'])->middleware('can:leads.create')->name('create');
         Route::get('/call-updates',[LeadCallUpdateController::class, 'index'])->middleware('can:call_updates.view')->name('calls.index');
         Route::post('/',           [LeadController::class, 'store'])->middleware('can:leads.create')->name('store');
@@ -288,6 +301,9 @@ Route::post('/fbassignleads',[FacebookIntegrationController::class,'fbassignlead
 
 Route::post('/deleteintegration',[FacebookIntegrationController::class,'deleteintegration'])->middleware('can:settings.manage')->name('deleteintegration');
 Route::post('/editfieldmaps',[FacebookIntegrationController::class,'editfieldmaps'])->middleware('can:settings.manage')->name('editfieldmaps');
+Route::post('/facebook-integration/{campaignMaster}/sync', [FacebookIntegrationController::class, 'syncCampaign'])
+    ->middleware('can:settings.manage')
+    ->name('facebook-integration.sync');
 
 
     Route::get('/quotation-setting',       [QuotationSettingsController::class, 'index'])->name('quotation');

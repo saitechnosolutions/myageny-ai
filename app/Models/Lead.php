@@ -31,12 +31,15 @@ class Lead extends Model
         'branch_id',
         'assigned_to',
         'created_by',
-
+        'facebook_lead_id',
+        'facebook_campaign_id',
+        'facebook_payload',
     ];
 
     protected $casts = [
         'lead_date'  => 'date',
         'deal_value' => 'decimal:2',
+        'facebook_payload' => 'array',
     ];
 
     // ── Constants ──────────────────────────────────────────────────
@@ -200,6 +203,11 @@ class Lead extends Model
     public function quotations()
     {
         return $this->hasMany(\App\Models\Quotation::class)->latest();
+    }
+
+    public function customFieldValues()
+    {
+        return $this->hasMany(LeadFieldValue::class);
     }
 
     public function show(Lead $lead)

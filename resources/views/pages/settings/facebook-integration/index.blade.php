@@ -164,13 +164,12 @@
                                 @endif
                             </td>
                             <td class="text-right">
-                                <button class="crm-icon-btn" onclick="openEdit({{ $campaignMaster->id }}, '{{ addslashes($campaignMaster->campaign_name) }}')">Edit</button>
-                                <form action="{{ route('settings.lead-sources.destroy', $campaignMaster) }}" method="POST" style="display:inline"
-                                      onsubmit="return confirm('Delete this source?')">
+                                <form action="{{ route('settings.facebook-integration.sync', $campaignMaster) }}" method="POST" style="display:inline">
                                     @csrf
-                                    @method('DELETE')
-                                    <button class="crm-icon-btn danger">Delete</button>
+                                    <button class="crm-icon-btn">Sync Now</button>
                                 </form>
+                                <button type="button" class="crm-icon-btn editintegratedcamp" data-camp_id="{{ $campaignMaster->id }}">Edit Mapping</button>
+                                <button type="button" class="crm-icon-btn danger deleteintegratedcamp" data-camp_id="{{ $campaignMaster->id }}">Delete</button>
                             </td>
                         </tr>
                     @empty
@@ -211,56 +210,9 @@
         </div>
     </div>
 
-    <div id="addModal" class="crm-modal-overlay" style="display:none">
-        <div class="crm-modal">
-            <div class="crm-modal-header">
-                <h3>Add Lead Source</h3>
-                <button onclick="closeModal('addModal')">x</button>
-            </div>
-            <form action="{{ route('settings.lead-sources.store') }}" method="POST">
-                @csrf
-                <div class="crm-modal-body">
-                    <label class="crm-label">Source Name <span class="req">*</span></label>
-                    <input type="text" name="name" class="crm-input" placeholder="e.g. Website, Referral, Cold Call..." required>
-                </div>
-                <div class="crm-modal-footer">
-                    <button type="button" class="crm-btn crm-btn-ghost" onclick="closeModal('addModal')">Cancel</button>
-                    <button type="submit" class="crm-btn crm-btn-primary">Save Source</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="editModal" class="crm-modal-overlay" style="display:none">
-        <div class="crm-modal">
-            <div class="crm-modal-header">
-                <h3>Edit Lead Source</h3>
-                <button onclick="closeModal('editModal')">x</button>
-            </div>
-            <form id="editForm" method="POST">
-                @csrf
-                @method('PUT')
-                <div class="crm-modal-body">
-                    <label class="crm-label">Source Name <span class="req">*</span></label>
-                    <input type="text" id="editName" name="name" class="crm-input" required>
-                </div>
-                <div class="crm-modal-footer">
-                    <button type="button" class="crm-btn crm-btn-ghost" onclick="closeModal('editModal')">Cancel</button>
-                    <button type="submit" class="crm-btn crm-btn-primary">Update</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </main>
 
 @push('scripts')
 @include('pages.settings.partials.modal-scripts')
-<script>
-function openEdit(id, name) {
-    document.getElementById('editName').value = name;
-    document.getElementById('editForm').action = `/settings/lead-sources/${id}`;
-    openModal('editModal');
-}
-</script>
 @endpush
 @endsection

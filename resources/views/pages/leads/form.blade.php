@@ -10,6 +10,26 @@
     $currentStatus = $old('lead_status');
     $currentPriority = $old('priority', 'medium');
     $leadDateValue = old('lead_date', $isEdit && $lead->lead_date ? $lead->lead_date->format('Y-m-d') : now()->toDateString());
+    $leadCustomValues = $isEdit
+        ? $lead->customFieldValues->keyBy('lead_form_field_id')
+        : collect();
+    $customFieldValue = function ($field) use ($leadCustomValues) {
+        $oldValue = old('custom_fields.' . $field->id);
+
+        if ($oldValue !== null) {
+            return $oldValue;
+        }
+
+        $existingValue = $leadCustomValues->get($field->id)?->value;
+
+        if ($existingValue === null || $existingValue === '') {
+            return $field->default_value;
+        }
+
+        $decoded = json_decode((string) $existingValue, true);
+
+        return json_last_error() === JSON_ERROR_NONE ? $decoded : $existingValue;
+    };
 @endphp
 
 <div class="lf-grid">
@@ -251,6 +271,109 @@
                 </div>
             </div>
         </div>
+
+        @if(isset($customFields) && $customFields->isNotEmpty())
+        <div class="lf-card">
+            <div class="lf-card-head">
+                <div class="lf-card-ico" style="background:#eef4ff">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="#3355aa" stroke-width="2"><path d="M12 6v12"/><path d="M6 12h12"/><path d="M5 5h14v14H5z"/></svg>
+                </div>
+                <div>
+                    <div class="lf-card-title">Custom Fields</div>
+                    <div class="lf-card-sub">Active customized fields for this lead form</div>
+                </div>
+            </div>
+            <div class="lf-card-body">
+                <div class="">
+                    @foreach($customFields as $field)
+                        @php
+                            $fieldValue = $customFieldValue($field);
+                            $fieldKey = 'custom_fields.' . $field->id;
+                            $optionValues = collect($field->options ?? []);
+                            $fieldType = $field->field_type === 'phone' ? 'text' : $field->field_type;
+                            $branchId = $field->branch_id;
+                            $isWideField = in_array($field->field_type, ['textarea', 'radio'], true);
+                            $displayName = 'custom_fields[' . $field->id . ']';
+                        @endphp
+                        <div class="lf-group {{ $isWideField ? 'span2' : '' }} custom-field-wrap"
+                             data-custom-field
+                             data-branch-id="{{ $branchId ?? '' }}"
+                             @if($branchId && old('branch_id', $isEdit ? $lead->branch_id : '') != $branchId) style="display:none;" @endif>
+                            <label class="lf-label">{{ $field->label }} @if($field->is_required)<span class="lf-req">*</span>@endif</label>
+
+                            @if($field->field_type === 'textarea')
+                                <textarea
+                                    name="{{ $displayName }}"
+                                    class="lf-ta {{ $errors->has($fieldKey) ? 'err' : '' }}"
+                                    placeholder="{{ $field->placeholder ?: ('Enter ' . strtolower($field->label)) }}"
+                                    rows="4"
+                                    data-field-name="{{ $field->field_name }}"
+                                    @if($field->is_required) required @endif
+                                    @if($field->is_calculation) readonly @endif>{{ is_array($fieldValue) ? implode(', ', $fieldValue) : $fieldValue }}</textarea>
+                            @elseif($field->field_type === 'select')
+                                <div class="lf-iw">
+                                    <select
+                                        name="{{ $displayName }}"
+                                        class="lf-sel {{ $errors->has($fieldKey) ? 'err' : '' }}"
+                                        data-field-name="{{ $field->field_name }}"
+                                        @if($field->is_required) required @endif
+                                        @if($field->is_calculation) disabled @endif>
+                                        <option value="">— Select {{ $field->label }} —</option>
+                                        @foreach($optionValues as $option)
+                                            <option value="{{ $option['value'] ?? '' }}" {{ (string) $fieldValue === (string) ($option['value'] ?? '') ? 'selected' : '' }}>
+                                                {{ $option['label'] ?? $option['value'] ?? '' }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <svg class="lf-sel-caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                </div>
+                                @if($field->is_calculation)
+                                    <input type="hidden" name="{{ $displayName }}" value="{{ $fieldValue }}">
+                                @endif
+                            @elseif($field->field_type === 'radio')
+                                <div class="lf-radio-grid" data-field-name="{{ $field->field_name }}">
+                                    @foreach($optionValues as $option)
+                                        <label class="lf-radio-card">
+                                            <input
+                                                type="radio"
+                                                name="{{ $displayName }}"
+                                                value="{{ $option['value'] ?? '' }}"
+                                                {{ (string) $fieldValue === (string) ($option['value'] ?? '') ? 'checked' : '' }}
+                                                @if($field->is_required) required @endif
+                                                @if($field->is_calculation) disabled @endif>
+                                            <span>{{ $option['label'] ?? $option['value'] ?? '' }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                                @if($field->is_calculation)
+                                    <input type="hidden" name="{{ $displayName }}" value="{{ $fieldValue }}">
+                                @endif
+                            @else
+                                <div class="lf-iw">
+                                    <input
+                                        type="{{ $fieldType }}"
+                                        name="{{ $displayName }}"
+                                        class="lf-inp {{ $errors->has($fieldKey) ? 'err' : '' }}"
+                                        placeholder="{{ $field->placeholder ?: ('Enter ' . strtolower($field->label)) }}"
+                                        value="{{ is_array($fieldValue) ? implode(', ', $fieldValue) : $fieldValue }}"
+                                        data-field-name="{{ $field->field_name }}"
+                                        @if($field->is_required) required @endif
+                                        @if($field->field_type === 'number' && isset($field->validation_rules['min'])) min="{{ $field->validation_rules['min'] }}" @endif
+                                        @if($field->field_type === 'number' && isset($field->validation_rules['max'])) max="{{ $field->validation_rules['max'] }}" @endif
+                                        @if($field->is_calculation) readonly data-calculation-formula="{{ $field->calculation_formula }}" @endif>
+                                </div>
+                            @endif
+
+                            @if($field->is_calculation && $field->calculation_formula)
+                                <div class="lf-hint">Calculated automatically using {{ $field->calculation_label ?: $field->calculation_formula }}</div>
+                            @endif
+                            @error($fieldKey)<div class="lf-err">{{ $message }}</div>@enderror
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
 
         {{-- Summary card (edit mode) --}}
         @if($isEdit)

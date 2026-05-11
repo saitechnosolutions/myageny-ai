@@ -10,7 +10,8 @@
     .header-right { float: right; width: 38%; text-align: right; }
     .clearfix::after { content: ''; display: table; clear: both; }
     .brand-sub { font-size: 9px; color: #fff; line-height: 1.6; }
-    .gstin-badge { display: inline-block; background: {{ $quoteSetting['secondary_color'] }}; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 3px; margin-top: 5px; }
+    .gstin-badge { display: inline-block; background: {
+      { $quoteSetting['secondary_color'] }}; color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 3px; margin-top: 5px; }
     .estimate-word { font-size: 30px; color: {{ $quoteSetting['secondary_color'] }}; font-weight: bold; }
     .est-meta { font-size: 10px; color: rgba(255,255,255,.8); line-height: 1.8; margin-top: 6px; }
     .est-meta strong { color: #fff; }
@@ -51,6 +52,18 @@
     .sig-line { border-top: 1px solid #0f1923; padding-top: 4px; font-size: 9px; font-weight: bold; letter-spacing: .05em; text-transform: uppercase; color: #5a6472; }
     .preview { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 60px; font-weight: bold; color: rgba(0, 0, 0, 0.08); text-align: center; width: 80%; white-space: normal; overflow-wrap: break-word; pointer-events: none; }
     .footer-final { position: absolute; bottom:0; background: #fdf4e7; padding:10px; width:100%; text-align:center; }
+    .page-break { page-break-before: always; }
+    .terms-page { padding: 34px 38px 42px; }
+    .terms-header { border-bottom: 3px solid {{ $quoteSetting['theme_color'] }}; padding-bottom: 14px; margin-bottom: 20px; }
+    .terms-title { font-size: 24px; font-weight: bold; color: {{ $quoteSetting['theme_color'] }}; }
+    .terms-subtitle { margin-top: 6px; font-size: 11px; color: #5a6472; }
+    .terms-section { margin-bottom: 22px; }
+    .terms-section h3 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .08em; color: {{ $quoteSetting['secondary_color'] }}; margin-bottom: 10px; }
+    .terms-box { background: #f9fafb; border: 1px solid #e5e8ed; border-radius: 6px; padding: 14px 16px; }
+    .terms-box p, .terms-box li { font-size: 11px; line-height: 1.8; color: #334155; }
+    .terms-box ul { margin: 0; padding-left: 18px; }
+    .terms-box p + p { margin-top: 8px; }
+    .terms-footer-note { margin-top: 30px; padding-top: 12px; border-top: 1px solid #d8dde5; font-size: 10px; color: #64748b; }
   </style>
 </head>
 <body>
@@ -70,6 +83,20 @@
       $data = file_get_contents($path);
       $signatureBase64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
   }
+
+  $defaultTerms = '
+    <ul>
+      <li>This quotation is valid for 7 days from the quotation date unless otherwise stated.</li>
+      <li>Prices quoted are exclusive of additional scope changes unless explicitly mentioned.</li>
+      <li>Work will begin only after written confirmation or purchase order approval.</li>
+      <li>Any changes in scope, quantity, or delivery requirements may affect pricing and timeline.</li>
+      <li>Taxes, levies, and statutory charges are applicable as per current regulations.</li>
+    </ul>
+  ';
+
+  $termsContent = trim((string) ($quoteSetting['terms'] ?? '')) !== ''
+      ? $quoteSetting['terms']
+      : $defaultTerms;
 @endphp
 
 <div class="header clearfix">
@@ -197,6 +224,26 @@
 
 <div class="footer-final">
   <a style="text-decoration:none;color:#0f1923" href="http://myagenci.ai/" target="_blank">Powered By Myagenci.ai</a>
+</div>
+
+<div class="page-break"></div>
+
+<div class="terms-page">
+  <div class="terms-header">
+    <div class="terms-title">Terms &amp; Conditions</div>
+    <div class="terms-subtitle">This page forms an integral part of Quotation {{ $quotation->quotation_no }}.</div>
+  </div>
+
+  <div class="terms-section">
+    <h3>Terms &amp; Conditions</h3>
+    <div class="terms-box">
+      {!! $termsContent !!}
+    </div>
+  </div>
+
+  <div class="terms-footer-note">
+    For any clarification regarding pricing, delivery, support, or commercial terms, please contact {{ $quoteSetting['company_name'] }} before confirmation.
+  </div>
 </div>
 
 </body>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 class Role extends SpatieRole
@@ -22,6 +23,11 @@ class Role extends SpatieRole
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function roleMapping(): HasOne
+    {
+        return $this->hasOne(RoleMapping::class);
     }
 
     public static function tenantRoleName(string $name, ?int $companyId): string

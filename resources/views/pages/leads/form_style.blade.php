@@ -48,12 +48,16 @@
 }
 .lf-inp::placeholder, .lf-ta::placeholder { color:#b8b3aa; }
 .lf-inp:focus, .lf-sel:focus, .lf-ta:focus { border-color:#fe5f04; background:#fff; box-shadow:0 0 0 3px rgba(254,95,4,.1); }
-.lf-inp.err, .lf-sel.err { border-color:#dc2626; background:#fffafa; }
+.lf-inp.err, .lf-sel.err, .lf-ta.err { border-color:#dc2626; background:#fffafa; }
 .lf-sel { appearance:none; -webkit-appearance:none; cursor:pointer; }
 .lf-sel-caret { position:absolute; right:9px; top:50%; transform:translateY(-50%); pointer-events:none; color:#9e9e9e; width:12px; height:12px; }
 .lf-ta { resize:vertical; min-height:90px; padding:9px 12px; }
 .lf-err { font-size:11px; color:#dc2626; margin-top:2px; }
 .lf-hint { font-size:11px; color:#9e9e9e; margin-top:2px; }
+.lf-radio-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.lf-radio-card { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #e1dee3; border-radius:9px; background:#fafafa; cursor:pointer; font-size:13px; color:#121212; }
+.lf-radio-card input { margin:0; accent-color:#fe5f04; }
+.lf-radio-card:has(input:checked) { border-color:#fe5f04; background:#fff7f1; }
 
 /* Priority picker */
 .lf-priority-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
@@ -84,8 +88,13 @@
 /* Submit bar */
 .lf-submit { display:flex; gap:10px; padding:15px 20px; border-top:1px solid #f0eef2; background:#fafafa; }
 
+@media (max-width: 900px) {
+    .lf-grid { grid-template-columns:1fr; }
+    .lf-row, .lf-row-3, .lf-radio-grid { grid-template-columns:1fr; }
+    .lf-group.span2 { grid-column:span 1; }
+}
+
 
 
 </style>
-
 

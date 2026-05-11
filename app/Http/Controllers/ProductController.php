@@ -8,6 +8,7 @@ use App\Http\Resources\ProductCollection;
 use App\Models\Attribute;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\DataVisibilityService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,10 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function __construct(private readonly ProductService $service) {}
+    public function __construct(
+        private readonly ProductService $service,
+        private readonly DataVisibilityService $visibility
+    ) {}
 
     // ── Web Routes ────────────────────────────────────────────────────
 
@@ -39,6 +43,8 @@ class ProductController extends Controller
             ->orderBy('sort_order')
             ->orderByDesc('created_at');
 
+        $this->visibility->applyProductVisibility($query);
+
         $products   = $query->paginate(15)->withQueryString();
         $categories = ProductCategory::active()->orderBy('name')->get();
 
@@ -51,7 +57,9 @@ class ProductController extends Controller
     public function create(): View
     {
         $categories = ProductCategory::active()->orderBy('name')->get();
-        return view('pages.products.create', compact('categories'));
+        $users = $this->visibility->visibleAssignableUsers();
+
+        return view('pages.products.create', compact('categories', 'users'));
     }
 
     /**
@@ -59,6 +67,10 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request): RedirectResponse
     {
+        if ($request->filled('assigned_to')) {
+            abort_unless($this->visibility->canAssignTo($request->assigned_to), 403);
+        }
+
         $product = $this->service->store($request->validated());
 
         $category = ProductCategory::find($request->product_category_id);
@@ -77,6 +89,8 @@ class ProductController extends Controller
      */
     public function show(Product $product): View
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+
         $product->load('category', 'attributeValues.attribute');
         return view('pages.products.show', compact('product'));
     }
@@ -86,15 +100,18 @@ class ProductController extends Controller
      */
     public function edit(Product $product): View
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+
         $product->load('category', 'attributeValues.attribute');
         $categories = ProductCategory::active()->orderBy('name')->get();
+        $users = $this->visibility->visibleAssignableUsers();
 
         // Build a keyed map for pre-filling attribute values
         $existingValues = $product->attributeValues
             ->keyBy('attribute_id')
             ->map(fn($pav) => $pav->value);
 
-        return view('pages.products.edit', compact('product', 'categories', 'existingValues'));
+        return view('pages.products.edit', compact('product', 'categories', 'existingValues', 'users'));
     }
 
     /**
@@ -102,6 +119,11 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+        if ($request->filled('assigned_to')) {
+            abort_unless($this->visibility->canAssignTo($request->assigned_to), 403);
+        }
+
         $product = $this->service->update($product, $request->validated());
 
         return redirect()
@@ -114,6 +136,8 @@ class ProductController extends Controller
      */
     public function destroy(Product $product): RedirectResponse
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+
         $name = $product->package_name;
         $this->service->delete($product);
 
@@ -175,16 +199,21 @@ class ProductController extends Controller
 
     public function apiIndex(Request $request): JsonResponse
     {
-        $products = Product::with('category', 'attributeValues.attribute')
+        $query = Product::with('category', 'attributeValues.attribute')
             ->active()
-            ->when($request->category_id, fn($q) => $q->byCategory($request->category_id))
-            ->paginate($request->per_page ?? 20);
+            ->when($request->category_id, fn($q) => $q->byCategory($request->category_id));
+
+        $this->visibility->applyProductVisibility($query);
+
+        $products = $query->paginate($request->per_page ?? 20);
 
         return response()->json($products);
     }
 
     public function apiShow(Product $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+
         return response()->json(
             $product->load('category', 'attributeValues.attribute')
         );
@@ -192,7 +221,11 @@ class ProductController extends Controller
 
     public function getProducts()
     {
-        $products = ProductCategory::with('products', 'attributes', 'products.attributeValues')->get();
+        $products = ProductCategory::with([
+            'products' => fn ($query) => $this->visibility->applyProductVisibility($query),
+            'attributes',
+            'products.attributeValues',
+        ])->get();
 
         return new ProductCollection($products);
     }

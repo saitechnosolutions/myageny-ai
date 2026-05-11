@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 
 class AdminDashboardService
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     /**
      * Build base query for lead_products with all filters applied.
      */
@@ -22,6 +24,11 @@ class AdminDashboardService
             ->join('products', 'products.id', '=', 'lead_products.product_id')
             ->join('users', 'users.id', '=', 'leads.assigned_to')
             ->leftJoin('branches', 'branches.id', '=', 'users.branch_id');
+
+        $visibleUserIds = $this->visibility->visibleUserIds();
+        if ($visibleUserIds !== null) {
+            $query->whereIn('leads.assigned_to', $visibleUserIds);
+        }
 
         // Product filter
         if (!empty($filters['product_id'])) {
@@ -76,6 +83,11 @@ class AdminDashboardService
             ->join('products', 'products.id', '=', 'lead_products.product_id')
             ->join('users', 'users.id', '=', 'leads.assigned_to')
             ->leftJoin('branches', 'branches.id', '=', 'users.branch_id');
+
+        $visibleUserIds = $this->visibility->visibleUserIds();
+        if ($visibleUserIds !== null) {
+            $query->whereIn('leads.assigned_to', $visibleUserIds);
+        }
 
         if (!empty($filters['product_id'])) {
             $query->where('lead_products.product_id', $filters['product_id']);

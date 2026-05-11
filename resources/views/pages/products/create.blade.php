@@ -67,6 +67,7 @@
                 @include('pages.products.partials.form', [
                     'product'    => new \App\Models\Product(),
                     'categories' => $categories,
+                    'users'      => $users,
                 ])
 
                 <div class="pm-form-actions">

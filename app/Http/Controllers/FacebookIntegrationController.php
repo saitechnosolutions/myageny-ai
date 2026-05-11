@@ -7,10 +7,14 @@ use App\Models\CampaignFieldMigration;
 use App\Models\CampaignFields;
 use App\Models\CampaignMaster;
 use App\Models\FbuserMaster;
+use App\Models\LeadFormField;
 use App\Models\User;
+use App\Services\FacebookLeadImporter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class FacebookIntegrationController extends Controller
@@ -42,7 +46,10 @@ class FacebookIntegrationController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $activeUsers = User::where('user_status', 'active')
+        $activeUsers = User::where(function ($query) {
+                $query->where('is_active', true)
+                    ->orWhere('user_status', 'active');
+            })
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -62,76 +69,61 @@ class FacebookIntegrationController extends Controller
 
     // STEP 1 FETCHING FIELD DATA USING API
 
-    public function connectfb( Request $request ) {
+    public function connectfb(Request $request, FacebookLeadImporter $importer) {
         try {
             $adid = $request->adid;
             $accesstoken = $request->accesstoken;
 
-            // First API request
-            $url = "https://graph.facebook.com/v20.0/{$adid}/leads?fields=field_data&access_token={$accesstoken}";
-            $ch = curl_init();
-            curl_setopt( $ch, CURLOPT_URL, $url );
-            curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-            $response = curl_exec( $ch );
-            curl_close( $ch );
-            $leads = json_decode( $response, true );
+            $leads = $importer->fetchLeadsFromNodeId((string) $adid, (string) $accesstoken);
 
-            // Second API request for campaign master
-            $url1 = "https://graph.facebook.com/v20.0/{$adid}?fields=name&access_token={$accesstoken}";
-            curl_setopt( $ch, CURLOPT_URL, $url1 );
-            curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-            $response1 = curl_exec( $ch );
-            curl_close( $ch );
-            $campaign = json_decode( $response1, true );
+            $campaignName = 'Facebook Lead Form ' . $adid;
+
+            try {
+                $campaign = $this->graphGet("https://graph.facebook.com/v19.0/{$adid}", [
+                    'fields' => 'name',
+                    'access_token' => $accesstoken,
+                ]);
+
+
+                $campaignName = $campaign['name'] ?? $campaignName;
+            } catch (\Throwable $e) {
+                Log::warning('Unable to fetch Facebook lead form name.', [
+                    'node_id' => $adid,
+                    'message' => $e->getMessage(),
+                ]);
+            }
 
             // Insert campaign details into campaign master
-            $existingCampaign = DB::table( 'campaign_masters' )->where( 'ad_id', $adid )->first();
+            $existingCampaign = CampaignMaster::query()
+                ->where('camp_id', $adid)
+                ->orWhere('ad_id', $adid)
+                ->first();
 
             if ( !$existingCampaign ) {
                 $campaign_master = CampaignMaster::create( [
-                    'ad_id' => $adid,
+                    'ad_id' => data_get($leads->first(), 'ad_id') ?: $adid,
+                    'camp_id' => $adid,
                     'access_token' => $accesstoken,
-                    'campaign_name' => $campaign[ 'name' ],
+                    'campaign_name' => $campaignName,
                 ] );
             } else {
                 $campaign_master = $existingCampaign;
-                // Use existing campaign
+                $campaign_master->forceFill([
+                    'camp_id' => $campaign_master->camp_id ?: $adid,
+                    'access_token' => $accesstoken,
+                    'campaign_name' => $campaign_master->campaign_name ?: $campaignName,
+                ])->save();
             }
 
-            // Insert new fields into campaign fields
-            if ( isset( $leads[ 'data' ] ) ) {
-                $existingFields = DB::table( 'campaign_fields' )
-                ->where( 'campaign_id', $campaign_master->id )
-                ->pluck( 'field_name' )
-                ->toArray();
-
-                $newFields = [];
-
-                foreach ( $leads[ 'data' ] as $submission ) {
-                    foreach ( $submission[ 'field_data' ] as $field ) {
-                        if ( !in_array( $field[ 'name' ], $existingFields ) && !in_array( $field[ 'name' ], $newFields ) ) {
-                            $newFields[] = $field[ 'name' ];
-                        }
-                    }
-                }
-
-                if ( !empty( $newFields ) ) {
-                    $insertData = array_map( function ( $fieldName ) use ( $campaign_master ) {
-                        return [
-                            'campaign_id' => $campaign_master->id,
-                            'field_name' => $fieldName,
-                        ];
-                    }
-                    , $newFields );
-
-                    DB::table( 'campaign_fields' )->insert( $insertData );
-                }
-
-                $camid = $campaign_master->id;
-            }
+            $this->storeCampaignFieldsFromSubmissions($campaign_master->id, $leads);
+            $camid = $campaign_master->id;
 
             return response()->json( [
-                'view' => view( 'pages.settings.facebook-integration.fb-field-mapping', compact( 'camid' ) )->render(),
+                'view' => view('pages.settings.facebook-integration.fb-field-mapping', [
+                    'campaignMappings' => $this->buildCampaignMappingViewData((array) $camid),
+                    'crmFieldGroups' => $this->crmFieldGroups(),
+                    'isEditMode' => false,
+                ])->render(),
                 'cam_id' => $campaign_master->id
             ] );
         } catch ( \Throwable $th ) {
@@ -194,7 +186,7 @@ class FacebookIntegrationController extends Controller
         }
     }
 
-    public function chooseCampaigns( Request $request ) {
+    public function chooseCampaigns(Request $request, FacebookLeadImporter $importer) {
         $selected_campaigns = $request->selectedCampaigns;
 
         // dd( $selected_campaigns );
@@ -206,81 +198,61 @@ class FacebookIntegrationController extends Controller
                 'is_integrated'=>1
             ]);
 
-            $campaignid = $campaign->camp_id;
-            $access = $campaign->access_token;
-
-            $url = "https://graph.facebook.com/v20.0/{$campaignid}/leads?fields=field_data&access_token={$access}";
-            $ch = curl_init();
-            curl_setopt( $ch, CURLOPT_URL, $url );
-            curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1 );
-            $response = curl_exec( $ch );
-            curl_close( $ch );
-            $leads = json_decode( $response, true );
-
-            if ( isset( $leads[ 'data' ] ) ) {
-                $existingFields = DB::table( 'campaign_fields' )
-                ->where( 'campaign_id', $camps )
-                ->pluck( 'field_name' )
-                ->toArray();
-
-                $newFields = [];
-
-                foreach ( $leads[ 'data' ] as $submission ) {
-                    foreach ( $submission[ 'field_data' ] as $field ) {
-                        if ( !in_array( $field[ 'name' ], $existingFields ) && !in_array( $field[ 'name' ], $newFields ) ) {
-                            $newFields[] = $field[ 'name' ];
-                        }
-                    }
-                }
-
-                if ( !empty( $newFields ) ) {
-                    $insertData = array_map( function ( $fieldName ) use ( $camps ) {
-                        return [
-                            'campaign_id' => $camps,
-                            'field_name' => $fieldName,
-                        ];
-                    }
-                    , $newFields );
-
-                    DB::table( 'campaign_fields' )->insert( $insertData );
-                }
-
-                $camid = $selected_campaigns;
-            }
+            $leads = $importer->fetchLeadSubmissions($campaign);
+            $this->storeCampaignFieldsFromSubmissions($camps, $leads);
+            $camid = $selected_campaigns;
 
             // dd( $camps );
         }
 
         return response()->json( [
-            'view' => view( 'pages.settings.facebook-integration.fb-field-mapping', compact( 'camid' ) )->render(),
+            'view' => view('pages.settings.facebook-integration.fb-field-mapping', [
+                'campaignMappings' => $this->buildCampaignMappingViewData((array) $camid),
+                'crmFieldGroups' => $this->crmFieldGroups(),
+                'isEditMode' => false,
+            ])->render(),
             // 'cam_id' => $camps,
         ] );
     }
 
     public function mapfields( Request $request ) {
         try {
-            $adid = $request->adid;
-            $access_token = $request->accesstoken;
-            $fieldMappings = $request->fieldMappings;
-            $cam_id = $request->cam_id;
-            $cams = $request->cams;
+            $campaignMappings = $request->input('campaigns', []);
+            $camIds = [];
 
-            foreach ( $cams as $cam ){
-                foreach ( $fieldMappings as $fm ) {
-                    $campaign_field_name = CampaignFields::where( 'id', $fm[ 'campaignFieldId' ] )->first();
-                    $crm_field_name = DB::table( 'lead_form_fields' )->where( 'id', $fm[ 'crmFieldId' ] )->first();
+            foreach ($campaignMappings as $campaignMapping) {
+                $campaignId = data_get($campaignMapping, 'campaignId');
+                $fieldMappings = data_get($campaignMapping, 'fieldMappings', []);
 
-
-                    CampaignFieldMigration::create( [
-                        'campaign_id'=>$campaign_field_name->campaign_id,
-                        'campaign_field_id'=>$fm[ 'campaignFieldId' ],
-                        'lead_field_id'=>$fm[ 'crmFieldId' ],
-                        'campaign_field_name'=>$campaign_field_name->label,
-                        'crm_field_name'=>$crm_field_name->label,
-                    ] );
+                if (!$campaignId || empty($fieldMappings)) {
+                    continue;
                 }
 
-                $campaign = CampaignMaster::where('id', $cam)->first();
+                $camIds[] = $campaignId;
+                CampaignFieldMigration::where('campaign_id', $campaignId)->delete();
+
+                foreach ($fieldMappings as $fm) {
+                    $campaignField = CampaignFields::find($fm['campaignFieldId'] ?? null);
+                    [$leadFieldId, $crmFieldName] = $this->resolveCrmFieldMapping($fm);
+
+                    if (!$campaignField || !$crmFieldName) {
+                        continue;
+                    }
+
+                    CampaignFieldMigration::updateOrCreate(
+                        [
+                            'campaign_id' => $campaignId,
+                            'campaign_field_id' => $campaignField->id,
+                        ],
+                        [
+                            'lead_field_id' => $leadFieldId,
+                            'campaign_field_name' => $campaignField->field_name,
+                            'crm_field_name' => $crmFieldName,
+                        ]
+                    );
+                }
+
+                $campaign = CampaignMaster::where('id', $campaignId)->first();
                 if ($campaign) {
                     $campaign->new_fields = 0;
                     $campaign->save();
@@ -288,8 +260,7 @@ class FacebookIntegrationController extends Controller
             }
 
             return response()->json( [
-                'view' => view( 'pages.settings.facebook-integration.lead-mapping', compact( 'cams' ) )->render(),
-                'cam_id' => $cam_id
+                'view' => view( 'pages.settings.facebook-integration.lead-mapping', ['cams' => $camIds] )->render(),
             ] );
         } catch ( \Throwable $th ) {
             Log::error( $th );
@@ -310,7 +281,10 @@ class FacebookIntegrationController extends Controller
                 $campaignAssigned = $cam[ 'assigned' ];
 
                 $users = User::whereIn( 'id', $campaignAssigned )
-                ->where( 'user_status', 'active' )
+                ->where(function ($query) {
+                    $query->where('is_active', true)
+                        ->orWhere('user_status', 'active');
+                })
                 ->get();
 
                 $userCount = $users->count();
@@ -319,12 +293,18 @@ class FacebookIntegrationController extends Controller
                     return response()->json( [ 'error' => 'No active selected users found' ], 404 );
                 }
 
+                AssignedUser::where('campaign_id', $campaignId)->delete();
+
                 foreach ( $users as $user ) {
-                    $assignedUser = AssignedUser::create( [
-                        'user_id'=>$user->id,
-                        'user_name'=>$user->name,
-                        'campaign_id'=>$campaignId,
-                    ] );
+                    $assignedUser = AssignedUser::updateOrCreate(
+                        [
+                            'user_id' => $user->id,
+                            'campaign_id' => $campaignId,
+                        ],
+                        [
+                            'user_name' => $user->name,
+                        ]
+                    );
                 }
             }
 
@@ -343,7 +323,10 @@ class FacebookIntegrationController extends Controller
 
             $active_campaigns = CampaignMaster::where( 'status', 1 )->where('is_integrated',1)->get();
             $assigned_users = AssignedUser::all();
-            $users = User::where( 'user_status', 'active' )->get();
+            $users = User::where(function ($query) {
+                $query->where('is_active', true)
+                    ->orWhere('user_status', 'active');
+            })->get();
 
             return response()->json( [
                 'view' => view( 'pages.settings.facebook-integration.assigned-user-view', compact( 'active_campaigns', 'assigned_users', 'users' ) )->with( 'success', 'page loaded successfully' )->render(),
@@ -364,6 +347,10 @@ class FacebookIntegrationController extends Controller
 
                 $original_users = User::whereIn( 'id', $users )->get();
 
+                AssignedUser::where('campaign_id', $campaign_id)
+                    ->whereNotIn('user_id', $users)
+                    ->delete();
+
                 foreach ( $original_users as $original_user ) {
                     AssignedUser::updateOrCreate(
                         [ 'campaign_id' => $campaign_id, 'user_id' => $original_user->id ],
@@ -374,7 +361,10 @@ class FacebookIntegrationController extends Controller
 
             $active_campaigns = CampaignMaster::where( 'status', 1 )->where('is_integrated',1)->get();
             $assigned_users = AssignedUser::all();
-            $users = User::where( 'user_status', 'active' )->get();
+            $users = User::where(function ($query) {
+                $query->where('is_active', true)
+                    ->orWhere('user_status', 'active');
+            })->get();
 
             return response()->json( [
                 'view' => view( 'pages.settings.facebook-integration.assigned-user-view', compact( 'active_campaigns', 'assigned_users', 'users' ) )
@@ -396,7 +386,7 @@ class FacebookIntegrationController extends Controller
 
     public function socialiteRedirect() {
 
-        return Socialite::driver( 'facebook' )->scopes(['email', 'ads_management', 'ads_read','public_profile','business_management','pages_show_list','read_insights'])->redirect();
+        return Socialite::driver( 'facebook' )->scopes(['email', 'ads_management', 'ads_read','public_profile','business_management','pages_show_list','read_insights','leads_retrieval'])->redirect();
         // return Socialite::driver('facebook')
         // ->scopes(['ads_read', 'ads_management', 'business_management', 'pages_show_list', 'read_insights'])
         // ->redirect();
@@ -591,7 +581,7 @@ class FacebookIntegrationController extends Controller
         }
     }
 
-    public function editfieldmaps(Request $request)
+    public function editfieldmaps(Request $request, FacebookLeadImporter $importer)
     {
         try {
             $camp_id = $request->camid;
@@ -603,65 +593,15 @@ class FacebookIntegrationController extends Controller
                 return response()->json(['error' => 'Campaign not found'], 404);
             }
 
-            $campaignid = $campaign_master->camp_id;
-            $access = $campaign_master->access_token;
+            $leads = $importer->fetchLeadSubmissions($campaign_master);
+            $this->storeCampaignFieldsFromSubmissions($camp_id, $leads);
 
-            // Delete existing campaign fields and migration data
-            CampaignFields::where('campaign_id', $camp_id)->delete();
-            CampaignFieldMigration::where('campaign_id', $camp_id)->delete();
-            AssignedUser::where('campaign_id',$camp_id)->delete();
-
-            // Fetch leads data from Facebook Graph API
-            $url = "https://graph.facebook.com/v20.0/{$campaignid}/leads?fields=field_data&access_token={$access}";
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $response = curl_exec($ch);
-            curl_close($ch);
-
-            $leads = json_decode($response, true);
-
-            // Check if leads data is available
-            if (isset($leads['data'])) {
-                // Get existing fields for the campaign
-                $existingFields = DB::table('campaign_fields')
-                    ->where('campaign_id', $camp_id)
-                    ->pluck('field_name')
-                    ->toArray();
-
-                $newFields = [];
-
-                // Extract new fields from the leads data
-                foreach ($leads['data'] as $submission) {
-                    foreach ($submission['field_data'] as $field) {
-                        if (!in_array($field['name'], $existingFields) && !in_array($field['name'], $newFields)) {
-                            $newFields[] = $field['name'];
-                        }
-                    }
-                }
-
-                // Insert new fields into the campaign_fields table
-                if (!empty($newFields)) {
-                    $insertData = array_map(function ($fieldName) use ($camp_id) {
-                        return [
-                            'campaign_id' => $camp_id,
-                            'field_name' => $fieldName,
-                        ];
-                    }, $newFields);
-
-                    // Insert the new fields
-                    DB::table('campaign_fields')->insert($insertData);
-                }
-            }
-
-            // Fetch the updated campaign fields
-            $campaign_fields = CampaignFields::where('campaign_id', $camp_id)->get();
-            $camid = $camp_id;
-
-
-            // Return the updated view
             return response()->json([
-                'view' => view('pages.settings.facebook-integration.fb-edit-field-mapping', compact('camid'))->render(),
+                'view' => view('pages.settings.facebook-integration.fb-edit-field-mapping', [
+                    'campaignMappings' => $this->buildCampaignMappingViewData([$camp_id]),
+                    'crmFieldGroups' => $this->crmFieldGroups(),
+                    'isEditMode' => true,
+                ])->render(),
                 'cam_id' => $camp_id,
             ]);
 
@@ -686,5 +626,256 @@ class FacebookIntegrationController extends Controller
 
     public function fberrorLogin(){
         return view('pages.settings.facebook-integration.fb-account-error')->with('error','ad account not found');
+    }
+
+    public function syncCampaign(CampaignMaster $campaignMaster, FacebookLeadImporter $importer)
+    {
+        try {
+
+            $summary = $importer->importCampaign($campaignMaster);
+
+            return redirect()
+                ->route('settings.facebook-integration')
+                ->with(
+                    'success',
+                    "Facebook sync completed for {$campaignMaster->campaign_name}. Imported {$summary['created']} leads, updated {$summary['updated']} leads, skipped {$summary['skipped']}, failed {$summary['failed']}."
+                );
+        } catch (\Throwable $th) {
+            Log::error('Error syncing Facebook campaign.', [
+                'campaign_master_id' => $campaignMaster->id,
+                'message' => $th->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('settings.facebook-integration')
+                ->with('error', $this->facebookSyncFailureMessage($th));
+        }
+    }
+
+    protected function facebookSyncFailureMessage(\Throwable $th): string
+    {
+        $message = trim($th->getMessage());
+
+        if ($message === '') {
+            return 'Facebook sync failed. Please check the campaign access token and mapping.';
+        }
+
+        $message = preg_replace('/access_token=([^&\s]+)/i', 'access_token=[hidden]', $message);
+        $message = preg_replace('/\bEAA[A-Za-z0-9_-]{20,}\b/', '[hidden-token]', $message);
+
+        return 'Facebook sync failed: ' . Str::limit($message, 260);
+    }
+
+    protected function storeCampaignFieldsFromSubmissions(int $campaignId, iterable $submissions): void
+    {
+        $existingFields = DB::table('campaign_fields')
+            ->where('campaign_id', $campaignId)
+            ->pluck('field_name')
+            ->map(fn ($fieldName) => (string) $fieldName)
+            ->all();
+
+        $newFields = collect($submissions)
+            ->flatMap(function ($submission) {
+                return collect(data_get($submission, 'field_data', []))
+                    ->pluck('name')
+                    ->filter();
+            })
+            ->map(fn ($fieldName) => (string) $fieldName)
+            ->reject(fn ($fieldName) => in_array($fieldName, $existingFields, true))
+            ->unique()
+            ->values();
+
+        if ($newFields->isEmpty()) {
+            return;
+        }
+
+        DB::table('campaign_fields')->insert(
+            $newFields
+                ->map(fn ($fieldName) => [
+                    'campaign_id' => $campaignId,
+                    'field_name' => $fieldName,
+                ])
+                ->all()
+        );
+    }
+
+    protected function graphGet(string $url, array $query = []): array
+    {
+        $response = Http::timeout(30)->acceptJson()->get($url, $query);
+
+        if ($response->failed()) {
+            throw new \RuntimeException('Facebook Graph API request failed with status ' . $response->status());
+        }
+
+        $payload = $response->json();
+
+        if (isset($payload['error'])) {
+            throw new \RuntimeException($payload['error']['message'] ?? 'Facebook Graph API returned an error.');
+        }
+
+        return $payload;
+    }
+
+    protected function crmFieldGroups(): array
+    {
+        $defaultFields = [
+            ['key' => 'company_name', 'label' => 'Company Name'],
+            ['key' => 'contact_name', 'label' => 'Contact Name'],
+            ['key' => 'mobile_number', 'label' => 'Mobile Number'],
+            ['key' => 'email', 'label' => 'Email'],
+            ['key' => 'lead_date', 'label' => 'Lead Date'],
+            ['key' => 'lead_source', 'label' => 'Lead Source'],
+            ['key' => 'lead_status', 'label' => 'Lead Status'],
+            ['key' => 'product_name', 'label' => 'Product Name'],
+            ['key' => 'product_id', 'label' => 'Product ID'],
+            ['key' => 'priority', 'label' => 'Priority'],
+            ['key' => 'deal_value', 'label' => 'Deal Value'],
+            ['key' => 'remarks', 'label' => 'Remarks'],
+        ];
+
+        $customFields = LeadFormField::query()
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get(['id', 'label', 'field_name'])
+            ->map(fn (LeadFormField $field) => [
+                'key' => 'custom:' . $field->id,
+                'label' => $field->label,
+                'field_name' => $field->field_name,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'default' => $defaultFields,
+            'custom' => $customFields,
+        ];
+    }
+
+    protected function buildCampaignMappingViewData(array $campaignIds): array
+    {
+        $campaignIds = collect($campaignIds)->filter()->unique()->values();
+
+        if ($campaignIds->isEmpty()) {
+            return [];
+        }
+
+        $campaigns = CampaignMaster::query()
+            ->whereIn('id', $campaignIds)
+            ->get()
+            ->keyBy('id');
+
+        $campaignFields = CampaignFields::query()
+            ->whereIn('campaign_id', $campaignIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('campaign_id');
+
+        $migrations = CampaignFieldMigration::query()
+            ->whereIn('campaign_id', $campaignIds)
+            ->get()
+            ->groupBy('campaign_id');
+
+        $leadFields = LeadFormField::query()
+            ->whereIn('id', $migrations->flatten()->pluck('lead_field_id')->filter()->unique()->values())
+            ->get()
+            ->keyBy('id');
+
+        return $campaignIds->map(function ($campaignId) use ($campaigns, $campaignFields, $migrations, $leadFields) {
+            $campaign = $campaigns->get($campaignId);
+
+            if (!$campaign) {
+                return null;
+            }
+
+            $migrationByFieldId = $migrations->get($campaignId, collect())->keyBy('campaign_field_id');
+
+            return [
+                'campaign' => $campaign,
+                'rows' => $campaignFields->get($campaignId, collect())->map(function (CampaignFields $field) use ($migrationByFieldId, $leadFields) {
+                    $mapping = $migrationByFieldId->get($field->id);
+                    $leadField = $mapping ? $leadFields->get($mapping->lead_field_id) : null;
+
+                    return [
+                        'campaign_field_id' => $field->id,
+                        'campaign_field_name' => $field->field_name,
+                        'crm_field_key' => $leadField
+                            ? 'custom:' . $leadField->id
+                            : ($this->crmFieldKeyFromName($mapping?->crm_field_name)
+                                ?: $this->guessCrmFieldKey($field->field_name)),
+                    ];
+                })->values()->all(),
+            ];
+        })->filter()->values()->all();
+    }
+
+    protected function crmFieldKeyFromName(?string $crmFieldName): ?string
+    {
+        if (!$crmFieldName) {
+            return null;
+        }
+
+        if (Str::startsWith($crmFieldName, 'custom:')) {
+            return $crmFieldName;
+        }
+
+        $normalized = Str::of($crmFieldName)->trim()->lower()->replace([' ', '-'], '_')->value();
+        $defaultKeys = collect($this->crmFieldGroups()['default'])->pluck('key');
+
+        return $defaultKeys->contains($normalized) ? 'core:' . $normalized : null;
+    }
+
+    protected function resolveCrmFieldMapping(array $mapping): array
+    {
+        $crmFieldKey = (string) ($mapping['crmFieldKey'] ?? '');
+
+        if ($crmFieldKey === '' && !empty($mapping['crmFieldId'])) {
+            $crmFieldKey = 'custom:' . $mapping['crmFieldId'];
+        }
+
+        if (Str::startsWith($crmFieldKey, 'custom:')) {
+            $fieldId = (int) Str::after($crmFieldKey, 'custom:');
+            $crmField = LeadFormField::find($fieldId);
+
+            if (!$crmField) {
+                return [null, null];
+            }
+
+            return [$crmField->id, $this->customCrmFieldName($crmField)];
+        }
+
+        if (Str::startsWith($crmFieldKey, 'core:')) {
+            $fieldName = Str::after($crmFieldKey, 'core:');
+
+            return [null, $fieldName];
+        }
+
+        return [null, null];
+    }
+
+    protected function customCrmFieldName(LeadFormField $field): string
+    {
+        $fieldName = trim((string) $field->field_name);
+
+        return $fieldName !== '' ? $fieldName : 'custom:' . $field->id;
+    }
+
+    protected function guessCrmFieldKey(?string $facebookFieldName): ?string
+    {
+        if (!$facebookFieldName) {
+            return null;
+        }
+
+        $normalized = Str::of($facebookFieldName)->trim()->lower()->replace([' ', '-'], '_')->value();
+
+        $coreField = match ($normalized) {
+            'full_name', 'name', 'customer_name', 'client_name' => 'contact_name',
+            'email', 'email_address' => 'email',
+            'phone_number', 'phone', 'mobile', 'mobile_no', 'mobile_number' => 'mobile_number',
+            'company', 'company_name', 'business_name' => 'company_name',
+            'message', 'remarks', 'notes' => 'remarks',
+            default => null,
+        };
+
+        return $coreField ? 'core:' . $coreField : null;
     }
 }

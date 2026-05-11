@@ -37,6 +37,12 @@
     text-transform: uppercase;
     margin-bottom: 12px;
 }
+.settings-kicker svg,
+.settings-glance-item svg,
+.settings-card-icon svg,
+.settings-card-link svg {
+    flex-shrink: 0;
+}
 .settings-title {
     margin: 0;
     font-size: 30px;
@@ -119,7 +125,16 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 16px;
-    font-size: 22px;
+}
+.settings-kicker svg,
+.settings-glance-item svg,
+.settings-card-link svg {
+    width: 16px;
+    height: 16px;
+}
+.settings-card-icon svg {
+    width: 24px;
+    height: 24px;
 }
 .settings-card-icon.status {
     background: linear-gradient(135deg, #fff7ed, #fef3c7);
@@ -204,24 +219,31 @@
     <div class="settings-hero">
         <div>
             <div class="settings-kicker">
-                <i class="bi bi-sliders2"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="4" y1="6" x2="20" y2="6"/>
+                    <line x1="4" y1="18" x2="20" y2="18"/>
+                    <line x1="10" y1="6" x2="10" y2="18"/>
+                    <circle cx="10" cy="6" r="2.5" fill="currentColor" stroke="none"/>
+                    <circle cx="14" cy="18" r="2.5" fill="currentColor" stroke="none"/>
+                </svg>
                 Workspace Setup
             </div>
             <h2 class="settings-title">Settings</h2>
-            <p class="settings-subtitle">Manage the core CRM options your team relies on every day, from lead flow and outcomes to product setup, quotations, and integrations.</p>
+            <p class="settings-subtitle">Manage integrations, quotation templates, and other CRM settings. Configure master data in the Masters section.</p>
         </div>
 
         <div class="settings-glance">
             <div class="settings-glance-item">
-                <i class="bi bi-diagram-3"></i>
-                Lead Pipeline
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 3v5h5"/>
+                </svg>
+                Quotations
             </div>
             <div class="settings-glance-item">
-                <i class="bi bi-box-seam"></i>
-                Product Setup
-            </div>
-            <div class="settings-glance-item">
-                <i class="bi bi-plug"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 8h3V3h-3a5 5 0 0 0-5 5v3H6v5h3v5h5v-5h3l1-5h-4v-2a1 1 0 0 1 1-1z"/>
+                </svg>
                 Integrations
             </div>
         </div>
@@ -229,129 +251,46 @@
 
     <div class="settings-grid">
 
-        @can('lead_status.menuview')
-        <a href="{{ route('settings.lead-statuses.index') }}" class="settings-card status">
-            <div class="settings-card-icon status">
-                <i class="bi bi-signpost-split"></i>
-            </div>
-            <h4 class="settings-card-title">Lead Status</h4>
-            <p class="settings-card-text">Organize pipeline stages so teams can track lead progress clearly from new enquiry to closure.</p>
-            <span class="settings-card-link">
-                Open Lead Status
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('lead_source.menuview')
-        <a href="{{ route('settings.lead-sources.index') }}" class="settings-card source">
-            <div class="settings-card-icon source">
-                <i class="bi bi-broadcast-pin"></i>
-            </div>
-            <h4 class="settings-card-title">Lead Source</h4>
-            <p class="settings-card-text">Track which campaigns, channels, and referrals are generating incoming leads for the business.</p>
-            <span class="settings-card-link">
-                Open Lead Source
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('outcome_category.menuview')
-        <a href="{{ route('settings.outcome-categories.index') }}" class="settings-card outcome">
-            <div class="settings-card-icon outcome">
-                <i class="bi bi-collection"></i>
-            </div>
-            <h4 class="settings-card-title">Outcome Category</h4>
-            <p class="settings-card-text">Group lead or call outcomes into clean top-level buckets for easier reporting and follow-up rules.</p>
-            <span class="settings-card-link">
-                Open Outcome Categories
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('outcome_sub_category.menuview')
-        <a href="{{ route('settings.outcome-sub-categories.index') }}" class="settings-card subcategory">
-            <div class="settings-card-icon subcategory">
-                <i class="bi bi-diagram-2"></i>
-            </div>
-            <h4 class="settings-card-title">Outcome Sub Category</h4>
-            <p class="settings-card-text">Add more detailed outcome labels under each category to refine your team's tracking and analysis.</p>
-            <span class="settings-card-link">
-                Open Sub Categories
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('product_category.menuview')
-        <a href="{{ route('settings.product-category.index') }}" class="settings-card product-category">
-            <div class="settings-card-icon product-category">
-                <i class="bi bi-grid-1x2"></i>
-            </div>
-            <h4 class="settings-card-title">Product Category</h4>
-            <p class="settings-card-text">Structure your catalog into well-defined product groups so configuration and reporting stay manageable.</p>
-            <span class="settings-card-link">
-                Open Product Categories
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('product_attributes.menuview')
-        <a href="{{ route('settings.product-attribute.index') }}" class="settings-card attribute">
-            <div class="settings-card-icon attribute">
-                <i class="bi bi-sliders"></i>
-            </div>
-            <h4 class="settings-card-title">Product Attributes</h4>
-            <p class="settings-card-text">Define attribute sets and configurable product details your sales and quotation workflows depend on.</p>
-            <span class="settings-card-link">
-                Open Product Attributes
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('departments.menuview')
-        <a href="{{ route('settings.departments.index') }}" class="settings-card department">
-            <div class="settings-card-icon department">
-                <i class="bi bi-people"></i>
-            </div>
-            <h4 class="settings-card-title">Departments</h4>
-            <p class="settings-card-text">Maintain department master data for HR structure, onboarding alignment, and employee organization.</p>
-            <span class="settings-card-link">
-                Open Departments
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
-        @can('holiday_calendar.menuview')
-
-        <a href="{{ route('settings.holiday-calendars.index') }}" class="settings-card holiday">
-            <div class="settings-card-icon holiday">
-                <i class="bi bi-calendar-event"></i>
-            </div>
-            <h4 class="settings-card-title">Holiday Calendar</h4>
-            <p class="settings-card-text">Manage company holidays, import annual calendars from Excel, and view them in a monthly calendar layout.</p>
-            <span class="settings-card-link">
-                Open Holiday Calendar
-                <i class="bi bi-arrow-right"></i>
-            </span>
-        </a>
-        @endcan
-
         @can('quotation_settings.menuview')
         <a href="/settings/quotation-setting" class="settings-card quotation">
             <div class="settings-card-icon quotation">
-                <i class="bi bi-file-earmark-richtext"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 3v5h5"/>
+                    <line x1="9" y1="13" x2="15" y2="13"/>
+                    <line x1="9" y1="17" x2="13" y2="17"/>
+                </svg>
             </div>
             <h4 class="settings-card-title">Quotation Settings</h4>
             <p class="settings-card-text">Control branding, numbering, company information, terms, and signatures used in generated quotations.</p>
             <span class="settings-card-link">
                 Open Quotation Settings
-                <i class="bi bi-arrow-right"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>
+            </span>
+        </a>
+        @endcan
+
+        @can('form_customization.menuview')
+        <a href="{{ url('/lead/form-customization') }}" class="settings-card facebook">
+            <div class="settings-card-icon facebook">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 3v5h5"/>
+                    <path d="M9 13h6"/>
+                    <path d="M9 17h3"/>
+                </svg>
+            </div>
+            <h4 class="settings-card-title">Field Customization</h4>
+            <p class="settings-card-text">Customize lead form fields to capture the specific information your business needs for lead intake.</p>
+            <span class="settings-card-link">
+                Open Field Customization
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>
             </span>
         </a>
         @endcan
@@ -359,13 +298,18 @@
         @can('facebook_integration.menuview')
         <a href="/settings/facebook-integration" class="settings-card facebook">
             <div class="settings-card-icon facebook">
-                <i class="bi bi-facebook"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 8h3V3h-3a5 5 0 0 0-5 5v3H6v5h3v5h5v-5h3l1-5h-4v-2a1 1 0 0 1 1-1z"/>
+                </svg>
             </div>
             <h4 class="settings-card-title">Facebook Integration</h4>
             <p class="settings-card-text">Connect campaign flows and manage mapped lead intake from Facebook forms inside your CRM.</p>
             <span class="settings-card-link">
                 Open Facebook Integration
-                <i class="bi bi-arrow-right"></i>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>
             </span>
         </a>
         @endcan

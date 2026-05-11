@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Services\AdminDashboardService;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminDashboardProductController extends Controller
 {
-    public function __construct(protected AdminDashboardService $service) {}
+    public function __construct(
+        protected AdminDashboardService $service,
+        private readonly DataVisibilityService $visibility
+    ) {}
 
 
 
@@ -55,9 +59,14 @@ class AdminDashboardProductController extends Controller
     public function filterOptions(): JsonResponse
     {
         try {
-            $products = DB::table('products')->select('id', 'product_name')->orderBy('product_name')->get();
+            $products = \App\Models\Product::query();
+            $this->visibility->applyProductVisibility($products);
+            $products = $products->select('id', 'product_name')->orderBy('product_name')->get();
             $branches = DB::table('branches')->select('id', 'name')->orderBy('name')->get();
-            $users    = DB::table('users')->select('id', 'name')->orderBy('name')->get();
+            $users    = $this->visibility->visibleAssignableUsers()->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+            ])->values();
             $sources  = DB::table('leads')->distinct()->pluck('lead_source')->filter()->values();
 
             return response()->json([
