@@ -14,16 +14,20 @@ use App\Models\LeadProduct;
 use App\Models\LeadReminder;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\Request;
 
 class LeadShowController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // ════════════════════════════════════════
     // CALL UPDATES
     // ════════════════════════════════════════
 
     public function storeCall(Request $request, Lead $lead)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
 
         $data = $request->validate([
             // 'called_at'        => ['required', 'date'],
@@ -49,6 +53,7 @@ class LeadShowController extends Controller
 
     public function destroyCall(Lead $lead, LeadCallUpdate $call)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($call->lead_id !== $lead->id, 403);
         $call->delete();
         return back()->with('success', 'Call record removed.');
@@ -60,6 +65,8 @@ class LeadShowController extends Controller
 
     public function storeReminder(Request $request, Lead $lead)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         $data = $request->validate([
             'title'       => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -79,6 +86,7 @@ class LeadShowController extends Controller
 
     public function completeReminder(Lead $lead, LeadReminder $reminder)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($reminder->lead_id !== $lead->id, 403);
         $reminder->update(['is_completed' => true, 'completed_at' => now()]);
         return back()->with('success', 'Reminder marked as completed.');
@@ -86,6 +94,7 @@ class LeadShowController extends Controller
 
     public function destroyReminder(Lead $lead, LeadReminder $reminder)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($reminder->lead_id !== $lead->id, 403);
         $reminder->delete();
         return back()->with('success', 'Reminder removed.');
@@ -97,6 +106,8 @@ class LeadShowController extends Controller
 
      public function storeProduct(Request $request, Lead $lead)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         $data = $request->validate([
             'product_name'    => ['required', 'string', 'max:150'],
             'product_status'  => ['required', 'in:new,hot,warm,cold,converted'],
@@ -118,6 +129,7 @@ class LeadShowController extends Controller
 
     public function updateProductStatus(Request $request, Lead $lead, \App\Models\LeadProduct $product)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($product->lead_id !== $lead->id, 403);
 
         $request->validate([
@@ -131,6 +143,7 @@ class LeadShowController extends Controller
 
      public function storeProductPayment(Request $request, Lead $lead, \App\Models\LeadProduct $product)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($product->lead_id !== $lead->id, 403);
 
         $data = $request->validate([
@@ -158,6 +171,7 @@ class LeadShowController extends Controller
      */
     public function destroyProductPayment(Lead $lead, \App\Models\LeadProduct $product, \App\Models\LeadProductPayment $payment)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($payment->lead_product_id !== $product->id, 403);
 
         $payment->delete();
@@ -171,6 +185,7 @@ class LeadShowController extends Controller
      */
     public function destroyProduct(Lead $lead, \App\Models\LeadProduct $product)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($product->lead_id !== $lead->id, 403);
         $product->delete();
         return back()->with('success', 'Product removed from lead.');
@@ -178,6 +193,7 @@ class LeadShowController extends Controller
 
     public function updateProduct(Request $request, Lead $lead, LeadProduct $product)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($product->lead_id !== $lead->id, 403);
 
         $data = $request->validate([
@@ -200,6 +216,8 @@ class LeadShowController extends Controller
 
     public function storeQuotation(Request $request, Lead $lead)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         $data = $request->validate([
             'quotation_date'   => ['required', 'date'],
             'valid_until'      => ['nullable', 'date', 'after_or_equal:quotation_date'],
@@ -252,6 +270,7 @@ class LeadShowController extends Controller
 
     public function updateQuotationStatus(Request $request, Lead $lead, Quotation $quotation)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($quotation->lead_id !== $lead->id, 403);
 
         $request->validate([
@@ -265,6 +284,7 @@ class LeadShowController extends Controller
 
     public function destroyQuotation(Lead $lead, Quotation $quotation)
     {
+        abort_unless($this->visibility->canAccessLead($lead), 403);
         abort_if($quotation->lead_id !== $lead->id, 403);
         $quotation->delete();
         return back()->with('success', 'Quotation deleted.');

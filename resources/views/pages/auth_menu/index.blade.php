@@ -104,6 +104,7 @@
 .authdash-card.users::after { background: #f97316; }
 .authdash-card.roles::after { background: #ec4899; }
 .authdash-card.permissions::after { background: #06b6d4; }
+.authdash-card.mapping::after { background: #22c55e; }
 .authdash-icon {
     width: 52px;
     height: 52px;
@@ -132,6 +133,10 @@
 .authdash-icon.permissions {
     background: linear-gradient(135deg, #ecfeff, #cffafe);
     color: #0891b2;
+}
+.authdash-icon.mapping {
+    background: linear-gradient(135deg, #ecfdf5, #dcfce7);
+    color: #15803d;
 }
 .authdash-card-title {
     font-size: 17px;
@@ -289,6 +294,53 @@
             <p class="authdash-card-text">Define module-wise actions, create bulk permissions, and extend them with custom actions when required.</p>
             <span class="authdash-link">
                 Open Permissions
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>
+            </span>
+        </a>
+        @endcan
+
+        @can('roles.view')
+        <a href="{{ route('auth.role-mappings.index') }}" class="authdash-card mapping">
+            <div class="authdash-icon mapping">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3v18"/>
+                    <path d="M6 8h12"/>
+                    <path d="M8 16h8"/>
+                    <circle cx="12" cy="8" r="3"/>
+                    <circle cx="8" cy="16" r="2"/>
+                    <circle cx="16" cy="16" r="2"/>
+                </svg>
+            </div>
+            <h4 class="authdash-card-title">Role Mapping</h4>
+            <p class="authdash-card-text">Set role-wise data scope for company admins, team leads, and employees.</p>
+            <span class="authdash-link">
+                Open Role Mapping
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                    <polyline points="12 5 19 12 12 19"/>
+                </svg>
+            </span>
+        </a>
+        @endcan
+
+        @can('users.view')
+        <a href="{{ route('auth.user-mappings.index') }}" class="authdash-card mapping">
+            <div class="authdash-icon mapping">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    <path d="M13 12h5"/>
+                </svg>
+            </div>
+            <h4 class="authdash-card-title">User Mapping</h4>
+            <p class="authdash-card-text">Map employees under TLs or managers for team-wise lead visibility.</p>
+            <span class="authdash-link">
+                Open User Mapping
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <line x1="5" y1="12" x2="19" y2="12"/>
                     <polyline points="12 5 19 12 12 19"/>

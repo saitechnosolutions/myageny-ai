@@ -15,7 +15,7 @@ class Product extends Model
         'product_category_id', 'package_name', 'sku',
         'base_price', 'tax_type', 'tax_value', 'discount_type', 'discount_value',
         'final_price', 'description', 'status', 'sort_order', 'product_name',
-        'company_id',
+        'company_id', 'created_by', 'assigned_to',
     ];
 
     protected $casts = [
@@ -39,6 +39,12 @@ class Product extends Model
 
         static::creating($callback);
         static::updating($callback);
+
+        static::creating(function (self $model) {
+            if (empty($model->created_by) && auth()->check()) {
+                $model->created_by = auth()->id();
+            }
+        });
     }
 
     // ── Relationships ─────────────────────────────────────────────────
@@ -50,6 +56,16 @@ class Product extends Model
     public function attributeValues()
     {
         return $this->hasMany(ProductAttributeValue::class)->with('attribute')->orderBy('sort_order');
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     // ── Price Logic ───────────────────────────────────────────────────

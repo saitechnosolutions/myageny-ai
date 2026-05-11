@@ -7,8 +7,16 @@
 <style>
 /* ===== QUOTATION SETTINGS PAGE ===== */
 
-/* TinyMCE CDN placeholder */
-.tox-tinymce { border-radius: 8px !important; border: 1px solid #e1dee3 !important; }
+/* TinyMCE editor */
+.tox-tinymce {
+    border: 1px solid #e1dee3 !important;
+    border-radius: 9px !important;
+}
+.tox .tox-toolbar,
+.tox .tox-toolbar__overflow,
+.tox .tox-toolbar__primary {
+    background: #fcfcfc !important;
+}
 
 .settings-container {
     display: grid;
@@ -708,9 +716,8 @@
                     <div class="section-body">
                         <div class="form-group">
                             <label class="form-label">Terms Content</label>
-                            {{-- TinyMCE will bind to this textarea --}}
-                            <textarea name="terms" class="form-input form-textarea"
-                                      style="min-height:200px;">{{ $data['terms'] ?? '' }}</textarea>
+                            <textarea id="termsEditor" name="terms" class="form-input form-textarea"
+                                      style="min-height:220px;">{{ old('terms', $data['terms'] ?? '') }}</textarea>
                             <div class="form-hint">
                                 Uses rich text formatting. You can use numbered lists, bold, links, etc.
                                 These terms will be copied to each new quotation (and can be edited per-quotation).
@@ -851,22 +858,46 @@ input:checked + .toggle-slider:before { transform:translateX(20px); }
 
 
 @push('scripts')
-{{-- TinyMCE CDN --}}
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+{{-- TinyMCE self-hosted build via jsDelivr (no Tiny Cloud API key required) --}}
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6.8.5/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
-    // ─── TinyMCE Init ─────────────────────────────────────────
-    tinymce.init({
-        selector: '#termsEditor',
-        plugins: 'lists link code',
-        toolbar: 'bold italic underline | bullist numlist | link | code',
-        menubar: false,
-        height: 220,
-        skin: 'oxide',
-        content_css: 'default',
-        setup: function(editor) {
-            editor.on('change', function() { editor.save(); });
-        }
-    });
+    // ─── TinyMCE Init ───────────────────────────────────────
+    var syncTermsEditor = function() {};
+
+    function initTermsEditor() {
+        const termsEditor = document.getElementById('termsEditor');
+        if (!termsEditor || !window.tinymce) return;
+
+        tinymce.remove('#termsEditor');
+        tinymce.init({
+            selector: 'textarea#termsEditor',
+            base_url: 'https://cdn.jsdelivr.net/npm/tinymce@6.8.5',
+            suffix: '.min',
+            plugins: 'lists link table code autoresize',
+            toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | alignleft aligncenter alignright | link table | removeformat code',
+            menubar: false,
+            branding: false,
+            promotion: false,
+            min_height: 260,
+            content_style: "body { font-family: Inter, Arial, sans-serif; font-size: 14px; color: #121212; }",
+            setup: function(editor) {
+                syncTermsEditor = function() {
+                    editor.save();
+                };
+
+                editor.on('change keyup input undo redo SetContent', syncTermsEditor);
+            },
+            init_instance_callback: function(editor) {
+                editor.save();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTermsEditor, { once: true });
+    } else {
+        initTermsEditor();
+    }
 
     // ─── Section Collapse / Expand ────────────────────────────
     function toggleSection(headerEl) {
@@ -994,23 +1025,38 @@ input:checked + .toggle-slider:before { transform:translateX(20px); }
     }
 
     // ─── Form Save State ──────────────────────────────────────
-    document.getElementById('settingsForm').addEventListener('submit', function() {
-        const btn    = document.getElementById('saveBtn');
-        const status = document.getElementById('saveStatus');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
-        status.textContent = 'Saving your settings…';
-    });
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', function() {
+            syncTermsEditor();
+            const btn    = document.getElementById('saveBtn');
+            const status = document.getElementById('saveStatus');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
+            }
+            if (status) status.textContent = 'Saving your settings…';
+        });
+    }
 
     // ─── Live Quotation Preview ───────────────────────────────
-    document.getElementById('previewModal').addEventListener('click', function(e) {
-        if (e.target === this) this.classList.remove('show');
-    });
+    const previewModal = document.getElementById('previewModal');
+    if (previewModal) {
+        previewModal.addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('show');
+        });
+    }
 
     // Build preview when modal opens
-    document.querySelector('[onclick*="previewModal"]').addEventListener('click', buildPreview);
+    const previewTrigger = document.querySelector('[onclick*="previewModal"]');
+    if (previewTrigger) {
+        previewTrigger.addEventListener('click', buildPreview);
+    }
 
     function buildPreview() {
+        const livePreview = document.getElementById('livePreview');
+        if (!livePreview) return;
+
         const color   = document.getElementById('colorHex').value || '#fe5f04';
         const prefix  = document.getElementById('prefixInput').value || 'QUO-';
         const padding = parseInt(document.getElementById('paddingInput').value) || 5;
@@ -1022,7 +1068,7 @@ input:checked + .toggle-slider:before { transform:translateX(20px); }
         const company = document.querySelector('[name="company_name"]')?.value || 'Your Company';
         const address = document.querySelector('[name="company_address"]')?.value || '';
 
-        document.getElementById('livePreview').innerHTML = `
+        livePreview.innerHTML = `
         <div style="border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 20px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                 <div>

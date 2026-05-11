@@ -8,6 +8,7 @@ use App\Models\LeadReminder;
 use App\Models\Product;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,8 @@ use OpenApi\Attributes as OA;
 
 class LeadController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // =========================================================================
     // INDEX — List all leads with filters + pagination
     // =========================================================================
@@ -57,6 +60,8 @@ class LeadController extends Controller
         $query = Lead::with(['branch:id,name', 'assignedTo:id,name', 'createdBy:id,name', 'product:id,product_name'])
             ->latest('lead_date');
 
+        $this->visibility->applyLeadVisibility($query, $request->user());
+
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
@@ -81,13 +86,16 @@ class LeadController extends Controller
         $perPage = (int) $request->input('per_page', 15);
         $leads   = $query->paginate($perPage);
 
+        $statsBase = Lead::query();
+        $this->visibility->applyLeadVisibility($statsBase, $request->user());
+
         $stats = [
-            'total'         => Lead::count(),
-            'new'           => Lead::where('lead_status', 'new')->count(),
-            'won'           => Lead::where('lead_status', 'won')->count(),
-            'lost'          => Lead::where('lead_status', 'lost')->count(),
-            'pipeline'      => Lead::whereNotIn('lead_status', ['won','lost'])->sum('deal_value'),
-            'high_priority' => Lead::where('priority', 'high')->whereNotIn('lead_status', ['won','lost'])->count(),
+            'total'         => (clone $statsBase)->count(),
+            'new'           => (clone $statsBase)->where('lead_status', 'new')->count(),
+            'won'           => (clone $statsBase)->where('lead_status', 'won')->count(),
+            'lost'          => (clone $statsBase)->where('lead_status', 'lost')->count(),
+            'pipeline'      => (clone $statsBase)->whereNotIn('lead_status', ['won','lost'])->sum('deal_value'),
+            'high_priority' => (clone $statsBase)->where('priority', 'high')->whereNotIn('lead_status', ['won','lost'])->count(),
         ];
 
         return response()->json([
@@ -152,6 +160,9 @@ class LeadController extends Controller
         DB::transaction(function () use ($validated, $request, &$lead, &$reminderCreated) {
             $leadData = collect($validated)->except('reminder')->toArray();
             $leadData['created_by'] = $request->user()->id;
+            $leadData['assigned_to'] = $leadData['assigned_to'] ?? $request->user()->id;
+
+            abort_unless($this->visibility->canAssignTo($leadData['assigned_to'], $request->user()), 403);
 
             $lead = Lead::create($leadData);
 
@@ -198,16 +209,20 @@ class LeadController extends Controller
             new OA\Response(response: 404, description: "Not found"),
         ]
     )]
-    public function show(Lead $lead): JsonResponse
+   public function show(Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         $lead->load([
             'branch:id,name',
             'assignedTo:id,name',
             'createdBy:id,name',
             'product:id,product_name',
             'callUpdates.user:id,name',
+            'callUpdates.outCome:id,name',
+            'callUpdates.outComeSubCategory:id,name',
             'reminders.user:id,name',
-            'products.payments.recordedBy:id,name', // ← loads LeadProduct → payments → recordedBy
+            'products.payments.recordedBy:id,name',
             'quotations.items',
             'quotations.createdBy:id,name',
         ]);
@@ -240,6 +255,8 @@ class LeadController extends Controller
     )]
     public function update(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $validated = $request->validate([
             'company_name'  => ['sometimes', 'required', 'string', 'max:255'],
             'contact_name'  => ['sometimes', 'required', 'string', 'max:255'],
@@ -255,6 +272,10 @@ class LeadController extends Controller
             'branch_id'     => ['nullable', 'integer', 'exists:branches,id'],
             'assigned_to'   => ['nullable', 'integer', 'exists:users,id'],
         ]);
+
+        if (array_key_exists('assigned_to', $validated) && $validated['assigned_to']) {
+            abort_unless($this->visibility->canAssignTo($validated['assigned_to'], $request->user()), 403);
+        }
 
         $lead->update($validated);
 
@@ -287,6 +308,8 @@ class LeadController extends Controller
     )]
     public function destroy(Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         $name = $lead->company_name;
         $lead->delete();
 
@@ -318,6 +341,8 @@ class LeadController extends Controller
     )]
     public function updateStatus(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $request->validate([
             'lead_status' => ['required', 'string', Rule::in(Lead::statusKeys())],
         ]);
@@ -356,8 +381,11 @@ class LeadController extends Controller
                 'priorities'     => Lead::PRIORITIES,
                 'reminder_types' => LeadReminder::TYPES,
                 'branches'       => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-                'users'          => User::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-                'products'       => Product::where('is_active', true)
+                'users'          => $this->visibility->visibleAssignableUsers(request()->user())->map(fn ($user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                ])->values(),
+                'products'       => tap(Product::query(), fn ($query) => $this->visibility->applyProductVisibility($query, request()->user()))
                                         ->orderBy('product_name')
                                         ->get(['id', 'product_name as name']),
             ],

@@ -200,11 +200,18 @@
         .logo-img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .logo-text { font-weight: 700; font-size: 16px; color: #121212; flex-grow: 1; }
         .collapse-icon { cursor: pointer; }
-        .search-bar {
-            display: flex; align-items: center; gap: 8px;
-            padding: 6px 12px; background-color: #fcfcfc;
-            border: 1px solid #e1dee3; border-radius: 16px; height: 32px;
+        .sidebar-accent {
+            width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, #fe5f04, transparent);
+            animation: shimmer 3s ease-in-out infinite;
+            margin: 12px 0;
         }
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+        }
+        .accent-line { display: none; }
+        .accent-dots { display: none; }
         .search-placeholder { flex-grow: 1; color: #9e9e9e; font-size: 14px; }
         .shortcut-hint { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #121212; }
         .sidebar-nav { flex-grow: 1; display: flex; flex-direction: column; gap: 24px; }
@@ -507,7 +514,6 @@
     @stack('styles')
     <!-- ApexCharts CDN -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    @stack('scripts')
 </head>
 <body>
 

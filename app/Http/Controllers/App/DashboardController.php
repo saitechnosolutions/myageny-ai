@@ -10,6 +10,7 @@ use App\Models\LeadProduct;
 use App\Models\LeadProductPayment;
 use App\Models\LeadReminder;
 use App\Models\User;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,8 @@ use OpenApi\Attributes as OA;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // =========================================================================
     // INDEX — Full dashboard data (mirrors web admin dashboard)
     // =========================================================================
@@ -76,15 +79,19 @@ class DashboardController extends Controller
         $source   = $request->source;
 
         // ── Base query factory ─────────────────────────────────────
-        $base = fn() => Lead::query()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->when($userId,   fn($q) => $q->where(fn($q2) =>
-                $q2->where('assigned_to', $userId)->orWhere('created_by', $userId)
-            ))
-            ->when($stage,    fn($q) => $q->where('lead_status', $stage))
-            ->when($source,   fn($q) => $q->where('lead_source', $source))
-            ->when($dateFrom, fn($q) => $q->whereDate('lead_date', '>=', $dateFrom))
-            ->when($dateTo,   fn($q) => $q->whereDate('lead_date', '<=', $dateTo));
+        $base = function () use ($request, $branchId, $userId, $stage, $source, $dateFrom, $dateTo) {
+            $query = Lead::query();
+
+            $this->visibility->applyLeadVisibility($query, $request->user());
+
+            return $query
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->when($userId, fn($q) => $q->where('assigned_to', $userId))
+                ->when($stage, fn($q) => $q->where('lead_status', $stage))
+                ->when($source, fn($q) => $q->where('lead_source', $source))
+                ->when($dateFrom, fn($q) => $q->whereDate('lead_date', '>=', $dateFrom))
+                ->when($dateTo, fn($q) => $q->whereDate('lead_date', '<=', $dateTo));
+        };
 
         // ── 1. KPIs ───────────────────────────────────────────────
         $totalLeads    = (clone $base())->count();
@@ -164,7 +171,9 @@ class DashboardController extends Controller
 
         // ── 5. Today's follow-ups ─────────────────────────────────
         $todayFollowups = LeadCallUpdate::whereDate('next_follow_up', today())
-            ->whereHas('lead', function ($q) use ($branchId, $userId, $stage, $source) {
+            ->whereHas('lead', function ($q) use ($request, $branchId, $userId, $stage, $source) {
+                $this->visibility->applyLeadVisibility($q, $request->user());
+
                 $q->when($branchId, fn($q2) => $q2->where('branch_id', $branchId))
                   ->when($userId,   fn($q2) => $q2->where('assigned_to', $userId))
                   ->when($stage,    fn($q2) => $q2->where('lead_status', $stage))
@@ -203,8 +212,12 @@ class DashboardController extends Controller
             ]);
 
         // ── 6. Pending reminders today ────────────────────────────
-        $overdueCount   = LeadReminder::where('is_completed', false)->where('remind_at', '<', now())->count();
+        $overdueQuery = LeadReminder::where('is_completed', false)
+            ->whereHas('lead', fn ($leadQuery) => $this->visibility->applyLeadVisibility($leadQuery, $request->user()));
+        $overdueCount = (clone $overdueQuery)->where('remind_at', '<', now())->count();
+
         $todayReminders = LeadReminder::where('is_completed', false)
+            ->whereHas('lead', fn ($leadQuery) => $this->visibility->applyLeadVisibility($leadQuery, $request->user()))
             ->whereDate('remind_at', today())
             ->with(['lead:id,company_name', 'user:id,name'])
             ->orderBy('remind_at')
@@ -254,10 +267,11 @@ class DashboardController extends Controller
         // ── 8. Branch-wise performance ────────────────────────────
         $branchPerformance = Branch::where('is_active', true)
             ->get()
-            ->map(function ($branch) use ($dateFrom, $dateTo) {
+            ->map(function ($branch) use ($request, $dateFrom, $dateTo) {
                 $q = Lead::where('branch_id', $branch->id)
                     ->when($dateFrom, fn($q2) => $q2->whereDate('lead_date', '>=', $dateFrom))
                     ->when($dateTo,   fn($q2) => $q2->whereDate('lead_date', '<=', $dateTo));
+                $this->visibility->applyLeadVisibility($q, $request->user());
 
                 $total    = (clone $q)->count();
                 $won      = (clone $q)->where('lead_status', 'won')->count();
@@ -280,15 +294,14 @@ class DashboardController extends Controller
             ->values();
 
         // ── 9. Team performance ───────────────────────────────────
-        $teamPerformance = User::where('is_active', true)
-            ->with('roles')
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
-            ->get()
-            ->map(function ($user) use ($dateFrom, $dateTo, $branchId) {
+        $teamPerformance = $this->visibility->visibleAssignableUsers($request->user())
+            ->when($branchId, fn($users) => $users->where('branch_id', $branchId))
+            ->map(function ($user) use ($request, $dateFrom, $dateTo, $branchId) {
                 $q = Lead::where('assigned_to', $user->id)
                     ->when($branchId, fn($q2) => $q2->where('branch_id', $branchId))
                     ->when($dateFrom, fn($q2) => $q2->whereDate('lead_date', '>=', $dateFrom))
                     ->when($dateTo,   fn($q2) => $q2->whereDate('lead_date', '<=', $dateTo));
+                $this->visibility->applyLeadVisibility($q, $request->user());
 
                 $total  = (clone $q)->count();
                 $won    = (clone $q)->where('lead_status', 'won')->count();
@@ -322,6 +335,7 @@ class DashboardController extends Controller
                      ->whereMonth('lead_date', $month->month)
                      ->when($branchId, fn($q2) => $q2->where('branch_id', $branchId))
                      ->when($userId,   fn($q2) => $q2->where('assigned_to', $userId));
+            $this->visibility->applyLeadVisibility($q, $request->user());
 
             $monthTrend[] = [
                 'month'       => $month->format('M Y'),

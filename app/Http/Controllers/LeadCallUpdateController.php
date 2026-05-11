@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\LeadCallUpdate;
 use App\Models\User;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\Request;
 
 class LeadCallUpdateController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     public function index(Request $request)
     {
         $dateFrom = $request->input('date_from', today()->toDateString());
@@ -20,6 +23,8 @@ class LeadCallUpdateController extends Controller
             'outCome:id,name',
             'outComeSubCategory:id,name',
         ])->latest('called_at');
+
+        $this->visibility->applyLeadRelationVisibility($query);
 
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -58,7 +63,7 @@ class LeadCallUpdateController extends Controller
 
         $callUpdates = $query->paginate(15)->withQueryString();
         $branches = Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']);
-        $users = User::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $users = $this->visibility->visibleAssignableUsers();
 
         return view('pages.leads.call_updates.index', compact(
             'callUpdates',

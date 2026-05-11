@@ -9,6 +9,7 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationSetting;
 use App\Models\User;
+use App\Services\DataVisibilityService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,6 +20,8 @@ use Illuminate\View\View;
 
 class QuotationController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // ── List ──────────────────────────────────────────────────────────────────
 
     /**
@@ -28,6 +31,8 @@ class QuotationController extends Controller
     {
         $query = Quotation::with(['lead', 'approver'])
             ->latest();
+
+        $this->visibility->applyQuotationVisibility($query);
 
         if ($request->filled('lead_id')) {
             $query->where('lead_id', $request->lead_id);
@@ -58,7 +63,7 @@ class QuotationController extends Controller
         }
 
         $quotations = $query->paginate(15)->withQueryString();
-        $approvers = User::orderBy('name')->get(['id', 'name']);
+        $approvers = $this->visibility->visibleAssignableUsers();
 
         return view('pages.quotations.index', compact('quotations', 'approvers'));
     }
@@ -71,8 +76,17 @@ class QuotationController extends Controller
     public function create($leadId = null): View
     {
         $lead = $leadId ? Lead::with('branch')->findOrFail($leadId) : null;
-        $leads    = Lead::orderBy('contact_name')->get(['id', 'contact_name', 'company_name']);
-        $products = Product::orderBy('product_name')->get([
+        if ($lead) {
+            abort_unless($this->visibility->canAccessLead($lead), 403);
+        }
+
+        $leadQuery = Lead::orderBy('contact_name');
+        $this->visibility->applyLeadVisibility($leadQuery);
+        $leads = $leadQuery->get(['id', 'contact_name', 'company_name']);
+
+        $productQuery = Product::orderBy('product_name');
+        $this->visibility->applyProductVisibility($productQuery);
+        $products = $productQuery->get([
             'id',
             'product_name',
             'description',
@@ -125,6 +139,10 @@ class QuotationController extends Controller
         $lead = ! empty($validated['lead_id'])
             ? Lead::with('branch')->findOrFail($validated['lead_id'])
             : null;
+
+        if ($lead) {
+            abort_unless($this->visibility->canAccessLead($lead), 403);
+        }
 
         foreach ($validated['items'] as $item) {
             Product::findOrFail($item['product_id']);
@@ -215,6 +233,8 @@ class QuotationController extends Controller
 
     public function show(Quotation $quotation): View
     {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
         $quotation->load(['lead', 'items.product', 'approver']);
 
         return view('pages.quotations.show', compact('quotation'));
@@ -224,6 +244,8 @@ class QuotationController extends Controller
 
     public function approve(Quotation $quotation): RedirectResponse
     {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
         $quotation->update([
             'is_approved' => true,
             'approved_by' => Auth::id(),
@@ -237,6 +259,8 @@ class QuotationController extends Controller
 
     public function destroy(Quotation $quotation): RedirectResponse
     {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
         $quotation->delete(); // items cascade via FK
 
         return redirect()->route('quotations.index')
@@ -250,11 +274,18 @@ class QuotationController extends Controller
      */
     public function productsApi(Request $request): JsonResponse
     {
-        $products = Product::when($request->filled('q'), function ($query) use ($request) {
-            $query->where('name', 'like', '%' . $request->q . '%');
-        })
+        $query = Product::when($request->filled('q'), function ($query) use ($request) {
+            $query->where(function ($productQuery) use ($request) {
+                $productQuery
+                    ->where('product_name', 'like', '%' . $request->q . '%')
+                    ->orWhere('package_name', 'like', '%' . $request->q . '%');
+            });
+        });
+        $this->visibility->applyProductVisibility($query);
+
+        $products = $query
             ->limit(30)
-            ->get(['id', 'name', 'description', 'price']);
+            ->get(['id', 'product_name as name', 'description', 'final_price as price']);
 
         return response()->json($products);
     }
@@ -263,10 +294,13 @@ class QuotationController extends Controller
 
     public function apiIndex(Request $request): JsonResponse
     {
-        $quotations = Quotation::with(['lead:id,name', 'approver:id,name'])
+        $query = Quotation::with(['lead:id,name', 'approver:id,name'])
             ->when($request->filled('lead_id'), fn($q) => $q->where('lead_id', $request->lead_id))
-            ->latest()
-            ->paginate(20);
+            ->latest();
+
+        $this->visibility->applyQuotationVisibility($query);
+
+        $quotations = $query->paginate(20);
 
         return response()->json($quotations);
     }
@@ -290,6 +324,7 @@ class QuotationController extends Controller
 
         DB::transaction(function () use ($request, &$quotation) {
             $lead = Lead::with('branch')->findOrFail($request->lead_id);
+            abort_unless($this->visibility->canAccessLead($lead), 403);
 
             foreach ($request->items as $item) {
                 Product::findOrFail($item['product_id']);
@@ -357,6 +392,8 @@ class QuotationController extends Controller
 
     public function apiShow(Quotation $quotation): JsonResponse
     {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
         return response()->json([
             'status' => true,
             'quotation' => $quotation->load(['lead', 'approver', 'createdBy', 'items.product']),
@@ -365,6 +402,8 @@ class QuotationController extends Controller
 
     public function apiUpdate(Request $request, Quotation $quotation): JsonResponse
     {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
         $validated = $request->validate([
             'lead_id'        => ['required', 'exists:leads,id'],
             'quotation_date' => ['required', 'date'],
@@ -382,6 +421,7 @@ class QuotationController extends Controller
 
         DB::transaction(function () use ($validated, $request, $quotation) {
             $lead = Lead::with('branch')->findOrFail($validated['lead_id']);
+            abort_unless($this->visibility->canAccessLead($lead), 403);
 
             foreach ($validated['items'] as $item) {
                 Product::findOrFail($item['product_id']);
@@ -448,7 +488,8 @@ class QuotationController extends Controller
 
     public function downloadPdf($id)
     {
-        $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy')->findOrFail($id);
+        $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy', 'lead.assignedTo')->findOrFail($id);
+        abort_unless(auth()->check() && $this->visibility->canAccessQuotation($quotation), 403);
 
         $branchId = auth()->user()?->branch_id
             ?? $quotation->lead->createdBy?->branch_id;
@@ -493,6 +534,9 @@ class QuotationController extends Controller
 
     public function getLeadQuotations($leadId)
     {
+        $lead = Lead::findOrFail($leadId);
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         $getQuotations = Quotation::with('items')->where('lead_id', $leadId)->get();
 
         return new QuotationCollection($getQuotations);
@@ -500,7 +544,9 @@ class QuotationController extends Controller
 
     public function getAllQuotations()
     {
-        $getQuotations = Quotation::with('items')->get();
+        $query = Quotation::with('items');
+        $this->visibility->applyQuotationVisibility($query);
+        $getQuotations = $query->get();
 
         return new QuotationCollection($getQuotations);
     }

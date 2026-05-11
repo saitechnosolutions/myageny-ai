@@ -9,6 +9,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -103,6 +105,28 @@ class User extends Authenticatable
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function managedUserMappings(): HasMany
+    {
+        return $this->hasMany(UserMapping::class, 'manager_id');
+    }
+
+    public function managerMappings(): HasMany
+    {
+        return $this->hasMany(UserMapping::class, 'user_id');
+    }
+
+    public function managedUsers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_mappings', 'manager_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function mappedManagers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_mappings', 'user_id', 'manager_id')
+            ->withTimestamps();
     }
 
     // ── Convenience Helpers (wrap Spatie) ──────────────────────

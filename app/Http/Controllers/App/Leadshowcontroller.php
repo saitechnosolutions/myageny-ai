@@ -16,6 +16,7 @@ use App\Models\LeadProductPayment;
 use App\Models\LeadReminder;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
@@ -24,6 +25,8 @@ use OpenApi\Attributes as OA;
 
 class LeadShowController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // ════════════════════════════════════════════════════════════════
     // CALL UPDATES
     // ════════════════════════════════════════════════════════════════
@@ -65,6 +68,8 @@ class LeadShowController extends Controller
     )]
     public function storeCall(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $data = $request->validate([
             'called_at'        => ['required', 'date'],
             'call_type'        => ['required', 'in:outgoing,incoming,missed'],
@@ -108,6 +113,8 @@ class LeadShowController extends Controller
     )]
     public function destroyCall(Lead $lead, LeadCallUpdate $call): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($call->lead_id !== $lead->id, 403, 'Call does not belong to this lead.');
         $call->delete();
 
@@ -157,6 +164,8 @@ class LeadShowController extends Controller
     )]
     public function storeReminder(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $data = $request->validate([
             'title'       => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -201,6 +210,8 @@ class LeadShowController extends Controller
     )]
     public function completeReminder(Lead $lead, LeadReminder $reminder): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($reminder->lead_id !== $lead->id, 403, 'Reminder does not belong to this lead.');
         $reminder->update(['is_completed' => true, 'completed_at' => now()]);
         $reminder->load('user:id,name');
@@ -234,6 +245,8 @@ class LeadShowController extends Controller
     )]
     public function destroyReminder(Lead $lead, LeadReminder $reminder): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($reminder->lead_id !== $lead->id, 403, 'Reminder does not belong to this lead.');
         $reminder->delete();
 
@@ -284,6 +297,8 @@ class LeadShowController extends Controller
     )]
     public function storeProduct(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $data = $request->validate([
             'product_name'     => ['required', 'string', 'max:150'],
             'product_status'   => ['required', 'in:new,hot,warm,cold,converted'],
@@ -339,6 +354,8 @@ class LeadShowController extends Controller
     )]
     public function updateProductStatus(Request $request, Lead $lead, LeadProduct $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         abort_if($product->lead_id !== $lead->id, 403, 'Product does not belong to this lead.');
 
         $request->validate([
@@ -391,6 +408,8 @@ class LeadShowController extends Controller
     )]
     public function updateProduct(Request $request, Lead $lead, LeadProduct $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         abort_if($product->lead_id !== $lead->id, 403, 'Product does not belong to this lead.');
 
         $data = $request->validate([
@@ -433,6 +452,8 @@ class LeadShowController extends Controller
     )]
     public function destroyProduct(Lead $lead, LeadProduct $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($product->lead_id !== $lead->id, 403, 'Product does not belong to this lead.');
         $product->delete();
 
@@ -483,6 +504,8 @@ class LeadShowController extends Controller
     )]
     public function storeProductPayment(Request $request, Lead $lead, LeadProduct $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         abort_if($product->lead_id !== $lead->id, 403, 'Product does not belong to this lead.');
 
         $data = $request->validate([
@@ -532,6 +555,8 @@ class LeadShowController extends Controller
     )]
     public function destroyProductPayment(Lead $lead, LeadProduct $product, LeadProductPayment $payment): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($payment->lead_product_id !== $product->id, 403, 'Payment does not belong to this product.');
 
         $payment->delete();
@@ -600,6 +625,8 @@ class LeadShowController extends Controller
     )]
     public function storeQuotation(Request $request, Lead $lead): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         $data = $request->validate([
             'quotation_date'           => ['required', 'date'],
             'valid_until'              => ['nullable', 'date', 'after_or_equal:quotation_date'],
@@ -687,6 +714,8 @@ class LeadShowController extends Controller
     )]
     public function updateQuotationStatus(Request $request, Lead $lead, Quotation $quotation): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
         abort_if($quotation->lead_id !== $lead->id, 403, 'Quotation does not belong to this lead.');
 
         $request->validate([
@@ -725,6 +754,8 @@ class LeadShowController extends Controller
     )]
     public function destroyQuotation(Lead $lead, Quotation $quotation): JsonResponse
     {
+        abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
+
         abort_if($quotation->lead_id !== $lead->id, 403, 'Quotation does not belong to this lead.');
         $quotation->delete();
 

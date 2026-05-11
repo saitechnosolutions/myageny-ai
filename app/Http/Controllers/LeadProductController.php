@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\LeadProduct;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 
 class LeadProductController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
+
     // ══════════════════════════════════════════════════════════════════
     //  PRODUCTS
     // ══════════════════════════════════════════════════════════════════
@@ -25,9 +28,13 @@ class LeadProductController extends Controller
      */
     public function productList(): JsonResponse
     {
-        $products = Product::with('category')
+        $query = Product::with('category')
             ->where('status', 'active')
-            ->orderBy('sort_order')
+            ->orderBy('sort_order');
+
+        $this->visibility->applyProductVisibility($query);
+
+        $products = $query
             ->get()
             ->map(fn($p) => [
                 'id'          => $p->id,
@@ -54,6 +61,8 @@ class LeadProductController extends Controller
      */
     public function productDetail(Product $product): JsonResponse
     {
+        abort_unless($this->visibility->canAccessProduct($product), 403);
+
         return response()->json([
             'data' => [
                 'id'          => $product->id,
@@ -91,6 +100,7 @@ class LeadProductController extends Controller
 
 
         $lead = Lead::findOrFail($leadId);
+        abort_unless($this->visibility->canAccessLead($lead), 403);
 
         $products = LeadProduct::with(['payments.recordedBy'])
             ->where('lead_id', $leadId)
@@ -151,9 +161,13 @@ class LeadProductController extends Controller
             return response()->json(['errors' => $v->errors()], 422);
         }
 
+        $lead = Lead::findOrFail($request->lead_id);
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         if (!$this->isAdmin($user)) {
             foreach ($request->products as $row) {
                 $product = Product::findOrFail($row['product_id']);
+                abort_unless($this->visibility->canAccessProduct($product), 403);
                 $requestedPrice = round((float) ($row['unit_price'] ?? $product->final_price), 2);
                 $defaultPrice = round((float) $product->final_price, 2);
 
@@ -169,6 +183,7 @@ class LeadProductController extends Controller
             $rows = [];
             foreach ($request->products as $row) {
                 $product  = Product::findOrFail($row['product_id']);
+                abort_unless($this->visibility->canAccessProduct($product), 403);
                 $unitPrice = $row['unit_price'] ?? $product->final_price;
                 $qty       = $row['quantity'] ?? 1;
                 $disc      = $row['discount_percent'] ?? 0;
@@ -212,6 +227,9 @@ class LeadProductController extends Controller
             return response()->json(['errors' => $v->errors()], 422);
         }
 
+        $lead = Lead::findOrFail($request->lead_id);
+        abort_unless($this->visibility->canAccessLead($lead), 403);
+
         LeadProduct::where('lead_id', $request->lead_id)
             ->where('deal_name', $request->deal_name)
             ->update(['product_status' => $request->product_status]);
@@ -225,7 +243,8 @@ class LeadProductController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $lp = LeadProduct::findOrFail($id);
+        $lp = LeadProduct::with('lead')->findOrFail($id);
+        abort_unless($lp->lead && $this->visibility->canAccessLead($lp->lead), 403);
         $lp->delete();
         return response()->json(['message' => 'Product removed from deal.']);
     }
@@ -240,7 +259,8 @@ class LeadProductController extends Controller
      */
     public function paymentHistory(int $leadProductId): JsonResponse
     {
-        $lp = LeadProduct::with(['payments.recordedBy'])->findOrFail($leadProductId);
+        $lp = LeadProduct::with(['lead', 'payments.recordedBy'])->findOrFail($leadProductId);
+        abort_unless($lp->lead && $this->visibility->canAccessLead($lp->lead), 403);
 
         // Overall payments for the lead
         $overall = Payment::with('leadProduct')
@@ -262,7 +282,8 @@ class LeadProductController extends Controller
     public function storePayment(Request $request): JsonResponse
     {
 
-        $lp = LeadProduct::findOrFail($request->lead_product_id);
+        $lp = LeadProduct::with('lead')->findOrFail($request->lead_product_id);
+        abort_unless($lp->lead && $this->visibility->canAccessLead($lp->lead), 403);
 
         $balancePayment = $lp->total_price - $lp->amount_paid;
 
@@ -287,7 +308,8 @@ class LeadProductController extends Controller
             return response()->json(['errors' => $v->errors()], 422);
         }
 
-        $lp = LeadProduct::findOrFail($request->lead_product_id);
+        $lp = LeadProduct::with('lead')->findOrFail($request->lead_product_id);
+        abort_unless($lp->lead && $this->visibility->canAccessLead($lp->lead), 403);
 
         $payment = DB::transaction(function () use ($request, $lp) {
             $p = Payment::create([
@@ -320,7 +342,8 @@ class LeadProductController extends Controller
     public function destroyPayment(int $id): JsonResponse
     {
         $payment = Payment::findOrFail($id);
-        $lp      = $payment->leadProduct;
+        $lp      = $payment->leadProduct()->with('lead')->first();
+        abort_unless($lp && $lp->lead && $this->visibility->canAccessLead($lp->lead), 403);
 
         DB::transaction(function () use ($payment, $lp) {
             $payment->delete();

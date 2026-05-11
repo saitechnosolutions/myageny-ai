@@ -75,6 +75,7 @@
                     'product'        => $product,
                     'categories'     => $categories,
                     'existingValues' => $existingValues,
+                    'users'          => $users,
                 ])
 
                 <div class="pm-form-actions">
