@@ -25,13 +25,15 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
     Route::post('/ai/summarize', [AiController::class, 'summarize'])->name('ai.summarize');
-    Route::get('/dashboard-data', [SuperAdminDashboardController::class, 'dashboardData']);
-    Route::get('/product-dashboard-data', [AdminDashboardProductController::class, 'index']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/dashboard-data', [SuperAdminDashboardController::class, 'dashboardData']);
+        Route::get('/product-dashboard-data', [AdminDashboardProductController::class, 'index']);
+        Route::get('/product-dashboard-data/filters', [AdminDashboardProductController::class, 'filterOptions']);
+    });
+
     Route::get('/getLeadQuotations/{leadid}', [QuotationController::class, 'getLeadQuotations']);
     Route::get('/getAllQuotations', [QuotationController::class, 'getAllQuotations']);
-
-        // Filter dropdown options
-        Route::get('/product-dashboard-data/filters', [AdminDashboardProductController::class, 'filterOptions']);
 
     // Route::get('/products', [ProductController::class, 'getProducts']);
 

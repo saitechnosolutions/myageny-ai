@@ -26,6 +26,8 @@ class AdminDashboardService
             ->leftJoin('branches', 'branches.id', '=', 'users.branch_id');
 
         $visibleUserIds = $this->visibility->visibleUserIds();
+        $this->visibility->applyCompanyVisibility($query, null, 'leads.company_id');
+
         if ($visibleUserIds !== null) {
             $query->whereIn('leads.assigned_to', $visibleUserIds);
         }
@@ -85,6 +87,8 @@ class AdminDashboardService
             ->leftJoin('branches', 'branches.id', '=', 'users.branch_id');
 
         $visibleUserIds = $this->visibility->visibleUserIds();
+        $this->visibility->applyCompanyVisibility($query, null, 'leads.company_id');
+
         if ($visibleUserIds !== null) {
             $query->whereIn('leads.assigned_to', $visibleUserIds);
         }

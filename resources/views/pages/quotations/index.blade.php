@@ -185,8 +185,8 @@ tbody tr:last-child td { border-bottom: none; }
                         <th>Date</th>
                         <th>Valid Until</th>
                         <th>Total Amount</th>
-                        <th>Status</th>
-                        <th>Approved By</th>
+                        {{--  <th>Status</th>  --}}
+                        {{--  <th>Approved By</th>  --}}
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -201,26 +201,26 @@ tbody tr:last-child td { border-bottom: none; }
                         <td>{{ $q->quotation_date->format('d M Y') }}</td>
                         <td>{{ $q->valid_until->format('d M Y') }}</td>
                         <td><strong>₹{{ number_format($q->total_amount, 2) }}</strong></td>
-                        <td>
+                        {{--  <td>
                             @if($q->is_approved)
                                 <span class="badge badge-approved"><i class="bi bi-check-circle-fill"></i> Approved</span>
                             @else
                                 <span class="badge badge-pending"><i class="bi bi-clock-fill"></i> Pending</span>
                             @endif
-                        </td>
-                        <td>{{ $q->approver->name ?? '—' }}</td>
+                        </td>  --}}
+                        {{--  <td>{{ $q->approver->name ?? '—' }}</td>  --}}
                         <td>
                             <div class="action-btns">
-                                <a href="/quotations/{{ $q->id }}/pdf" class="btn-outline-sm">
+                                <a href="/quotations/{{ $q->id }}/pdf" target="_blank" class="btn-outline-sm">
                                     <i class="bi bi-eye"></i> View
                                 </a>
                                 @if(!$q->is_approved)
-                                <form method="POST" action="{{ route('quotations.approve', $q) }}" style="display:inline">
+                                {{--  <form method="POST" action="{{ route('quotations.approve', $q) }}" style="display:inline">
                                     @csrf @method('PATCH')
                                     <button class="btn-outline-sm" style="border-color:#4caf50;color:#2e7d32">
                                         <i class="bi bi-check-lg"></i> Approve
                                     </button>
-                                </form>
+                                </form>  --}}
                                 @endif
                                 <form method="POST" action="{{ route('quotations.destroy', $q) }}"
                                       onsubmit="return confirm('Delete this quotation?')" style="display:inline">

@@ -269,7 +269,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
                 <select class="da-fsel" id="fBranch" onchange="onFilterChange()">
                     <option value="">All Branches</option>
-                    @foreach(\App\Models\Branch::where('is_active',true)->orderBy('name')->get() as $b)
+                    @foreach($branches ?? [] as $b)
                     <option value="{{ $b->id }}">{{ $b->name }}</option>
                     @endforeach
                 </select>
@@ -281,7 +281,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <select class="da-fsel" id="fUser" onchange="onFilterChange()">
                     <option value="">All Users</option>
-                    @foreach(\App\Models\User::where('is_active',true)->orderBy('name')->get() as $u)
+                    @foreach($users ?? [] as $u)
                     <option value="{{ $u->id }}">{{ $u->name }}</option>
                     @endforeach
                 </select>
@@ -293,7 +293,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
                 <select class="da-fsel" id="fStage" onchange="onFilterChange()">
                     <option value="">All Stages</option>
-                    @foreach(\App\Models\Lead::statusOptions() as $k => $v)
+                    @foreach($statuses ?? [] as $k => $v)
                     <option value="{{ $k }}">{{ $v }}</option>
                     @endforeach
                 </select>
@@ -305,7 +305,7 @@
                 <svg class="da-fi" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 <select class="da-fsel" id="fSource" onchange="onFilterChange()">
                     <option value="">All Sources</option>
-                    @foreach(\App\Models\Lead::sourceOptions() as $k => $v)
+                    @foreach($sources ?? [] as $k => $v)
                     <option value="{{ $k }}">{{ $v }}</option>
                     @endforeach
                 </select>
@@ -484,7 +484,6 @@
 var API_URL   = '{{ $apiBase ?? url("/api") }}/dashboard-data';
 var API_TOKEN = '{{ $apiToken ?? "" }}';   // Server-issued Sanctum token (2h expiry)
 var LEAD_BASE = '{{ $leadBase ?? url("/leads") }}';
-console.log(API_TOKEN);
 // Avatar colors
 var AV_COLORS = ['#fe5f04','#7c3aed','#2563eb','#16a34a','#be123c','#0284c7','#b45309','#0f766e'];
 var avColor   = function(id) { return AV_COLORS[id % AV_COLORS.length]; };

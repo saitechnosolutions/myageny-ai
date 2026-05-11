@@ -3,16 +3,25 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Auth;
 
 class LeadProduct extends Model
 {
     use HasFactory, SoftDeletes, BelongsToCompany;
 
+protected static function booted()
+{
+    static::creating(function ($model) {
 
+        if (auth()->check() && !$model->company_id) {
+            $model->company_id = auth()->user()->company_id;
+        }
 
+    });
+}
     const PAYMENT_MODE_CONFIG = [
         'cash'          => ['label' => 'Cash',          'icon' => '💵', 'color' => '#16a34a'],
         'bank_transfer' => ['label' => 'Bank Transfer', 'icon' => '🏦', 'color' => '#1d4ed8'],
@@ -26,7 +35,7 @@ class LeadProduct extends Model
         'lead_id', 'product_id', 'deal_name',
         'product_name', 'description',
         'unit_price', 'quantity', 'discount_percent',
-        'remarks', 'product_status',
+        'remarks', 'product_status', 'lead_status_id',
         'amount_paid', 'created_by', 'company_id',
     ];
 
@@ -36,6 +45,7 @@ class LeadProduct extends Model
         'discount_percent' => 'float',
         'total_price'      => 'float',
         'amount_paid'       => 'float',
+        'lead_status_id'    => 'integer',
     ];
 
      // ── Product Status Constants ───────────────────────────────────
@@ -151,8 +161,30 @@ class LeadProduct extends Model
 
     public function getProductStatusConfigAttribute(): array
     {
-        return self::PRODUCT_STATUS_CONFIG[$this->product_status]
-            ?? self::PRODUCT_STATUS_CONFIG['new'];
+        return self::PRODUCT_STATUS_CONFIG[$this->product_status_key]
+            ?? ['bg' => '#f5f4f6', 'text' => '#7c7c7c', 'border' => '#e1dee3', 'icon' => '', 'dot' => '#9ca3af'];
+    }
+
+    public function leadStatus()
+    {
+        return $this->belongsTo(LeadStatus::class, 'lead_status_id');
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return $this->leadStatus?->name
+            ?? self::PRODUCT_STATUSES[$this->product_status_key]
+            ?? ucwords(str_replace('_', ' ', (string) $this->product_status));
+    }
+
+    public function getProductStatusKeyAttribute(): string
+    {
+        return self::statusKey($this->leadStatus?->name ?? $this->product_status ?? 'new');
+    }
+
+    public static function statusKey(?string $name): string
+    {
+        return strtolower(trim(preg_replace('/[^a-z0-9]+/i', '_', (string) $name), '_'));
     }
 
     public function getFormattedTotalAttribute(): string

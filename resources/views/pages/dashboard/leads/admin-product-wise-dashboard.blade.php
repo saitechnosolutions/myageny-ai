@@ -142,11 +142,12 @@
             <span class="crumb-item active" style="color:#121212;font-weight:600;">Admin Dashboard</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-
+            <a href="/dashboard">
             <div class="ai-insight-btn" style="display:flex;align-items:center;gap:6px;padding:6px 14px;
                 border-radius:20px;background:#fff;border:1.5px solid #fa6203;cursor:pointer;">
                 <span style="color:#fa6203;font-size:14px;font-weight:600;">Goto Lead Dashboard</span>
             </div>
+            </a>
         </div>
     </header>
 
@@ -344,6 +345,8 @@
    ============================================================ */
 'use strict';
 
+window._apiToken = @json($apiToken ?? '');
+
 // ── Utilities ──────────────────────────────────────────────
 const fmt = n => '₹' + Number(n ?? 0).toLocaleString('en-IN', {maximumFractionDigits:2});
 const num = n => Number(n ?? 0).toLocaleString('en-IN');
@@ -394,7 +397,8 @@ async function loadDashboard() {
                 'Accept'       : 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'Authorization': `Bearer ${window._apiToken || ''}`,
-            }
+            },
+            credentials: 'same-origin',
         });
 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

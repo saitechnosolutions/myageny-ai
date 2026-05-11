@@ -12,7 +12,22 @@
     $totalPaid    = $lead->products->sum(fn($p) => $p->amount_paid);
     $totalPending = $totalValue - $totalPaid;
     $prodCount    = $lead->products->count();
-    $converted    = $lead->products->where('product_status','converted')->count();
+    $leadStatusCompanyId = $lead->company_id ?? auth()->user()?->company_id;
+    $leadProductStatuses = \App\Models\LeadStatus::query()
+        ->when(
+            $leadStatusCompanyId,
+            fn ($query) => $query->where(fn ($statusQuery) => $statusQuery
+                ->where('company_id', $leadStatusCompanyId)
+                ->orWhereNull('company_id')),
+            fn ($query) => $query->whereNull('company_id')
+        )
+        ->orderBy('name')
+        ->get(['id', 'name']);
+    $convertedStatusIds = $leadProductStatuses
+        ->filter(fn ($status) => \App\Models\LeadProduct::statusKey($status->name) === 'converted')
+        ->pluck('id')
+        ->all();
+    $converted    = $lead->products->filter(fn ($product) => in_array($product->lead_status_id, $convertedStatusIds, true) || \App\Models\LeadProduct::statusKey($product->product_status) === 'converted')->count();
     $canApproveLeadPriceRequests = auth()->user()?->hasAnyRole(['super_admin', 'Super Admin', 'admin']);
 @endphp
 
@@ -361,7 +376,7 @@
                 </svg>
                 Create Deal
             </button>
-            <button type="button" id="pp-submit-price-request-btn" class="ppf-btn pp-btn-hist"
+            {{--  <button type="button" id="pp-submit-price-request-btn" class="ppf-btn pp-btn-hist"
                     style="justify-content:center"
                     onclick="PP.ppSubmitPriceRequest()">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -370,7 +385,7 @@
                     <path d="M5 21h14"></path>
                 </svg>
                 Send Price Request
-            </button>
+            </button>  --}}
             <button type="button" class="ppf-btn ppf-btn-sec"
                     onclick="PP.ppHideModal('pp-modal-add-product')">Cancel</button>
         </div>
@@ -515,6 +530,7 @@ window.PP_CONFIG = {
     apiBase : '{{ rtrim(env("APP_URL"), "/") }}/api',
     csrf    : {!! json_encode(csrf_token()) !!},
     isAdmin : {{ $canApproveLeadPriceRequests ? 'true' : 'false' }},
+    statusOptions: @json($leadProductStatuses->map(fn ($status) => ['id' => $status->id, 'name' => $status->name])->values()),
 };
 window.PP = window.PP || {};
 </script>

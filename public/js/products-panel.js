@@ -15,6 +15,7 @@
     var API_BASE  = cfg.apiBase  || '/api/v1';
     var CSRF      = cfg.csrf     || '';
     var IS_ADMIN  = !!cfg.isAdmin;
+    var STATUS_OPTIONS = normalizeStatusOptions(cfg.statusOptions || []);
 
     /* ── Local state ─────────────────────────────────────────────── */
     var ppState = {
@@ -349,6 +350,10 @@
 
         api('GET', '/lead-products/' + LEAD_ID)
         .then(function (res) {
+            if (res.statuses && res.statuses.length) {
+                STATUS_OPTIONS = normalizeStatusOptions(res.statuses);
+                STATUS_CONFIG = buildStatusConfig(STATUS_OPTIONS);
+            }
             ppState.deals   = res.deals   || [];
             ppState.summary = res.summary || {};
             renderSummaryBar();
@@ -394,7 +399,9 @@
     }
 
     function renderDealAccordion(deal, di) {
-        var statusCfg = STATUS_CONFIG[deal.status] || STATUS_CONFIG['new'];
+        var statusValue = String(deal.status_id || deal.status || '');
+        var statusCfg = getStatusConfig(statusValue, deal.status_label);
+        var statusOptions = getStatusOptions(statusValue, deal.status_label);
         var progress  = deal.total_value > 0
             ? Math.min(100, Math.round((deal.total_paid / deal.total_value) * 100))
             : 0;
@@ -418,10 +425,11 @@
                             'data-lead="' + LEAD_ID + '" data-deal="' + escAttr(deal.deal_name) + '" ' +
                             'onchange="PP.ppUpdateDealStatus(this)" ' +
                             'onclick="event.stopPropagation()">' +
-                            Object.keys(STATUS_CONFIG).map(function (sk) {
-                                var sc = STATUS_CONFIG[sk];
-                                return '<option value="' + sk + '" ' + (deal.status === sk ? 'selected' : '') + '>' +
-                                    sc.icon + ' ' + sk.charAt(0).toUpperCase() + sk.slice(1) + '</option>';
+                            statusOptions.map(function (option) {
+                                var value = String(option.id);
+                                var sc = getStatusConfig(value, option.name);
+                                return '<option value="' + escAttr(value) + '" ' + (statusValue === value ? 'selected' : '') + '>' +
+                                    optionText(sc.icon, option.name) + '</option>';
                             }).join('') +
                         '</select>' +
                         '<svg class="pp-status-caret" style="color:' + statusCfg.text + '" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>' +
@@ -525,8 +533,10 @@
     ───────────────────────────────────────────────────────────── */
     PP.ppUpdateDealStatus = function (sel) {
         var dealName = sel.dataset.deal;
-        var status   = sel.value;
-        var cfg      = STATUS_CONFIG[status] || STATUS_CONFIG['new'];
+        var statusId = sel.value;
+        var option   = getStatusOption(statusId);
+        var label    = option ? option.name : statusId;
+        var cfg      = getStatusConfig(statusId, label);
 
         // Optimistic UI
         sel.style.background   = cfg.bg;
@@ -535,12 +545,28 @@
         var caret = sel.parentNode.querySelector('.pp-status-caret');
         if (caret) caret.style.color = cfg.text;
 
-        api('PUT', '/lead-products/status', {
+        var payload = {
             lead_id        : LEAD_ID,
             deal_name      : dealName,
-            product_status : status,
+        };
+        if (/^\d+$/.test(statusId)) {
+            payload.lead_status_id = statusId;
+        } else {
+            payload.product_status = statusId;
+        }
+
+        api('PUT', '/lead-products/status', payload)
+        .then(function (res) {
+            if (res.status) {
+                var updated = normalizeStatusOptions([res.status])[0];
+                if (updated && !getStatusOption(updated.id)) {
+                    STATUS_OPTIONS.push(updated);
+                    STATUS_CONFIG = buildStatusConfig(STATUS_OPTIONS);
+                }
+                label = updated ? updated.name : label;
+            }
+            toast('Status updated to ' + label);
         })
-        .then(function () { toast('Status updated to ' + status); })
         .catch(function () { toast('Failed to update status', 'error'); loadDeals(); });
     };
 
@@ -763,19 +789,26 @@
     };
 
     /* ─────────────────────────────────────────────────────────────
-       STATUS CONFIG  (local mirror of PHP constant)
+       STATUS CONFIG  (colors for dynamic lead statuses)
     ───────────────────────────────────────────────────────────── */
-    var STATUS_CONFIG = {
-        'new'      : { icon:'🆕', bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe' },
-        'hot'      : { icon:'🔥', bg:'#fff7ed', text:'#c2410c', border:'#fed7aa' },
-        'warm'     : { icon:'☀️', bg:'#fefce8', text:'#a16207', border:'#fde68a' },
-        'cold'     : { icon:'❄️', bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd' },
-        'converted': { icon:'✅', bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0' },
+    var DEFAULT_STATUS_STYLE = { icon:'', bg:'#f5f4f6', text:'#7c7c7c', border:'#e1dee3' };
+    var STATUS_STYLES_BY_KEY = {
+        'new'      : { icon:'', bg:'#eff6ff', text:'#1d4ed8', border:'#bfdbfe' },
+        'hot'      : { icon:'', bg:'#fff7ed', text:'#c2410c', border:'#fed7aa' },
+        'warm'     : { icon:'', bg:'#fefce8', text:'#a16207', border:'#fde68a' },
+        'cold'     : { icon:'', bg:'#f0f9ff', text:'#0369a1', border:'#bae6fd' },
+        'converted': { icon:'', bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0' },
+        'won'      : { icon:'', bg:'#f0fdf4', text:'#15803d', border:'#bbf7d0' },
+        'lost'     : { icon:'', bg:'#fef2f2', text:'#b91c1c', border:'#fecaca' },
     };
+
+    var STATUS_CONFIG = {};
 
     /* ─────────────────────────────────────────────────────────────
        HELPERS
     ───────────────────────────────────────────────────────────── */
+    STATUS_CONFIG = buildStatusConfig(STATUS_OPTIONS);
+
     function setInner(id, html) {
         var e = el(id); if (e) e.innerHTML = html;
     }
@@ -802,11 +835,80 @@
         return String(str || '').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
     }
 
+    function normalizeStatusOptions(raw) {
+        var options = (raw || []).map(function (status) {
+            var id = status && (status.id !== undefined ? status.id : status.value);
+            var name = status && (status.name !== undefined ? status.name : status.label);
+            if (id === undefined || id === null || id === '') id = name;
+            if (name === undefined || name === null || name === '') name = id;
+
+            return {
+                id: String(id || ''),
+                name: String(name || ''),
+            };
+        }).filter(function (status) {
+            return status.id && status.name;
+        });
+
+        return options;
+    }
+
+    function buildStatusConfig(options) {
+        var map = {};
+        normalizeStatusOptions(options).forEach(function (option) {
+            var style = styleForStatusName(option.name);
+            map[String(option.id)] = style;
+            map[statusKey(option.name)] = style;
+        });
+        return map;
+    }
+
+    function getStatusOption(value) {
+        value = String(value || '');
+        return STATUS_OPTIONS.find(function (option) {
+            return String(option.id) === value;
+        });
+    }
+
+    function getStatusOptions(selectedValue, selectedLabel) {
+        selectedValue = String(selectedValue || '');
+        var options = STATUS_OPTIONS.slice();
+        var hasSelected = !selectedValue || options.some(function (option) {
+            return String(option.id) === selectedValue;
+        });
+
+        if (!hasSelected) {
+            options.unshift({
+                id: selectedValue,
+                name: selectedLabel || selectedValue,
+            });
+        }
+
+        return options;
+    }
+
+    function getStatusConfig(value, label) {
+        return STATUS_CONFIG[String(value || '')] || styleForStatusName(label || value);
+    }
+
+    function styleForStatusName(name) {
+        return STATUS_STYLES_BY_KEY[statusKey(name)] || DEFAULT_STATUS_STYLE;
+    }
+
+    function statusKey(name) {
+        return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    }
+
+    function optionText(icon, label) {
+        return escHtml((icon ? icon + ' ' : '') + (label || 'Status'));
+    }
+
     /* ─────────────────────────────────────────────────────────────
        BOOT — run once on load
     ───────────────────────────────────────────────────────────── */
     function boot() {
         if (!LEAD_ID) return;
+        STATUS_CONFIG = buildStatusConfig(STATUS_OPTIONS);
         loadDeals();
     }
 

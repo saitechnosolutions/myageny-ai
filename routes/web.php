@@ -75,11 +75,11 @@ Route::middleware(['auth'])->group(function () {
 
     // Default redirect by role
     Route::get('/dashboard', function () {
-
-        if (auth()->user()->hasAnyRole(['Super Admin', 'admin', 'super_admin'])) {
-            return redirect()->route('dashboard.admin');
-        }
-        return redirect()->route('leads.index');
+    return redirect()->route('dashboard.admin');
+        // if (auth()->user()->hasAnyRole(['Super Admin', 'admin', 'super_admin'])) {
+        //     return redirect()->route('dashboard.admin');
+        // }
+        // return redirect()->route('leads.index');
     })->name('dashboard');
 
     // Masters

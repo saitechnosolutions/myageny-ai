@@ -6,7 +6,6 @@ use App\Services\AdminDashboardService;
 use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AdminDashboardProductController extends Controller
 {
@@ -56,18 +55,18 @@ class AdminDashboardProductController extends Controller
      * GET /api/admin/dashboard/filters
      * Returns dropdown options for filter selects.
      */
-    public function filterOptions(): JsonResponse
+    public function filterOptions(Request $request): JsonResponse
     {
         try {
             $products = \App\Models\Product::query();
-            $this->visibility->applyProductVisibility($products);
+            $this->visibility->applyProductVisibility($products, $request->user());
             $products = $products->select('id', 'product_name')->orderBy('product_name')->get();
-            $branches = DB::table('branches')->select('id', 'name')->orderBy('name')->get();
-            $users    = $this->visibility->visibleAssignableUsers()->map(fn ($user) => [
+            $branches = $this->visibility->visibleBranches($request->user());
+            $users    = $this->visibility->visibleAssignableUsers($request->user())->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
             ])->values();
-            $sources  = DB::table('leads')->distinct()->pluck('lead_source')->filter()->values();
+            $sources  = $this->visibility->visibleLeadSources($request->user());
 
             return response()->json([
                 'status' => true,

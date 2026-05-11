@@ -646,7 +646,7 @@ tbody tr:last-child td { border-bottom: none; }
                                 <div class="lsp-rem-meta">
                                     <span class="lsp-rem-time {{ $isOverdue ? 'overdue' : '' }}">
                                         <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                        {{ $rem->remind_at->format('d M Y, h:i A') }}
+                                        {{ $rem->remind_at->format('d M Y') }}  {{ $rem->remainder_time->format('H:i:s') }}
                                     </span>
                                     <span class="lsp-badge" style="background:#f5f4f6;color:#555;border-color:#e1dee3;font-size:10px;">{{ $rem->type_label }}</span>
                                     <span class="lsp-badge" style="font-size:10px;background:{{ ['low'=>'#f0fdf4','medium'=>'#fffbeb','high'=>'#fef2f2'][$rem->priority] ?? '#f5f4f6' }};color:{{ ['low'=>'#16a34a','medium'=>'#b45309','high'=>'#dc2626'][$rem->priority] ?? '#7c7c7c' }};border:none;">{{ ucfirst($rem->priority) }}</span>
@@ -818,8 +818,8 @@ tbody tr:last-child td { border-bottom: none; }
                         <th>Date</th>
                         <th>Valid Until</th>
                         <th>Total Amount</th>
-                        <th>Status</th>
-                        <th>Approved By</th>
+                        {{--  <th>Status</th>  --}}
+                        {{--  <th>Approved By</th>  --}}
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -838,14 +838,14 @@ tbody tr:last-child td { border-bottom: none; }
                         <td>{{ $q->quotation_date->format('d M Y') }}</td>
                         <td>{{ $q->valid_until->format('d M Y') }}</td>
                         <td><strong>₹{{ number_format($q->total_amount, 2) }}</strong></td>
-                        <td>
+                        {{--  <td>
                             @if($q->is_approved)
                                 <span class="badge badge-approved"><i class="bi bi-check-circle-fill"></i> Approved</span>
                             @else
                                 <span class="badge badge-pending"><i class="bi bi-clock-fill"></i> Pending</span>
                             @endif
                         </td>
-                        <td>{{ $q->approver->name ?? '—' }}</td>
+                        <td>{{ $q->approver->name ?? '—' }}</td>  --}}
                         <td>
                             <div class="action-btns">
                                 <a href="/quotations/{{ $q->id }}/pdf" class="btn-outline-sm">
