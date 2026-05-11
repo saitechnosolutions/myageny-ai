@@ -13,6 +13,7 @@ use App\Models\LeadCallUpdate;
 use App\Models\LeadProduct;
 use App\Models\LeadProductPayment;
 use App\Models\LeadReminder;
+use App\Models\LeadStatus;
 use App\Models\Payment;
 use App\Models\User;
 use App\Services\DataVisibilityService;
@@ -73,26 +74,11 @@ class SuperAdminDashboardController extends ApiController
         $highPriority  = (clone $base())->where('priority','high')->whereNotIn('lead_status',['won','lost'])->count();
         $convRate      = $totalLeads > 0 ? round($wonLeads / $totalLeads * 100, 1) : 0;
 
-        // ── 2. Stage funnel (from enum) ────────────────────────────
-        $stageTotal  = 0;
-        $stageFunnel = [];
-        foreach (Lead::statusOptions() as $key => $label) {
-            $count = (clone $base())->where('lead_status', $key)->count();
-            $stageTotal += $count;
-            $stageFunnel[] = [
-                'key'   => $key,
-                'label' => $label,
-                'count' => $count,
-                'color' => Lead::STATUS_COLORS[$key] ?? ['bg'=>'#f5f4f6','text'=>'#7c7c7c','border'=>'#e1dee3'],
-            ];
-        }
-        // Add percentage after we know total
-        foreach ($stageFunnel as &$stage_item) {
-            $stage_item['percent'] = $stageTotal > 0
-                ? round($stage_item['count'] / $stageTotal * 100, 1)
-                : 0;
-        }
-        unset($stage_item);
+        // ── 2. Pipeline funnel from lead_products.lead_status_id ───
+        $leadIds = (clone $base())->pluck('id');
+        $productStatusFunnel = $this->buildProductStatusFunnel($leadIds, $request);
+        $stageTotal = $productStatusFunnel['total'];
+        $stageFunnel = $productStatusFunnel['stages'];
 
         // ── 3. Source counts (from enum) ───────────────────────────
         $sourceCounts = [];
@@ -233,7 +219,10 @@ class SuperAdminDashboardController extends ApiController
             ]);
 
         // ── 8. Branch-wise performance ────────────────────────────
+        $visibleBranchIds = $this->visibility->visibleBranchIds($request->user());
         $branchPerformance = Branch::where('is_active', true)
+            ->when($visibleBranchIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $visibleBranchIds))
+            ->when($visibleBranchIds->isEmpty() && $this->visibility->companyIdFor($request->user()), fn ($query) => $query->whereRaw('1 = 0'))
             ->get()
             ->map(function ($branch) use ($request, $dateFrom, $dateTo) {
                 $q = Lead::where('branch_id', $branch->id)
@@ -415,6 +404,53 @@ class SuperAdminDashboardController extends ApiController
         return [$request->date_from ?: null, $request->date_to ?: null];
     }
 
+    private function buildProductStatusFunnel($leadIds, Request $request): array
+    {
+        $leadIds = collect($leadIds)->filter()->values();
+        $companyId = $request->user()?->company_id;
+
+        $statuses = LeadStatus::query()
+            ->when(
+                $companyId,
+                fn ($query) => $query->where(fn ($statusQuery) => $statusQuery
+                    ->where('company_id', $companyId)
+                    ->orWhereNull('company_id')),
+                fn ($query) => $query->whereNull('company_id')
+            )
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        if ($statuses->isEmpty()) {
+            return ['total' => 0, 'stages' => []];
+        }
+
+        $counts = $leadIds->isEmpty()
+            ? collect()
+            : LeadProduct::query()
+                ->whereIn('lead_id', $leadIds)
+                ->whereIn('lead_status_id', $statuses->pluck('id'))
+                ->select('lead_status_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('lead_status_id')
+                ->pluck('count', 'lead_status_id');
+
+        $stageTotal = (int) $counts->sum();
+        $stages = $statuses->map(function ($status) use ($counts, $stageTotal) {
+            $key = LeadProduct::statusKey($status->name);
+            $count = (int) ($counts[$status->id] ?? 0);
+
+            return [
+                'key'     => (string) $status->id,
+                'label'   => $status->name,
+                'count'   => $count,
+                'percent' => $stageTotal > 0 ? round($count / $stageTotal * 100, 1) : 0,
+                'color'   => LeadProduct::PRODUCT_STATUS_CONFIG[$key]
+                    ?? ['bg' => '#f5f4f6', 'text' => '#7c7c7c', 'border' => '#e1dee3'],
+            ];
+        })->values()->toArray();
+
+        return ['total' => $stageTotal, 'stages' => $stages];
+    }
+
     /*
 |--------------------------------------------------------------------------
 | Home Page Dashboard Routes
@@ -465,26 +501,11 @@ class SuperAdminDashboardController extends ApiController
         $highPriority  = (clone $base())->where('priority','high')->whereNotIn('lead_status',['won','lost'])->count();
         $convRate      = $totalLeads > 0 ? round($wonLeads / $totalLeads * 100, 1) : 0;
 
-        // ── 2. Stage funnel (from enum) ────────────────────────────
-        $stageTotal  = 0;
-        $stageFunnel = [];
-        foreach (Lead::statusOptions() as $key => $label) {
-            $count = (clone $base())->where('lead_status', $key)->count();
-            $stageTotal += $count;
-            $stageFunnel[] = [
-                'key'   => $key,
-                'label' => $label,
-                'count' => $count,
-                'color' => Lead::STATUS_COLORS[$key] ?? ['bg'=>'#f5f4f6','text'=>'#7c7c7c','border'=>'#e1dee3'],
-            ];
-        }
-        // Add percentage after we know total
-        foreach ($stageFunnel as &$stage_item) {
-            $stage_item['percent'] = $stageTotal > 0
-                ? round($stage_item['count'] / $stageTotal * 100, 1)
-                : 0;
-        }
-        unset($stage_item);
+        // ── 2. Pipeline funnel from lead_products.lead_status_id ───
+        $leadIds = (clone $base())->pluck('id');
+        $productStatusFunnel = $this->buildProductStatusFunnel($leadIds, $request);
+        $stageTotal = $productStatusFunnel['total'];
+        $stageFunnel = $productStatusFunnel['stages'];
 
         // ── 3. Source counts (from enum) ───────────────────────────
         $sourceCounts = [];
@@ -625,7 +646,10 @@ class SuperAdminDashboardController extends ApiController
             ]);
 
         // ── 8. Branch-wise performance ────────────────────────────
+        $visibleBranchIds = $this->visibility->visibleBranchIds($request->user());
         $branchPerformance = Branch::where('is_active', true)
+            ->when($visibleBranchIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $visibleBranchIds))
+            ->when($visibleBranchIds->isEmpty() && $this->visibility->companyIdFor($request->user()), fn ($query) => $query->whereRaw('1 = 0'))
             ->get()
             ->map(function ($branch) use ($request, $dateFrom, $dateTo) {
                 $q = Lead::where('branch_id', $branch->id)
@@ -791,17 +815,21 @@ class SuperAdminDashboardController extends ApiController
         ], 'Super Admin Dashboard data fetched.');
     }
 
-    public function adminProductindex(): View
+    public function adminProductindex(Request $request): View
     {
+        $user = $request->user();
+        $user->tokens()->where('name', 'dashboard-session')->delete();
+        $apiToken = $user->createToken('dashboard-session')->plainTextToken;
+
         // Dropdown options for filter selects (server-side for initial render)
         $productQuery = \App\Models\Product::query();
-        $this->visibility->applyProductVisibility($productQuery);
+        $this->visibility->applyProductVisibility($productQuery, $user);
         $products = $productQuery->select('id', 'product_name')->orderBy('product_name')->get();
-        $branches = DB::table('branches')->select('id', 'name')->orderBy('name')->get();
-        $users    = $this->visibility->visibleAssignableUsers();
-        $sources  = DB::table('leads')->distinct()->pluck('lead_source')->filter()->values();
+        $branches = $this->visibility->visibleBranches($user);
+        $users    = $this->visibility->visibleAssignableUsers($user);
+        $sources  = $this->visibility->visibleLeadSources($user);
         $statuses = ['new', 'hot', 'warm', 'cold', 'converted', 'lost'];
 
-        return view('pages.dashboard.leads.admin-product-wise-dashboard', compact('products', 'branches', 'users', 'sources', 'statuses'));
+        return view('pages.dashboard.leads.admin-product-wise-dashboard', compact('products', 'branches', 'users', 'sources', 'statuses', 'apiToken'));
     }
 }

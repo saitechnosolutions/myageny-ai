@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LeadProduct;
 use App\Models\LeadProductPriceRequest;
+use App\Models\LeadStatus;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -105,6 +106,21 @@ class LeadProductPriceRequestController extends Controller
         }
 
         DB::transaction(function () use ($request, $priceRequest) {
+            $lead = $priceRequest->lead;
+            $companyId = $lead?->company_id ?? $request->user()?->company_id;
+            $statuses = LeadStatus::query()
+                ->when(
+                    $companyId,
+                    fn ($query) => $query->where(fn ($statusQuery) => $statusQuery
+                        ->where('company_id', $companyId)
+                        ->orWhereNull('company_id')),
+                    fn ($query) => $query->whereNull('company_id')
+                )
+                ->orderBy('name')
+                ->get();
+            $defaultStatus = $statuses->first(fn ($status) => LeadProduct::statusKey($status->name) === 'new')
+                ?? $statuses->first();
+
             $leadProduct = LeadProduct::create([
                 'lead_id' => $priceRequest->lead_id,
                 'product_id' => $priceRequest->product_id,
@@ -115,7 +131,8 @@ class LeadProductPriceRequestController extends Controller
                 'quantity' => $priceRequest->quantity,
                 'discount_percent' => $priceRequest->discount_percent,
                 'remarks' => $priceRequest->remarks,
-                'product_status' => 'new',
+                'product_status' => LeadProduct::statusKey($defaultStatus?->name ?? 'new'),
+                'lead_status_id' => $defaultStatus?->id,
                 'created_by' => $priceRequest->requested_by,
             ]);
 

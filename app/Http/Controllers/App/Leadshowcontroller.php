@@ -297,6 +297,7 @@ class LeadShowController extends Controller
     )]
     public function storeProduct(Request $request, Lead $lead): JsonResponse
     {
+        dd($request);
         abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
 
         $data = $request->validate([
@@ -311,6 +312,7 @@ class LeadShowController extends Controller
         $data['lead_id']          = $lead->id;
         $data['discount_percent'] = $data['discount_percent'] ?? 0;
         $data['payment_status']   = 'pending';
+        $data['company_id']   = $request->company_id;
 
         $product = LeadProduct::create($data);
 

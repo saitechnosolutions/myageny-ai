@@ -183,7 +183,7 @@ table.products-table tbody tr:last-child td{ border-bottom:none; }
             <a href="{{ route('quotations.index') }}" class="back-link">
                 <i class="bi bi-arrow-left"></i> Back to Quotations
             </a>
-            <div class="page-title" style="margin-top:4px">Create Quotation - {{ $lead->contact_name }} {{ $lead->company_name }}</div>
+            <div class="page-title" style="margin-top:4px">Create Quotation - {{ $lead?->contact_name }} {{ $lead?->company_name }}</div>
         </div>
     </div>
 

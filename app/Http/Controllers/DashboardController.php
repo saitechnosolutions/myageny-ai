@@ -8,7 +8,10 @@ use App\Models\LeadCallUpdate;
 use App\Models\LeadProduct;
 use App\Models\LeadProductPayment;
 use App\Models\LeadReminder;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use App\Models\User;
+use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly DataVisibilityService $visibility) {}
 
 
     /**
@@ -31,9 +35,37 @@ class DashboardController extends Controller
         return response()->json($response, $code);
     }
 
-     public function index(Request $request)
+    public function index(Request $request)
     {
         $user = $request->user();
+        $users = $this->visibility->visibleAssignableUsers($user);
+        $branches = $this->visibility->visibleBranches($user);
+        $sources = LeadSource::query()
+            ->when($user->company_id, fn ($query) => $query->where('company_id', $user->company_id))
+            ->orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+
+        if (empty($sources)) {
+            $sources = $this->visibility->visibleLeadSources($user)
+                ->mapWithKeys(fn ($source) => [$source => ucfirst($source)])
+                ->toArray();
+        }
+        $statuses = LeadStatus::query()
+            ->when($user->company_id, fn ($query) => $query->where('company_id', $user->company_id))
+            ->orderBy('name')
+            ->pluck('name', 'name')
+            ->toArray();
+
+        if (empty($statuses)) {
+            $statusQuery = Lead::query()->whereNotNull('lead_status');
+            $this->visibility->applyLeadVisibility($statusQuery, $user);
+            $statuses = $statusQuery
+                ->distinct()
+                ->orderBy('lead_status')
+                ->pluck('lead_status', 'lead_status')
+                ->toArray();
+        }
 
         // Create a fresh dashboard token (expires in 2 hours)
         // Revoke old dashboard tokens first to keep it clean
@@ -47,6 +79,10 @@ class DashboardController extends Controller
             'userName'  => $user->name,
             'userRole'  => $user->roles->first()?->display_name ?? 'Admin',
             'today'     => now()->format('D, d M Y'),
+            'branches'  => $branches,
+            'users'     => $users,
+            'sources'   => $sources,
+            'statuses'  => $statuses,
         ]);
     }
 

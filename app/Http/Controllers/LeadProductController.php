@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\LeadProduct;
+use App\Models\LeadStatus;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Services\DataVisibilityService;
@@ -102,20 +103,25 @@ class LeadProductController extends Controller
         $lead = Lead::findOrFail($leadId);
         abort_unless($this->visibility->canAccessLead($lead), 403);
 
-        $products = LeadProduct::with(['payments.recordedBy'])
+        $statusOptions = $this->statusOptionsForLead($lead);
+
+        $products = LeadProduct::with(['payments.recordedBy', 'leadStatus'])
             ->where('lead_id', $leadId)
             ->latest()
             ->get();
 
         // Group into deals (accordion)
-        $deals = $products->groupBy('deal_name')->map(function ($items, $dealName) {
+        $deals = $products->groupBy('deal_name')->map(function ($items, $dealName) use ($statusOptions) {
             $totalValue   = $items->sum('total_price');
             $totalPaid    = $items->sum('amount_paid');
             $totalPending = $totalValue - $totalPaid;
+            $status       = $this->resolveStatusPayload($items->first(), $statusOptions);
 
             return [
                 'deal_name'     => $dealName,
-                'status'        => $items->first()->product_status,
+                'status'        => $status['value'],
+                'status_id'     => $status['id'],
+                'status_label'  => $status['label'],
                 'total_value'   => round($totalValue, 2),
                 'total_paid'    => round($totalPaid, 2),
                 'total_pending' => round($totalPending, 2),
@@ -129,12 +135,16 @@ class LeadProductController extends Controller
             'total_paid'    => round($products->sum('total_paid'), 2),
             'total_pending' => round($products->sum(fn($p) => $p->amount_pending), 2),
             'product_count' => $products->count(),
-            'converted'     => $products->where('product_status', 'converted')->count(),
+            'converted'     => $products->filter(fn ($p) => $this->productStatusKey($p) === 'converted')->count(),
         ];
 
         return response()->json([
-            'deals'   => $deals,
-            'summary' => $summary,
+            'deals'    => $deals,
+            'summary'  => $summary,
+            'statuses' => $statusOptions->values()->map(fn ($status) => [
+                'id'   => $status->id,
+                'name' => $status->name,
+            ]),
         ]);
     }
 
@@ -144,6 +154,7 @@ class LeadProductController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+
         $user = auth()->user();
 
         $v = Validator::make($request->all(), [
@@ -163,6 +174,7 @@ class LeadProductController extends Controller
 
         $lead = Lead::findOrFail($request->lead_id);
         abort_unless($this->visibility->canAccessLead($lead), 403);
+        $defaultStatus = $this->defaultStatusForLead($lead);
 
         if (!$this->isAdmin($user)) {
             foreach ($request->products as $row) {
@@ -179,7 +191,7 @@ class LeadProductController extends Controller
             }
         }
 
-        $created = DB::transaction(function () use ($request) {
+        $created = DB::transaction(function () use ($request, $defaultStatus) {
             $rows = [];
             foreach ($request->products as $row) {
                 $product  = Product::findOrFail($row['product_id']);
@@ -195,10 +207,12 @@ class LeadProductController extends Controller
                     'product_name'     => $product->package_name,
                     'description'      => $product->description,
                     'unit_price'       => $unitPrice,
+                    'company_id'       => $request->company_id,
                     'quantity'         => $qty,
                     'discount_percent' => $disc,
                     'remarks'          => $row['remarks'] ?? null,
-                    'product_status'   => 'new',
+                    'product_status'   => LeadProduct::statusKey($defaultStatus?->name ?? 'new'),
+                    'lead_status_id'   => $defaultStatus?->id,
                     'created_by'       =>  auth()->id(),
                 ]);
             }
@@ -220,7 +234,8 @@ class LeadProductController extends Controller
         $v = Validator::make($request->all(), [
             'lead_id'         => ['required', 'exists:leads,id'],
             'deal_name'       => ['required', 'string'],
-            'product_status'  => ['required', 'in:new,hot,warm,cold,converted'],
+            'lead_status_id'  => ['nullable', 'integer', 'exists:lead_statuses,id'],
+            'product_status'  => ['nullable', 'string'],
         ]);
 
         if ($v->fails()) {
@@ -229,12 +244,28 @@ class LeadProductController extends Controller
 
         $lead = Lead::findOrFail($request->lead_id);
         abort_unless($this->visibility->canAccessLead($lead), 403);
+        $status = $this->resolveRequestedStatus($lead, $request);
+
+        if (! $status) {
+            return response()->json([
+                'errors' => ['lead_status_id' => ['Please select a valid lead status.']],
+            ], 422);
+        }
 
         LeadProduct::where('lead_id', $request->lead_id)
             ->where('deal_name', $request->deal_name)
-            ->update(['product_status' => $request->product_status]);
+            ->update([
+                'lead_status_id' => $status->id,
+                'product_status' => LeadProduct::statusKey($status->name),
+            ]);
 
-        return response()->json(['message' => 'Status updated.']);
+        return response()->json([
+            'message' => 'Status updated.',
+            'status'  => [
+                'id'   => $status->id,
+                'name' => $status->name,
+            ],
+        ]);
     }
 
     /**
@@ -354,6 +385,74 @@ class LeadProductController extends Controller
             'message' => 'Payment removed.',
             'product' => $lp->fresh()->toJsPayload(),
         ]);
+    }
+
+    private function statusOptionsForLead(Lead $lead)
+    {
+        $companyId = $lead->company_id ?? Auth::user()?->company_id;
+
+        return LeadStatus::query()
+            ->when(
+                $companyId,
+                fn ($query) => $query->where(fn ($statusQuery) => $statusQuery
+                    ->where('company_id', $companyId)
+                    ->orWhereNull('company_id')),
+                fn ($query) => $query->whereNull('company_id')
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'company_id']);
+    }
+
+    private function defaultStatusForLead(Lead $lead): ?LeadStatus
+    {
+        $statuses = $this->statusOptionsForLead($lead);
+
+        return $statuses->first(fn ($status) => LeadProduct::statusKey($status->name) === 'new')
+            ?? $statuses->first();
+    }
+
+    private function resolveRequestedStatus(Lead $lead, Request $request): ?LeadStatus
+    {
+        $statuses = $this->statusOptionsForLead($lead);
+
+        if ($request->filled('lead_status_id')) {
+            return $statuses->firstWhere('id', (int) $request->lead_status_id);
+        }
+
+        if ($request->filled('product_status')) {
+            $requestedKey = LeadProduct::statusKey($request->product_status);
+
+            return $statuses->first(fn ($status) => LeadProduct::statusKey($status->name) === $requestedKey);
+        }
+
+        return null;
+    }
+
+    private function resolveStatusPayload(LeadProduct $product, $statusOptions): array
+    {
+        $status = $product->leadStatus;
+
+        if (! $status && $product->lead_status_id) {
+            $status = $statusOptions->firstWhere('id', (int) $product->lead_status_id);
+        }
+
+        if (! $status && $product->product_status) {
+            $statusKey = LeadProduct::statusKey($product->product_status);
+            $status = $statusOptions->first(fn ($option) => LeadProduct::statusKey($option->name) === $statusKey);
+        }
+
+        $label = $status?->name ?: $product->status_label ?: 'New';
+
+        return [
+            'id'    => $status?->id,
+            'value' => $status?->id ? (string) $status->id : LeadProduct::statusKey($label),
+            'label' => $label,
+        ];
+    }
+
+    private function productStatusKey(LeadProduct $product): string
+    {
+        return LeadProduct::statusKey($product->leadStatus?->name ?? $product->product_status);
     }
 
     protected function isAdmin($user): bool

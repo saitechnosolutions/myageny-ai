@@ -17,6 +17,7 @@
     ];
 @endphp
 
+@can('module_menu.view')
 <button
     type="button"
     class="module-fab"
@@ -28,6 +29,7 @@
     <span class="module-fab__pulse" aria-hidden="true"></span>
     <i class="bi bi-grid-1x2-fill module-fab__icon" aria-hidden="true"></i>
 </button>
+@endcan
 
 <div class="module-overlay" id="moduleOverlay" aria-hidden="true"></div>
 

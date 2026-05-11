@@ -17,6 +17,7 @@ class LeadReminder extends Model
         'remind_at'    => 'datetime',
         'completed_at' => 'datetime',
         'is_completed' => 'boolean',
+        'remainder_time' => 'datetime:H:i:s',
     ];
 
     const TYPES = [

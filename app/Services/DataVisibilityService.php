@@ -16,6 +16,24 @@ use Illuminate\Support\Str;
 
 class DataVisibilityService
 {
+    public function companyIdFor(?User $user = null): ?int
+    {
+        $user ??= auth()->user();
+
+        return $user?->company_id ? (int) $user->company_id : null;
+    }
+
+    public function applyCompanyVisibility($query, ?User $user = null, string $companyColumn = 'company_id')
+    {
+        $companyId = $this->companyIdFor($user);
+
+        if ($companyId) {
+            $query->where($companyColumn, $companyId);
+        }
+
+        return $query;
+    }
+
     public function accessLevelFor(?User $user = null): string
     {
         $user ??= auth()->user();
@@ -122,10 +140,12 @@ class DataVisibilityService
     {
         $user ??= auth()->user();
         $visibleIds = $this->visibleUserIds($user);
+        $companyId = $this->companyIdFor($user);
 
         return User::query()
             ->with('roles')
             ->where('is_active', true)
+            ->when($companyId, fn (Builder $query) => $query->where('company_id', $companyId))
             ->when($visibleIds !== null, fn (Builder $query) => $query->whereIn('id', $visibleIds))
             ->orderBy('name')
             ->get();
@@ -144,6 +164,8 @@ class DataVisibilityService
 
     public function applyLeadVisibility(Builder $query, ?User $user = null, string $assignedColumn = 'assigned_to'): Builder
     {
+        $this->applyCompanyVisibility($query, $user, 'company_id');
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null) {
@@ -155,6 +177,14 @@ class DataVisibilityService
 
     public function applyLeadRelationVisibility(Builder $query, string $relation = 'lead', ?User $user = null): Builder
     {
+        $companyId = $this->companyIdFor($user);
+
+        if ($companyId) {
+            $query->whereHas($relation, function (Builder $leadQuery) use ($companyId) {
+                $leadQuery->where('company_id', $companyId);
+            });
+        }
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null) {
@@ -168,6 +198,8 @@ class DataVisibilityService
 
     public function applyQuotationVisibility(Builder $query, ?User $user = null): Builder
     {
+        $this->applyCompanyVisibility($query, $user, 'company_id');
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null) {
@@ -187,6 +219,8 @@ class DataVisibilityService
 
     public function applyProductVisibility(Builder $query, ?User $user = null): Builder
     {
+        $this->applyCompanyVisibility($query, $user, 'company_id');
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null) {
@@ -203,6 +237,12 @@ class DataVisibilityService
 
     public function canAccessLead(Lead $lead, ?User $user = null): bool
     {
+        $companyId = $this->companyIdFor($user);
+
+        if ($companyId && (int) $lead->company_id !== $companyId) {
+            return false;
+        }
+
         $visibleIds = $this->visibleUserIds($user);
 
         return $visibleIds === null || in_array((int) $lead->assigned_to, $visibleIds, true);
@@ -210,6 +250,12 @@ class DataVisibilityService
 
     public function canAccessQuotation(Quotation $quotation, ?User $user = null): bool
     {
+        $companyId = $this->companyIdFor($user);
+
+        if ($companyId && (int) $quotation->company_id !== $companyId) {
+            return false;
+        }
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null) {
@@ -227,6 +273,12 @@ class DataVisibilityService
 
     public function canAccessProduct(Product $product, ?User $user = null): bool
     {
+        $companyId = $this->companyIdFor($user);
+
+        if ($companyId && (int) $product->company_id !== $companyId) {
+            return false;
+        }
+
         $visibleIds = $this->visibleUserIds($user);
 
         if ($visibleIds === null || $product->assigned_to === null) {
@@ -235,6 +287,58 @@ class DataVisibilityService
 
         return in_array((int) $product->assigned_to, $visibleIds, true)
             || in_array((int) $product->created_by, $visibleIds, true);
+    }
+
+    public function visibleBranchIds(?User $user = null): Collection
+    {
+        $user ??= auth()->user();
+
+        $leadBranchQuery = Lead::query()->whereNotNull('branch_id');
+        $this->applyLeadVisibility($leadBranchQuery, $user);
+        $leadBranchIds = $leadBranchQuery->distinct()->pluck('branch_id');
+
+        $visibleIds = $this->visibleUserIds($user);
+        $companyId = $this->companyIdFor($user);
+
+        $userBranchIds = User::query()
+            ->whereNotNull('branch_id')
+            ->when($companyId, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->when($visibleIds !== null, fn (Builder $query) => $query->whereIn('id', $visibleIds))
+            ->distinct()
+            ->pluck('branch_id');
+
+        return $leadBranchIds
+            ->merge($userBranchIds)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    public function visibleBranches(?User $user = null): Collection
+    {
+        $branchIds = $this->visibleBranchIds($user);
+        $companyId = $this->companyIdFor($user);
+
+        return DB::table('branches')
+            ->select('id', 'name')
+            ->where('is_active', true)
+            ->when($branchIds->isNotEmpty(), fn ($query) => $query->whereIn('id', $branchIds))
+            ->when($branchIds->isEmpty() && $companyId, fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function visibleLeadSources(?User $user = null): Collection
+    {
+        $query = Lead::query()->whereNotNull('lead_source');
+        $this->applyLeadVisibility($query, $user);
+
+        return $query
+            ->distinct()
+            ->orderBy('lead_source')
+            ->pluck('lead_source')
+            ->filter()
+            ->values();
     }
 
     private function isCompanyWideUser(User $user): bool

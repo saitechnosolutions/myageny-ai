@@ -12,10 +12,12 @@ use App\Models\Lead;
 use App\Models\LeadCallUpdate;
 use App\Models\LeadProduct;
 use App\Models\LeadReminder;
+use App\Models\LeadStatus;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Services\DataVisibilityService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class LeadShowController extends Controller
 {
@@ -106,7 +108,10 @@ class LeadShowController extends Controller
 
      public function storeProduct(Request $request, Lead $lead)
     {
+        dd($request);
         abort_unless($this->visibility->canAccessLead($lead), 403);
+
+
 
         $data = $request->validate([
             'product_name'    => ['required', 'string', 'max:150'],
@@ -133,12 +138,36 @@ class LeadShowController extends Controller
         abort_if($product->lead_id !== $lead->id, 403);
 
         $request->validate([
-            'product_status' => ['required', 'in:new,hot,warm,cold,converted'],
+            'lead_status_id' => ['nullable', 'integer', 'exists:lead_statuses,id'],
+            'product_status' => ['nullable', 'string'],
         ]);
 
-        $product->update(['product_status' => $request->product_status]);
+        $companyId = $lead->company_id ?? Auth::user()?->company_id;
+        $statuses = LeadStatus::query()
+            ->when(
+                $companyId,
+                fn ($query) => $query->where(fn ($statusQuery) => $statusQuery
+                    ->where('company_id', $companyId)
+                    ->orWhereNull('company_id')),
+                fn ($query) => $query->whereNull('company_id')
+            )
+            ->orderBy('name')
+            ->get();
 
-        return back()->with('success', "Product status updated to <strong>" . ucfirst($request->product_status) . "</strong>.");
+        $status = $request->filled('lead_status_id')
+            ? $statuses->firstWhere('id', (int) $request->lead_status_id)
+            : $statuses->first(fn ($option) => LeadProduct::statusKey($option->name) === LeadProduct::statusKey($request->product_status));
+
+        if (! $status) {
+            return back()->withErrors(['lead_status_id' => 'Please select a valid lead status.']);
+        }
+
+        $product->update([
+            'lead_status_id' => $status->id,
+            'product_status' => LeadProduct::statusKey($status->name),
+        ]);
+
+        return back()->with('success', "Product status updated to <strong>{$status->name}</strong>.");
     }
 
      public function storeProductPayment(Request $request, Lead $lead, \App\Models\LeadProduct $product)

@@ -326,6 +326,7 @@
 @endpush
 
 @section('content')
+
 <div class="ld-page">
 
     {{-- Topbar --}}
