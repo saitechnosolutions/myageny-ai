@@ -16,11 +16,14 @@ use App\Http\Controllers\LeadController;
 use App\Http\Controllers\LeadCallUpdateController;
 use App\Http\Controllers\LeadProductPriceRequestController;
 use App\Http\Controllers\LeadShowController;
+use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeadSourceController;
 use App\Http\Controllers\LeadStatusController;
 use App\Http\Controllers\MastersController;
 use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\OutcomeSubCategoryController;
+use App\Http\Controllers\PermissionRequestController;
 use App\Http\Controllers\ProductAttributeController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
@@ -29,6 +32,8 @@ use App\Http\Controllers\QuotationSettingsController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VisitorManagementController;
+use App\Http\Controllers\FacilityManagementController;
 use App\Models\EmployeeOnboarding;
 use App\Models\InternJoiningForm;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +55,9 @@ Route::get('/quotations/{id}/pdf',  [QuotationController::class, 'downloadPdf'])
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
+
+Route::get('/visitor-entry', [VisitorManagementController::class, 'publicCreate'])->name('visitor-entry.create');
+Route::post('/visitor-entry', [VisitorManagementController::class, 'publicStore'])->name('visitor-entry.store');
 
 // Forgot password placeholder
 Route::get('/forgot-password', function () {
@@ -140,21 +148,32 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/companies/{company}/edit', [CompanyController::class, 'edit'])->middleware('can:companies.manage')->name('companies.edit');
     Route::put('/companies/{company}', [CompanyController::class, 'update'])->middleware('can:companies.manage')->name('companies.update');
     Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])->middleware('can:companies.manage')->name('companies.destroy');
-    Route::get('/hrms/dashboard', function () {
-        $stats = [
-            'employees_total' => EmployeeOnboarding::count(),
-            'employees_pending' => EmployeeOnboarding::where('status', 'pending')->count(),
-            'employees_verified' => EmployeeOnboarding::where('status', 'verified')->count(),
-            'interns_total' => InternJoiningForm::count(),
-        ];
-
-        return view('pages.hrms.dashboard.index', compact('stats'));
-    })->name('hrms.dashboard');
+    Route::get('/hrms/dashboard', [App\Http\Controllers\HRMS\DashboardController::class, 'index'])->name('hrms.dashboard');
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::get('/attendance/create', [AttendanceController::class, 'create'])->name('attendance.create');
+    Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     Route::get('/attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
+    Route::resource('leave-requests', LeaveRequestController::class)->only(['index', 'create', 'store', 'show']);
+    Route::patch('/leave-requests/{leaveRequest}/approvals/{approval}/approve', [LeaveRequestController::class, 'approve'])
+        ->name('leave-requests.approve');
+    Route::patch('/leave-requests/{leaveRequest}/approvals/{approval}/reject', [LeaveRequestController::class, 'reject'])
+        ->name('leave-requests.reject');
+    Route::resource('permission-requests', PermissionRequestController::class)->only(['index', 'create', 'store', 'show']);
+    Route::patch('/permission-requests/{permissionRequest}/approvals/{approval}/approve', [PermissionRequestController::class, 'approve'])
+        ->name('permission-requests.approve');
+    Route::patch('/permission-requests/{permissionRequest}/approvals/{approval}/reject', [PermissionRequestController::class, 'reject'])
+        ->name('permission-requests.reject');
     Route::resource('assets', AssetEntryController::class);
     Route::resource('employee-onboarding', EmployeeOnboardingController::class);
     Route::resource('interns', InternJoiningFormController::class);
+    Route::get('/visitor-management/qr-code', [VisitorManagementController::class, 'qrCode'])->name('visitor-management.qr-code');
+    Route::get('/visitor-management', [VisitorManagementController::class, 'index'])->name('visitor-management.index');
+    Route::get('/visitor-management/create', [VisitorManagementController::class, 'create'])->name('visitor-management.create');
+    Route::post('/visitor-management', [VisitorManagementController::class, 'store'])->name('visitor-management.store');
+    Route::get('/visitor-management/{visitorEntry}', [VisitorManagementController::class, 'show'])->name('visitor-management.show');
+    Route::get('/visitor-management/{visitorEntry}/edit', [VisitorManagementController::class, 'edit'])->name('visitor-management.edit');
+    Route::put('/visitor-management/{visitorEntry}', [VisitorManagementController::class, 'update'])->name('visitor-management.update');
+    Route::delete('/visitor-management/{visitorEntry}', [VisitorManagementController::class, 'destroy'])->name('visitor-management.destroy');
     Route::get('/lead-price-requests', [LeadProductPriceRequestController::class, 'index'])
         ->middleware('can:price_requests.view')
         ->name('lead-price-requests.index');
@@ -238,6 +257,9 @@ Route::middleware(['auth'])->group(function () {
 
 });
 
+Route::resource('facility-management', FacilityManagementController::class)
+         ->except(['show']);
+
 Route::prefix('settings')->name('settings.')->middleware('can:settings.view')->group(function () {
 
     // Main settings dashboard
@@ -245,14 +267,20 @@ Route::prefix('settings')->name('settings.')->middleware('can:settings.view')->g
 
     // Lead Status  (no create/show pages – handled via modal on index)
     Route::resource('lead-statuses', LeadStatusController::class)
-         ->middleware('can:settings.manage')
+
          ->except(['create', 'show']);
 
     Route::resource('product-category', ProductCategoryController::class)
-         ->middleware('can:settings.manage')
+
          ->except(['create', 'show']);
 
     Route::resource('departments', DepartmentController::class)
+         ->middleware('can:settings.manage')
+         ->except(['show']);
+
+
+
+    Route::resource('leave-types', LeaveTypeController::class)
          ->middleware('can:settings.manage')
          ->except(['show']);
 

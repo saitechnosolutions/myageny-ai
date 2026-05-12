@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\DailyAttendance;
 use App\Models\EmployeeOnboarding;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AttendanceController extends Controller
@@ -70,13 +72,74 @@ class AttendanceController extends Controller
         ]);
     }
 
+    public function create(): View
+    {
+        return view('pages.hrms.attendance.create', [
+            'employees' => EmployeeOnboarding::query()
+                ->orderBy('name')
+                ->get(['id', 'employee_id', 'name', 'photograph']),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'employee_id' => [
+                'required',
+                'integer',
+                'exists:employee_onboardings,id',
+                Rule::unique('daily_attendances', 'employee_id')
+                    ->where(fn ($query) => $query->whereDate('attendance_date', $request->input('attendance_date'))),
+            ],
+            'attendance_date' => ['required', 'date'],
+            'login_time' => ['required', 'date_format:H:i'],
+            'logout_time' => ['nullable', 'date_format:H:i', 'after:login_time'],
+            'attendance_status' => ['required', 'in:present,leave'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'employee_id.unique' => 'Attendance is already entered for this employee on the selected date.',
+            'logout_time.after' => 'Out time must be after in time.',
+        ]);
+
+        $employee = EmployeeOnboarding::findOrFail($validated['employee_id']);
+        $workingHours = $this->calculateWorkingHours(
+            $validated['attendance_date'],
+            $validated['login_time'],
+            $validated['logout_time'] ?? null
+        );
+
+        DailyAttendance::create([
+            'employee_id' => $employee->id,
+            'employee_name' => $employee->name,
+            'attendance_photo' => $employee->photograph ? 'storage/' . $employee->photograph : '',
+            'login_location' => 'Manual HR Entry',
+            'login_latitude' => 0,
+            'login_longitude' => 0,
+            'login_time' => Carbon::createFromFormat('H:i', $validated['login_time'])->format('H:i:s'),
+            'logout_location' => filled($validated['logout_time'] ?? null) ? 'Manual HR Entry' : null,
+            'logout_latitude' => filled($validated['logout_time'] ?? null) ? 0 : null,
+            'logout_longitude' => filled($validated['logout_time'] ?? null) ? 0 : null,
+            'logout_time' => filled($validated['logout_time'] ?? null)
+                ? Carbon::createFromFormat('H:i', $validated['logout_time'])->format('H:i:s')
+                : null,
+            'overall_working_hours' => $workingHours,
+            'attendance_date' => $validated['attendance_date'],
+            'attendance_status' => $validated['attendance_status'],
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('attendance.index', ['attendance_date' => $validated['attendance_date']])
+            ->with('success', 'Attendance entry created successfully.');
+    }
+
     private function validateAttendanceFilters(Request $request): array
     {
         return $request->validate([
             'employee_name' => ['nullable', 'string', 'max:255'],
             'employee_id' => ['nullable', 'string', 'max:255'],
             'attendance_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:present,absent'],
+            'status' => ['nullable', 'in:present,absent,leave'],
             'login_timing' => ['nullable', 'in:early,late'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -92,14 +155,15 @@ class AttendanceController extends Controller
         $loginTimingFilter = $validated['login_timing'] ?? '';
 
         $attendanceCollection = DailyAttendance::query()
+            ->with('employee')
             ->whereDate('attendance_date', $selectedDate)
             ->orderBy('login_time')
             ->get();
 
-        $presentRecords = $attendanceCollection->map(function (DailyAttendance $attendance) {
+        $attendanceRecords = $attendanceCollection->map(function (DailyAttendance $attendance) {
             return [
-                'employee_id' => (string) $attendance->employee_id,
-                'employee_name' => $attendance->employee_name ?: 'Unknown Employee',
+                'employee_id' => (string) ($attendance->employee?->employee_id ?: $attendance->employee_id),
+                'employee_name' => $attendance->employee?->name ?: ($attendance->employee_name ?: 'Unknown Employee'),
                 'attendance_date' => optional($attendance->attendance_date)->format('Y-m-d'),
                 'attendance_status' => strtolower((string) $attendance->attendance_status) ?: 'present',
                 'login_time' => $attendance->login_time,
@@ -114,7 +178,7 @@ class AttendanceController extends Controller
             ];
         });
 
-        $presentEmployeeNames = $presentRecords
+        $presentEmployeeNames = $attendanceRecords
             ->pluck('employee_name')
             ->map(fn ($name) => $this->normalizeValue($name))
             ->filter()
@@ -148,16 +212,17 @@ class AttendanceController extends Controller
 
         $stats = [
             'total_employees' => EmployeeOnboarding::count(),
-            'present_count' => $presentRecords->count(),
+            'present_count' => $attendanceRecords->where('attendance_status', 'present')->count(),
             'absent_count' => $absentRecords->count(),
-            'late_count' => $presentRecords->where('login_timing', 'late')->count(),
-            'early_count' => $presentRecords->where('login_timing', 'early')->count(),
+            'late_count' => $attendanceRecords->where('attendance_status', 'present')->where('login_timing', 'late')->count(),
+            'early_count' => $attendanceRecords->where('attendance_status', 'present')->where('login_timing', 'early')->count(),
         ];
 
         $records = match ($statusFilter) {
-            'present' => $presentRecords,
+            'present' => $attendanceRecords->where('attendance_status', 'present')->values(),
             'absent' => $absentRecords,
-            default => $presentRecords->concat($absentRecords),
+            'leave' => $attendanceRecords->where('attendance_status', 'leave')->values(),
+            default => $attendanceRecords->concat($absentRecords),
         };
 
         $records = $records
@@ -211,6 +276,24 @@ class AttendanceController extends Controller
     private function normalizeValue(?string $value): string
     {
         return strtolower(trim((string) $value));
+    }
+
+    private function calculateWorkingHours(string $attendanceDate, string $loginTime, ?string $logoutTime): ?string
+    {
+        if (! $logoutTime) {
+            return null;
+        }
+
+        $loginAt = Carbon::parse($attendanceDate . ' ' . $loginTime);
+        $logoutAt = Carbon::parse($attendanceDate . ' ' . $logoutTime);
+        $seconds = (int) max($loginAt->diffInSeconds($logoutAt, false), 0);
+
+        return sprintf(
+            '%02d:%02d:%02d',
+            floor($seconds / 3600),
+            floor(($seconds % 3600) / 60),
+            $seconds % 60
+        );
     }
 
     private function paginateCollection(Collection $items, int $perPage, int $page, Request $request): LengthAwarePaginator

@@ -1,0 +1,119 @@
+@extends('layouts.app')
+
+@section('title', 'Add Attendance')
+
+@push('styles')
+<style>
+.att-page{display:flex;flex-direction:column;min-height:100%;background:#f4f5f7;font-family:var(--font-family, 'Inter', sans-serif)}
+.att-topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 28px;min-height:60px;background:#fff;border-bottom:1px solid #e1dee3}
+.att-title{font-size:18px;font-weight:800;color:#121212}
+.att-breadcrumb{margin-top:2px;color:#9e9e9e;font-size:12px}
+.att-body{padding:22px 28px 34px}
+.att-card{max-width:860px;margin:0 auto;background:#fff;border:1px solid #e1dee3;border-radius:16px;overflow:hidden}
+.att-card-head{padding:18px 22px;border-bottom:1px solid #f0eef2}
+.att-card-title{font-size:16px;font-weight:800;color:#121212}
+.att-card-sub{margin-top:4px;color:#9e9e9e;font-size:12px}
+.att-card-body{padding:22px}
+.att-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.att-field{display:flex;flex-direction:column;gap:7px}
+.att-field.full{grid-column:1 / -1}
+.att-label{font-size:13px;font-weight:700;color:#444}
+.att-req{color:#fe5f04}
+.att-input,.att-select,.att-textarea{width:100%;border:1px solid #e1dee3;border-radius:10px;padding:11px 12px;background:#fff;color:#20222a;font-size:14px;font-family:inherit;outline:none}
+.att-textarea{min-height:110px;resize:vertical}
+.att-input:focus,.att-select:focus,.att-textarea:focus{border-color:#fe5f04;box-shadow:0 0 0 3px rgba(254,95,4,.1)}
+.att-error{font-size:12px;color:#dc2626}
+.att-foot{padding:18px 22px;border-top:1px solid #f0eef2;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.att-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:10px;border:1px solid transparent;background:#fff;color:#121212;text-decoration:none;font-size:13px;font-weight:700;cursor:pointer}
+.att-btn-primary{background:linear-gradient(135deg,#fe5f04,#ff7c30);border-color:#fe5f04;color:#fff}
+.att-btn-ghost{background:#fff;color:#121212;border-color:#e1dee3}
+.att-alert{max-width:860px;margin:0 auto 16px;padding:12px 14px;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px}
+@media (max-width: 760px){
+    .att-topbar{padding:16px 20px;align-items:flex-start;flex-direction:column}
+    .att-body{padding:16px 20px 24px}
+    .att-grid{grid-template-columns:1fr}
+    .att-field.full{grid-column:auto}
+}
+</style>
+@endpush
+
+@section('content')
+<div class="att-page">
+    <div class="att-topbar">
+        <div>
+            <div class="att-title">Add Attendance</div>
+            <div class="att-breadcrumb">HRMS > Attendance > Add Entry</div>
+        </div>
+        <div>
+            <a href="{{ route('attendance.index') }}" class="att-btn att-btn-ghost">Back</a>
+        </div>
+    </div>
+
+    <div class="att-body">
+        @if($errors->any())
+            <div class="att-alert">Please fix the highlighted fields and submit again.</div>
+        @endif
+
+        <form method="POST" action="{{ route('attendance.store') }}" class="att-card">
+            @csrf
+            <div class="att-card-head">
+                <div class="att-card-title">Manual HR Attendance Entry</div>
+                <div class="att-card-sub">Select employee, date, in-time and out-time. Out-time is optional and can be entered later through another update flow.</div>
+            </div>
+            <div class="att-card-body">
+                <div class="att-grid">
+                    <div class="att-field full">
+                        <label class="att-label">Employee <span class="att-req">*</span></label>
+                        <select name="employee_id" class="att-select" required>
+                            <option value="">Select employee</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" @selected(old('employee_id') == $employee->id)>
+                                    {{ $employee->name }}{{ $employee->employee_id ? ' - ' . $employee->employee_id : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('employee_id')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="att-field">
+                        <label class="att-label">Date <span class="att-req">*</span></label>
+                        <input type="date" name="attendance_date" class="att-input" value="{{ old('attendance_date', now()->toDateString()) }}" required>
+                        @error('attendance_date')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="att-field">
+                        <label class="att-label">Status <span class="att-req">*</span></label>
+                        <select name="attendance_status" class="att-select" required>
+                            <option value="present" @selected(old('attendance_status', 'present') === 'present')>Present</option>
+                            <option value="leave" @selected(old('attendance_status') === 'leave')>Leave</option>
+                        </select>
+                        @error('attendance_status')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="att-field">
+                        <label class="att-label">In Time <span class="att-req">*</span></label>
+                        <input type="time" name="login_time" class="att-input" value="{{ old('login_time', now()->format('H:i')) }}" required>
+                        @error('login_time')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="att-field">
+                        <label class="att-label">Out Time</label>
+                        <input type="time" name="logout_time" class="att-input" value="{{ old('logout_time') }}">
+                        @error('logout_time')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="att-field full">
+                        <label class="att-label">HR Input / Remarks</label>
+                        <textarea name="remarks" class="att-textarea" placeholder="Optional HR notes">{{ old('remarks') }}</textarea>
+                        @error('remarks')<div class="att-error">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+            </div>
+            <div class="att-foot">
+                <a href="{{ route('attendance.index') }}" class="att-btn att-btn-ghost">Cancel</a>
+                <button type="submit" class="att-btn att-btn-primary">Save Attendance</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection

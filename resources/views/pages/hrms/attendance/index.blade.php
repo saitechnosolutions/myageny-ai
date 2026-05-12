@@ -53,6 +53,7 @@
 .att-chip-early{background:#eff8ff;color:#175cd3}
 .att-chip-late{background:#fff7ed;color:#c2410c}
 .att-chip-on-time{background:#f4f4f5;color:#52525b}
+.att-chip-leave{background:#f5eeff;color:#6b21a8}
 .att-table{width:100%;border-collapse:collapse;min-width:1000px}
 .att-table th,.att-table td{padding:14px 16px;border-bottom:1px solid #f0eef2;text-align:left;vertical-align:top}
 .att-table th{font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#9e9e9e;background:#fafafa}
@@ -88,11 +89,17 @@
 
         </div>
         <div class="att-actions">
+            <a href="{{ route('attendance.create') }}" class="att-btn att-btn-primary">Add Attendance</a>
             <a href="{{ route('hrms.dashboard') }}" class="att-btn att-btn-ghost">Back</a>
         </div>
     </div>
 
     <div class="att-body">
+    @if(session('success'))
+        <div class="att-card" style="border-color:#bbf7d0;background:#f0fdf4;color:#166534;font-size:13px;font-weight:700;">
+            {!! session('success') !!}
+        </div>
+    @endif
     <div class="att-stats">
         <div class="att-stat-card employees">
             <div class="att-stat-head">
@@ -184,6 +191,7 @@
                     <option value="">All Status</option>
                     <option value="present" @selected(request('status') === 'present')>Present</option>
                     <option value="absent" @selected(request('status') === 'absent')>Absent</option>
+                    <option value="leave" @selected(request('status') === 'leave')>Leave</option>
                 </select>
             </div>
             <div class="att-field">

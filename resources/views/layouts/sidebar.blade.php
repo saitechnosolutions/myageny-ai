@@ -5,6 +5,10 @@
         || request()->routeIs('assets.*')
         || request()->routeIs('interns.*')
         || request()->routeIs('attendance.*')
+        || request()->routeIs('leave-requests.*')
+        || request()->routeIs('permission-requests.*')
+        || request()->routeIs('visitor-management.*')
+        || request()->routeIs('facility-management.*')
         || request()->routeIs('settings.holiday-calendars.*');
 @endphp
 
@@ -39,6 +43,21 @@
                             <rect x="3" y="13" width="8" height="8" rx="2"></rect>
                         </svg>
                         <span>Dashboard</span>
+                    </div>
+                </a>
+
+                 <a href="{{ url('/masters') }}" class="nav-item {{ request()->is('masters') || request()->is('masters/*') ? 'active' : '' }}">
+                    @if(request()->is('masters') || request()->is('masters/*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"></path>
+                            <path d="M12 12l8-4.5"></path>
+                            <path d="M12 12v9"></path>
+                            <path d="M12 12L4 7.5"></path>
+                        </svg>
+                        <span>Masters</span>
                     </div>
                 </a>
 
@@ -87,6 +106,64 @@
                             <path d="M12 18h.01"></path>
                         </svg>
                         <span>Attendance</span>
+                    </div>
+                </a>
+
+                <a href="{{ route('leave-requests.index') }}" class="nav-item {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
+                    @if(request()->routeIs('leave-requests.*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 2v4"></path>
+                            <path d="M16 2v4"></path>
+                            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                            <path d="M3 10h18"></path>
+                            <path d="m9 16 2 2 4-5"></path>
+                        </svg>
+                        <span>Leave Requests</span>
+                    </div>
+                </a>
+
+                <a href="{{ route('permission-requests.index') }}" class="nav-item {{ request()->routeIs('permission-requests.*') ? 'active' : '' }}">
+                    @if(request()->routeIs('permission-requests.*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="9"></circle>
+                            <path d="M12 7v5l3 2"></path>
+                        </svg>
+                        <span>Permission Requests</span>
+                    </div>
+                </a>
+
+                <a href="{{ route('visitor-management.index') }}" class="nav-item {{ request()->routeIs('visitor-management.*') ? 'active' : '' }}">
+                    @if(request()->routeIs('visitor-management.*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9.5" cy="7" r="3"></circle>
+                            <path d="M17 11h4"></path>
+                            <path d="M19 9v4"></path>
+                        </svg>
+                        <span>Visitor Management</span>
+                    </div>
+                </a>
+                <a href="{{ route('facility-management.index') }}" class="nav-item {{ request()->routeIs('facility-management.*') ? 'active' : '' }}">
+                    @if(request()->routeIs('facility-management.*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9.5" cy="7" r="3"></circle>
+                            <path d="M17 11h4"></path>
+                            <path d="M19 9v4"></path>
+                        </svg>
+                        <span>Facility Management</span>
                     </div>
                 </a>
 
