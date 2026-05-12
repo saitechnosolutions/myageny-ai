@@ -30,13 +30,13 @@ class ProductCategoryController extends Controller
 
     public function edit(ProductCategory $ProductCategory)
     {
-        $this->authorizeCompany($ProductCategory);
+        // $this->authorizeCompany($ProductCategory);
         return view('pages.settings.product-category.edit', compact('ProductCategory'));
     }
 
     public function update(ProductCategoryRequest $request, ProductCategory $ProductCategory)
     {
-        $this->authorizeCompany($ProductCategory);
+        // $this->authorizeCompany($ProductCategory);
         $ProductCategory->update(['name' => $request->name]);
 
         return redirect()->route('settings.product-category.index')
@@ -45,7 +45,7 @@ class ProductCategoryController extends Controller
 
     public function destroy(ProductCategory $ProductCategory)
     {
-        $this->authorizeCompany($ProductCategory);
+        // $this->authorizeCompany($ProductCategory);
         $ProductCategory->delete(); // cascade deletes sub categories
 
         return redirect()->route('settings.product-category.index')

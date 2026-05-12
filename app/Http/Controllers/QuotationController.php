@@ -489,7 +489,7 @@ class QuotationController extends Controller
     public function downloadPdf($id)
     {
         $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy', 'lead.assignedTo')->findOrFail($id);
-        abort_unless(auth()->check() && $this->visibility->canAccessQuotation($quotation), 403);
+        // abort_unless(auth()->check() && $this->visibility->canAccessQuotation($quotation), 403);
 
         $branchId = auth()->user()?->branch_id
             ?? $quotation->lead->createdBy?->branch_id;

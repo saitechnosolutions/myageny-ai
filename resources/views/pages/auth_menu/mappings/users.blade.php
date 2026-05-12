@@ -34,6 +34,28 @@
 .umap-table tr:last-child td { border-bottom:none; }
 .umap-muted { color:#7c7c7c; font-size:12px; }
 .umap-delete { border:none; background:#fef2f2; color:#dc2626; border-radius:9px; width:32px; height:32px; cursor:pointer; font-weight:800; }
+.umap-main-stack { display:flex; flex-direction:column; gap:18px; }
+.umap-chart-body { padding:18px; overflow:auto; }
+.umap-tree { list-style:none; margin:0; padding:0; min-width:520px; }
+.umap-tree-item { position:relative; padding-left:28px; margin:0; }
+.umap-tree-item::before { content:''; position:absolute; left:10px; top:0; bottom:0; width:1px; background:#e7e2e8; }
+.umap-tree-item::after { content:''; position:absolute; left:10px; top:27px; width:18px; height:1px; background:#e7e2e8; }
+.umap-tree > .umap-tree-item { padding-left:0; }
+.umap-tree > .umap-tree-item::before,
+.umap-tree > .umap-tree-item::after { display:none; }
+.umap-tree-node { width:100%; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px; border:1px solid #e6e2e8; border-radius:14px; background:#fff; color:#121212; cursor:pointer; text-align:left; font-family:inherit; transition:all .16s ease; }
+.umap-tree-node:hover { border-color:#fdba74; box-shadow:0 10px 20px rgba(254,95,4,.08); }
+.umap-tree-node[disabled] { cursor:default; }
+.umap-tree-main { display:flex; align-items:center; gap:10px; min-width:0; }
+.umap-tree-toggle { width:24px; height:24px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:#fff7ed; color:#ea580c; font-weight:900; flex-shrink:0; }
+.umap-tree-copy { min-width:0; }
+.umap-tree-name { display:block; font-size:13px; font-weight:900; color:#121212; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.umap-tree-meta { display:block; margin-top:2px; font-size:11px; color:#7c7c7c; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.umap-tree-role { display:inline-flex; padding:4px 9px; border-radius:999px; background:#eef4ff; color:#3355aa; font-size:11px; font-weight:800; flex-shrink:0; }
+.umap-tree-children { list-style:none; margin:10px 0 10px 18px; padding:0; display:none; }
+.umap-tree-item.is-open > .umap-tree-children { display:block; }
+.umap-tree-item.is-open > .umap-tree-node .umap-tree-toggle { background:#fe5f04; color:#fff; }
+.umap-tree-empty { padding:34px 18px; text-align:center; color:#8a8a8a; font-size:13px; }
 @media (max-width: 1000px) {
     .umap-page { padding:18px; }
     .umap-grid { grid-template-columns:1fr; }
@@ -100,55 +122,97 @@
             </div>
         </div>
 
-        <div class="umap-card">
-            <div class="umap-card-head">
-                <div class="umap-card-title">Current Mapping</div>
-                <div class="umap-card-sub">{{ $mappings->total() }} mapped user{{ $mappings->total() === 1 ? '' : 's' }}</div>
+        <div class="umap-main-stack">
+            <div class="umap-card">
+                <div class="umap-card-head">
+                    <div class="umap-card-title">User Hierarchy Chart</div>
+                    <div class="umap-card-sub">Click any user to expand and see mapped users below them.</div>
+                </div>
+                <div class="umap-chart-body">
+                    @if($userTree)
+                        <ul class="umap-tree" data-user-tree>
+                            @include('pages.auth_menu.mappings.partials.user-tree-node', ['node' => $userTree, 'isRoot' => true])
+                        </ul>
+                    @else
+                        <div class="umap-tree-empty">Select a manager to view the hierarchy chart.</div>
+                    @endif
+                </div>
             </div>
 
-            <div style="overflow-x:auto;">
-                <table class="umap-table">
-                    <thead>
-                        <tr>
-                            <th>Manager / TL</th>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($mappings as $mapping)
-                            <tr>
-                                <td>
-                                    <strong>{{ $mapping->manager?->name }}</strong>
-                                    <div class="umap-muted">{{ $mapping->manager?->email }}</div>
-                                </td>
-                                <td>
-                                    <strong>{{ $mapping->user?->name }}</strong>
-                                    <div class="umap-muted">{{ $mapping->user?->email }}</div>
-                                </td>
-                                <td class="umap-muted">{{ $mapping->user?->roles->first()?->display_name ?? $mapping->user?->roles->first()?->name ?? 'No Role' }}</td>
-                                <td>
-                                    <form method="POST" action="{{ route('auth.user-mappings.destroy', $mapping) }}" onsubmit="return confirm('Remove this mapping?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button class="umap-delete" type="submit" title="Remove">x</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="umap-muted">No user mappings found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <div class="umap-card">
+                <div class="umap-card-head">
+                    <div class="umap-card-title">Current Mapping</div>
+                    <div class="umap-card-sub">{{ $mappings->total() }} mapped user{{ $mappings->total() === 1 ? '' : 's' }}</div>
+                </div>
 
-            @if($mappings->hasPages())
-                @include('partials.table-pagination', ['paginator' => $mappings])
-            @endif
+                <div style="overflow-x:auto;">
+                    <table class="umap-table">
+                        <thead>
+                            <tr>
+                                <th>Manager / TL</th>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($mappings as $mapping)
+                                <tr>
+                                    <td>
+                                        <strong>{{ $mapping->manager?->name }}</strong>
+                                        <div class="umap-muted">{{ $mapping->manager?->email }}</div>
+                                    </td>
+                                    <td>
+                                        <strong>{{ $mapping->user?->name }}</strong>
+                                        <div class="umap-muted">{{ $mapping->user?->email }}</div>
+                                    </td>
+                                    <td class="umap-muted">{{ $mapping->user?->roles->first()?->display_name ?? $mapping->user?->roles->first()?->name ?? 'No Role' }}</td>
+                                    <td>
+                                        <form method="POST" action="{{ route('auth.user-mappings.destroy', $mapping) }}" onsubmit="return confirm('Remove this mapping?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="umap-delete" type="submit" title="Remove">x</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="umap-muted">No user mappings found.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if($mappings->hasPages())
+                    @include('partials.table-pagination', ['paginator' => $mappings])
+                @endif
+            </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-tree-toggle]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const item = button.closest('.umap-tree-item');
+            const hasChildren = button.getAttribute('data-has-children') === '1';
+
+            if (!item || !hasChildren) {
+                return;
+            }
+
+            item.classList.toggle('is-open');
+            const toggle = button.querySelector('.umap-tree-toggle');
+
+            if (toggle) {
+                toggle.textContent = item.classList.contains('is-open') ? '-' : '+';
+            }
+        });
+    });
+});
+</script>
+@endpush

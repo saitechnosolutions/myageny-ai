@@ -7,6 +7,7 @@ use App\Models\RoleMapping;
 use App\Models\User;
 use App\Models\UserMapping;
 use App\Services\DataVisibilityService;
+use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -19,10 +20,11 @@ class AccessMappingController extends Controller
         $roles = Role::with(['roleMapping', 'users'])
             ->orderByRaw('COALESCE(display_name, name)')
             ->get();
+        $roleChart = $this->buildRoleChart();
 
         $accessLevels = RoleMapping::ACCESS_LEVELS;
 
-        return view('pages.auth_menu.mappings.roles', compact('roles', 'accessLevels'));
+        return view('pages.auth_menu.mappings.roles', compact('roles', 'accessLevels', 'roleChart'));
     }
 
     public function roleUpdate(Request $request)
@@ -64,12 +66,18 @@ class AccessMappingController extends Controller
             ->latest()
             ->paginate(15)
             ->withQueryString();
+        $selectedManager = $users->firstWhere('id', $selectedManagerId);
+        $userTree = $selectedManager
+            ? $this->buildUserTree($selectedManager, $users, collect([$selectedManager->id]))
+            : null;
 
         return view('pages.auth_menu.mappings.users', compact(
             'users',
             'selectedManagerId',
             'selectedUserIds',
-            'mappings'
+            'mappings',
+            'selectedManager',
+            'userTree'
         ));
     }
 
@@ -132,5 +140,108 @@ class AccessMappingController extends Controller
         $mapping->delete();
 
         return back()->with('success', 'User mapping removed successfully.');
+    }
+
+    private function buildRoleChart(): Collection
+    {
+        $mappings = UserMapping::with(['manager.roles', 'user.roles'])
+            ->orderBy('manager_id')
+            ->get();
+
+        return $mappings
+            ->groupBy(fn (UserMapping $mapping) => $this->roleLabel($mapping->manager))
+            ->map(function (Collection $managerMappings, string $managerRole) {
+                $managers = $managerMappings
+                    ->pluck('manager')
+                    ->filter()
+                    ->unique('id')
+                    ->sortBy('name')
+                    ->map(fn (User $user) => $this->userChartPayload($user))
+                    ->values();
+
+                $childRoles = $managerMappings
+                    ->groupBy(fn (UserMapping $mapping) => $this->roleLabel($mapping->user))
+                    ->map(function (Collection $childMappings, string $childRole) {
+                        $users = $childMappings
+                            ->pluck('user')
+                            ->filter()
+                            ->unique('id')
+                            ->sortBy('name')
+                            ->map(fn (User $user) => $this->userChartPayload($user))
+                            ->values();
+
+                        return [
+                            'role' => $childRole,
+                            'users' => $users,
+                            'count' => $users->count(),
+                        ];
+                    })
+                    ->sortBy('role')
+                    ->values();
+
+                return [
+                    'role' => $managerRole,
+                    'managers' => $managers,
+                    'children' => $childRoles,
+                    'count' => $childRoles->sum('count'),
+                ];
+            })
+            ->sortBy('role')
+            ->values();
+    }
+
+    private function buildUserTree(User $user, Collection $users, Collection $visited): array
+    {
+        $children = UserMapping::query()
+            ->where('manager_id', $user->id)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn (int $userId) => $visited->contains($userId))
+            ->values();
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $this->roleLabel($user),
+            'children' => $children
+                ->map(function (int $userId) use ($users, $visited) {
+                    $child = $users->firstWhere('id', $userId);
+
+                    if (! $child) {
+                        return null;
+                    }
+
+                    return $this->buildUserTree($child, $users, $visited->merge([$userId])->unique()->values());
+                })
+                ->filter()
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function roleLabel(?User $user): string
+    {
+        if (! $user) {
+            return 'No Role';
+        }
+
+        $role = $user->roles->first();
+
+        if (! $role) {
+            return 'No Role';
+        }
+
+        return $role->display_name ?: str($role->name)->after('__')->replace('_', ' ')->title()->value();
+    }
+
+    private function userChartPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $this->roleLabel($user),
+        ];
     }
 }
