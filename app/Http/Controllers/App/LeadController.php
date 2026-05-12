@@ -7,6 +7,10 @@ use App\Models\Lead;
 use App\Models\LeadReminder;
 use App\Models\Product;
 use App\Models\Branch;
+use App\Models\LeadFormField;
+use App\Models\LeadFieldValue;
+use App\Models\LeadProduct;
+use App\Models\LeadCallUpdate;
 use App\Models\User;
 use App\Services\DataVisibilityService;
 use Illuminate\Http\JsonResponse;
@@ -94,8 +98,8 @@ class LeadController extends Controller
             'new'           => (clone $statsBase)->where('lead_status', 'new')->count(),
             'won'           => (clone $statsBase)->where('lead_status', 'won')->count(),
             'lost'          => (clone $statsBase)->where('lead_status', 'lost')->count(),
-            'pipeline'      => (clone $statsBase)->whereNotIn('lead_status', ['won','lost'])->sum('deal_value'),
-            'high_priority' => (clone $statsBase)->where('priority', 'high')->whereNotIn('lead_status', ['won','lost'])->count(),
+            'pipeline'      => (clone $statsBase)->whereNotIn('lead_status', ['won', 'lost'])->sum('deal_value'),
+            'high_priority' => (clone $statsBase)->where('priority', 'high')->whereNotIn('lead_status', ['won', 'lost'])->count(),
         ];
 
         return response()->json([
@@ -207,7 +211,7 @@ class LeadController extends Controller
             new OA\Response(response: 404, description: "Not found"),
         ]
     )]
-   public function show(Lead $lead): JsonResponse
+    public function show(Lead $lead): JsonResponse
     {
         abort_unless($this->visibility->canAccessLead($lead, request()->user()), 403);
 
@@ -223,6 +227,11 @@ class LeadController extends Controller
             'products.payments.recordedBy:id,name',
             'quotations.items',
             'quotations.createdBy:id,name',
+            'customFieldValues.field' => function ($query) {
+                $query->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('label');
+            },
         ]);
 
         return response()->json([
@@ -377,13 +386,13 @@ class LeadController extends Controller
                 'priorities'     => Lead::PRIORITIES,
                 'reminder_types' => LeadReminder::TYPES,
                 'branches'       => Branch::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-                'users'          => $this->visibility->visibleAssignableUsers(request()->user())->map(fn ($user) => [
+                'users'          => $this->visibility->visibleAssignableUsers(request()->user())->map(fn($user) => [
                     'id' => $user->id,
                     'name' => $user->name,
                 ])->values(),
-                'products'       => tap(Product::query(), fn ($query) => $this->visibility->applyProductVisibility($query, request()->user()))
-                                        ->orderBy('product_name')
-                                        ->get(['id', 'product_name as name']),
+                'products'       => tap(Product::query(), fn($query) => $this->visibility->applyProductVisibility($query, request()->user()))
+                    ->orderBy('product_name')
+                    ->get(['id', 'product_name as name']),
             ],
         ]);
     }
@@ -532,6 +541,255 @@ class LeadController extends Controller
                     'items'            => $q->items ?? [],
                 ])->values()
                 : [],
+
+            'custom_field_values' => $lead->customFieldValues->map(fn($v) => [
+                'id'                 => $v->id,
+                'lead_id'            => $v->lead_id,
+                'lead_form_field_id' => $v->lead_form_field_id,
+                'value'              => $v->value,
+                'field'              => $v->field ? [
+                    'label'      => $v->field->label,
+                    'field_type' => $v->field->field_type,
+                ] : null,
+            ])->values(),
+        ]);
+    }
+
+    public function syncCustomFields(Request $request, Lead $lead): JsonResponse
+    {
+        abort_unless($this->visibility->canAccessLead($lead, $request->user()), 403);
+
+        $this->syncCustomFieldValues($lead, $request->input('custom_fields', []));
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Custom fields updated.',
+        ]);
+    }
+
+    protected function syncCustomFieldValues(Lead $lead, array $submittedValues): void
+    {
+        $fields = LeadFormField::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($lead) {
+                $query->whereNull('branch_id')
+                    ->orWhere('branch_id', $lead->branch_id);
+            })
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get();
+        $allowedFieldIds = $fields->pluck('id')->all();
+
+        LeadFieldValue::query()
+            ->where('lead_id', $lead->id)
+            ->whereNotIn('lead_form_field_id', $allowedFieldIds)
+            ->delete();
+
+        foreach ($fields as $field) {
+            $submittedValue = $submittedValues[$field->id] ?? null;
+
+            if (is_array($submittedValue)) {
+                $submittedValue = array_values(array_filter($submittedValue, fn($value) => $value !== null && $value !== ''));
+            }
+
+            $normalizedValue = is_array($submittedValue)
+                ? json_encode($submittedValue)
+                : ($submittedValue !== null ? trim((string) $submittedValue) : null);
+
+            if ($normalizedValue === null || $normalizedValue === '' || $normalizedValue === '[]') {
+                LeadFieldValue::query()
+                    ->where('lead_id', $lead->id)
+                    ->where('lead_form_field_id', $field->id)
+                    ->delete();
+                continue;
+            }
+
+            LeadFieldValue::updateOrCreate(
+                [
+                    'lead_id' => $lead->id,
+                    'lead_form_field_id' => $field->id,
+                ],
+                [
+                    'value' => $normalizedValue,
+                ]
+            );
+        }
+    }
+
+    public function customFields(): JsonResponse
+    {
+        $fields = LeadFormField::where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('label')
+            ->get();
+
+        return response()->json(['status' => true, 'data' => $fields]);
+    }
+
+    public function leadProductFunction(Request $request)
+    {
+        $dateFrom = $request->filled('date_from') ? $request->date_from : now()->toDateString();
+        $dateTo   = $request->filled('date_to')   ? $request->date_to   : now()->toDateString();
+
+        // Default to today if no dates supplied
+        if (!$request->filled('date_from') && !$request->filled('date_to')) {
+            $request->merge([
+                'date_from' => $dateFrom,
+                'date_to'   => $dateTo,
+            ]);
+        }
+
+        $query = LeadProduct::query()
+            ->with(['lead.branch', 'lead.assignedTo', 'product'])
+            ->whereHas('lead')
+            ->latest('created_at');
+
+        // ── Search ──────────────────────────────────────────────
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('product_name', 'like', "%{$search}%")
+                    ->orWhereHas('product', fn($pq) =>
+                    $pq->where('product_name', 'like', "%{$search}%")
+                        ->orWhere('package_name', 'like', "%{$search}%"))
+                    ->orWhereHas('lead', fn($lq) =>
+                    $lq->where('company_name', 'like', "%{$search}%")
+                        ->orWhere('contact_name', 'like', "%{$search}%")
+                        ->orWhere('mobile_number', 'like', "%{$search}%"));
+            });
+        }
+
+        // ── Filters ─────────────────────────────────────────────
+        if ($request->filled('lead_id')) {
+            $query->where('lead_id', $request->lead_id);
+        }
+
+        if ($request->filled('mobile_number')) {
+            $query->whereHas('lead', fn($lq) =>
+            $lq->where('mobile_number', 'like', '%' . $request->mobile_number . '%'));
+        }
+
+        if ($request->filled('branch_id')) {
+            $query->whereHas('lead', fn($lq) =>
+            $lq->where('branch_id', $request->branch_id));
+        }
+
+        if ($request->filled('assigned_to')) {
+            $query->whereHas('lead', fn($lq) =>
+            $lq->where('assigned_to', $request->assigned_to));
+        }
+
+        if ($request->filled('product_status')) {
+            $query->where('product_status', $request->product_status);
+        }
+
+        if ($request->filled('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        // ── Stats (before paginating) ────────────────────────────
+        $statsRows = (clone $query)->get();
+        $stats = [
+            'total_products' => $statsRows->count(),
+            'total_value'    => (float) $statsRows->sum('total_price'),
+            'received'       => (float) $statsRows->sum('amount_paid'),
+            'pending'        => (float) $statsRows->sum(fn($lp) => $lp->amount_pending),
+        ];
+
+        // ── Paginate ─────────────────────────────────────────────
+        $leadProducts = $query->paginate(15)->withQueryString();
+
+        // ── Filter option lists ──────────────────────────────────
+        $branches = Branch::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $users = \App\Models\User::orderBy('name')
+            ->get(['id', 'name']);
+
+        $products = Product::orderBy('package_name')
+            ->get(['id', 'package_name', 'product_name']);
+
+        return response()->json([
+            'lead_products' => $leadProducts,
+            'stats'         => $stats,
+            'branches'      => $branches,
+            'users'         => $users,
+            'products'      => $products,
+        ]);
+    }
+
+    public function callUpdateFunction(Request $request)
+    {
+        $dateFrom = $request->filled('date_from') ? $request->date_from : now()->toDateString();
+        $dateTo   = $request->filled('date_to')   ? $request->date_to   : now()->toDateString();
+
+        $query = LeadCallUpdate::with([
+            'lead:id,company_name,contact_name,mobile_number,email',
+            'user:id,name',
+            'outCome:id,name',
+            'outComeSubCategory:id,name',
+        ])->latest('called_at');
+
+        // ── Search ──────────────────────────────────────────────
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('notes', 'like', "%{$search}%")
+                    ->orWhereHas('lead', fn($lq) =>
+                    $lq->where('id', $search)
+                        ->orWhere('company_name', 'like', "%{$search}%")
+                        ->orWhere('contact_name',  'like', "%{$search}%")
+                        ->orWhere('mobile_number', 'like', "%{$search}%")
+                        ->orWhere('email',         'like', "%{$search}%"))
+                    ->orWhereHas('user', fn($uq) =>
+                    $uq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        // ── Filters ─────────────────────────────────────────────
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        if ($request->filled('branch_id')) {
+            $query->whereHas('lead', fn($lq) =>
+            $lq->where('branch_id', $request->branch_id));
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('called_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $query->whereDate('called_at', '<=', $dateTo);
+        }
+
+        // ── Paginate ─────────────────────────────────────────────
+        $callUpdates = $query->paginate(15)->withQueryString();
+
+        // ── Filter option lists ──────────────────────────────────
+        $branches = Branch::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $users = \App\Models\User::orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'call_updates' => $callUpdates,
+            'branches'     => $branches,
+            'users'        => $users,
+            'date_from'    => $dateFrom,
+            'date_to'      => $dateTo,
         ]);
     }
 }

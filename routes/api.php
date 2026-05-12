@@ -15,7 +15,6 @@ use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\App\AppApiController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\SuperAdminDashboardController;
-use App\Http\Controllers\App\AppApiController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -24,36 +23,37 @@ use Illuminate\Support\Facades\Route;
 | Home Page Dashboard Routes
 |--------------------------------------------------------------------------
 */
-    Route::post('/ai/summarize', [AiController::class, 'summarize'])->name('ai.summarize');
 
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/dashboard-data', [SuperAdminDashboardController::class, 'dashboardData']);
-        Route::get('/product-dashboard-data', [AdminDashboardProductController::class, 'index']);
-        Route::get('/product-dashboard-data/filters', [AdminDashboardProductController::class, 'filterOptions']);
-    });
+Route::post('/ai/summarize', [AiController::class, 'summarize'])->name('ai.summarize');
 
-    Route::get('/getLeadQuotations/{leadid}', [QuotationController::class, 'getLeadQuotations']);
-    Route::get('/getAllQuotations', [QuotationController::class, 'getAllQuotations']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/dashboard-data', [SuperAdminDashboardController::class, 'dashboardData']);
+    Route::get('/product-dashboard-data', [AdminDashboardProductController::class, 'index']);
+    Route::get('/product-dashboard-data/filters', [AdminDashboardProductController::class, 'filterOptions']);
+});
 
-    // Route::get('/products', [ProductController::class, 'getProducts']);
+Route::get('/getLeadQuotations/{leadid}', [QuotationController::class, 'getLeadQuotations']);
+Route::get('/getAllQuotations', [QuotationController::class, 'getAllQuotations']);
+
+// Route::get('/products', [ProductController::class, 'getProducts']);
 
 
 
- // ── Product catalogue ──────────────────────────────────────────
-    Route::get('products',        [LeadProductController::class, 'productList']);
-    Route::get('products/{id}',   [LeadProductController::class, 'productDetail']);
+// ── Product catalogue ──────────────────────────────────────────
+Route::get('products',        [LeadProductController::class, 'productList']);
+Route::get('products/{id}',   [LeadProductController::class, 'productDetail']);
 
-    // ── Lead Products (Deals) ──────────────────────────────────────
-    Route::get ('lead-products/{lead_id}', [LeadProductController::class, 'index']);
-    Route::post('lead-products',           [LeadProductController::class, 'store']);
-    Route::post('lead-product-price-requests', [LeadProductPriceRequestController::class, 'store']);
-    Route::put ('lead-products/status',    [LeadProductController::class, 'updateStatus']);
-    Route::delete('lead-products/{id}',    [LeadProductController::class, 'destroy']);
+// ── Lead Products (Deals) ──────────────────────────────────────
+Route::get('lead-products/{lead_id}', [LeadProductController::class, 'index']);
+Route::post('lead-products',           [LeadProductController::class, 'store']);
+Route::post('lead-product-price-requests', [LeadProductPriceRequestController::class, 'store']);
+Route::put('lead-products/status',    [LeadProductController::class, 'updateStatus']);
+Route::delete('lead-products/{id}',    [LeadProductController::class, 'destroy']);
 
-    // ── Payments ───────────────────────────────────────────────────
-    Route::get   ('payments/{lead_product_id}', [LeadProductController::class, 'paymentHistory']);
-    Route::post  ('payments',                   [LeadProductController::class, 'storePayment']);
-    Route::delete('payments/{id}',              [LeadProductController::class, 'destroyPayment']);
+// ── Payments ───────────────────────────────────────────────────
+Route::get('payments/{lead_product_id}', [LeadProductController::class, 'paymentHistory']);
+Route::post('payments',                   [LeadProductController::class, 'storePayment']);
+Route::delete('payments/{id}',              [LeadProductController::class, 'destroyPayment']);
 
 /*
 |--------------------------------------------------------------------------
@@ -121,44 +121,47 @@ Route::middleware('auth:sanctum')->prefix('mobile')->name('mobile.')->group(func
 */
 Route::middleware('auth:sanctum')->prefix('mobile/leads')->name('mobile.leads.')->group(function () {
 
-    // NOTE: 'meta' must be defined BEFORE the {lead} wildcard route
-    // to avoid Laravel trying to resolve "meta" as a Lead model ID.
-    Route::get('meta', [MobileLeadController::class, 'meta'])->name('meta');
+    // ── Static routes MUST come before {lead} wildcard ──────────────────────
+    Route::get('meta',             [MobileLeadController::class, 'meta'])->name('meta');
+    Route::get('form-fields',      [MobileLeadController::class, 'customFields'])->name('form-fields'); // ← was 'lead-form-fields'
 
-    // CRUD
-    Route::get('/',                [MobileLeadController::class, 'index'])->name('index');
-    Route::post('/',               [MobileLeadController::class, 'store'])->name('store');
-    Route::get('/{lead}',          [MobileLeadController::class, 'show'])->name('show');
-    Route::put('/{lead}',          [MobileLeadController::class, 'update'])->name('update');
-    Route::delete('/{lead}',       [MobileLeadController::class, 'destroy'])->name('destroy');
-    Route::patch('/{lead}/status', [MobileLeadController::class, 'updateStatus'])->name('update-status');
+    Route::get('/lead-products', [MobileLeadController::class, 'leadProductFunction']);
+    Route::get('/call-updates',  [MobileLeadController::class, 'callUpdateFunction']);
 
-    // ── Call Updates ────────────────────────────────────────────────
+    // ── CRUD ────────────────────────────────────────────────────────────────
+    Route::get('/',          [MobileLeadController::class, 'index'])->name('index');
+    Route::post('/',         [MobileLeadController::class, 'store'])->name('store');
+    Route::get('/{lead}',    [MobileLeadController::class, 'show'])->name('show');
+    Route::put('/{lead}',    [MobileLeadController::class, 'update'])->name('update');
+    Route::delete('/{lead}', [MobileLeadController::class, 'destroy'])->name('destroy');
+
+    Route::patch('/{lead}/status',         [MobileLeadController::class, 'updateStatus'])->name('update-status');
+    Route::post('/{lead}/custom-fields',   [MobileLeadController::class, 'syncCustomFields'])->name('custom-fields.sync'); // ← removed extra /leads/
+
+    // ── Call Updates ────────────────────────────────────────────────────────
     Route::post('/{lead}/calls',          [MobileLeadShowController::class, 'storeCall'])->name('calls.store');
     Route::delete('/{lead}/calls/{call}', [MobileLeadShowController::class, 'destroyCall'])->name('calls.destroy');
 
-    // ── Reminders ───────────────────────────────────────────────────
+    // ── Reminders ───────────────────────────────────────────────────────────
     Route::post('/{lead}/reminders',                      [MobileLeadShowController::class, 'storeReminder'])->name('reminders.store');
     Route::patch('/{lead}/reminders/{reminder}/complete', [MobileLeadShowController::class, 'completeReminder'])->name('reminders.complete');
     Route::delete('/{lead}/reminders/{reminder}',         [MobileLeadShowController::class, 'destroyReminder'])->name('reminders.destroy');
-    Route::post('/reminder-list', [AppApiController::class, 'reminderList']);
+    Route::post('/reminder-list',                         [AppApiController::class, 'reminderList']);
 
-    Route::post('/reminder-list', [AppApiController::class, 'reminderList']);
-
-    // ── Lead Products ───────────────────────────────────────────────
+    // ── Lead Products ────────────────────────────────────────────────────────
     Route::post('/{lead}/products',                   [MobileLeadShowController::class, 'storeProduct'])->name('products.store');
     Route::put('/{lead}/products/{product}',          [MobileLeadShowController::class, 'updateProduct'])->name('products.update');
     Route::patch('/{lead}/products/{product}/status', [MobileLeadShowController::class, 'updateProductStatus'])->name('products.status');
     Route::delete('/{lead}/products/{product}',       [MobileLeadShowController::class, 'destroyProduct'])->name('products.destroy');
 
-    // ── Product Payments ────────────────────────────────────────────
-    Route::post('/{lead}/products/{product}/payments',              [MobileLeadShowController::class, 'storeProductPayment'])->name('products.payments.store');
-    Route::delete('/{lead}/products/{product}/payments/{payment}',  [MobileLeadShowController::class, 'destroyProductPayment'])->name('products.payments.destroy');
+    // ── Product Payments ─────────────────────────────────────────────────────
+    Route::post('/{lead}/products/{product}/payments',             [MobileLeadShowController::class, 'storeProductPayment'])->name('products.payments.store');
+    Route::delete('/{lead}/products/{product}/payments/{payment}', [MobileLeadShowController::class, 'destroyProductPayment'])->name('products.payments.destroy');
 
-    // ── Quotations ──────────────────────────────────────────────────
+    // ── Quotations ───────────────────────────────────────────────────────────
     Route::post('/{lead}/quotations',                     [MobileLeadShowController::class, 'storeQuotation'])->name('quotations.store');
     Route::patch('/{lead}/quotations/{quotation}/status', [MobileLeadShowController::class, 'updateQuotationStatus'])->name('quotations.status');
     Route::delete('/{lead}/quotations/{quotation}',       [MobileLeadShowController::class, 'destroyQuotation'])->name('quotations.destroy');
 
-
+    
 });
