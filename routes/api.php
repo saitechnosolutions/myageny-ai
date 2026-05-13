@@ -128,6 +128,10 @@ Route::middleware('auth:sanctum')->prefix('mobile/leads')->name('mobile.leads.')
     Route::get('/lead-products', [MobileLeadController::class, 'leadProductFunction']);
     Route::get('/call-updates',  [MobileLeadController::class, 'callUpdateFunction']);
 
+    Route::get('price-requests',              [MobileLeadController::class, 'priceRequestIndex']);
+    Route::post('price-requests/{req}/approve', [MobileLeadController::class, 'priceRequestApprove']);
+    Route::post('price-requests/{req}/reject', [MobileLeadController::class, 'priceRequestReject']);
+
     // ── CRUD ────────────────────────────────────────────────────────────────
     Route::get('/',          [MobileLeadController::class, 'index'])->name('index');
     Route::post('/',         [MobileLeadController::class, 'store'])->name('store');
@@ -162,6 +166,4 @@ Route::middleware('auth:sanctum')->prefix('mobile/leads')->name('mobile.leads.')
     Route::post('/{lead}/quotations',                     [MobileLeadShowController::class, 'storeQuotation'])->name('quotations.store');
     Route::patch('/{lead}/quotations/{quotation}/status', [MobileLeadShowController::class, 'updateQuotationStatus'])->name('quotations.status');
     Route::delete('/{lead}/quotations/{quotation}',       [MobileLeadShowController::class, 'destroyQuotation'])->name('quotations.destroy');
-
-    
 });

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Branch;
 use App\Models\LeadFormField;
 use App\Models\LeadFieldValue;
+use App\Models\LeadProductPriceRequest;
 use App\Models\LeadProduct;
 use App\Models\LeadCallUpdate;
 use App\Models\User;
@@ -790,6 +791,90 @@ class LeadController extends Controller
             'users'        => $users,
             'date_from'    => $dateFrom,
             'date_to'      => $dateTo,
+        ]);
+    }
+
+    public function priceRequestIndex(Request $request)
+    {
+        $query = LeadProductPriceRequest::with([
+            'lead',
+            'product',
+            'requestedBy',
+            'approvedBy'
+        ])->latest();
+
+        if ($request->filled('status'))       $query->where('status', $request->status);
+        if ($request->filled('lead_id'))      $query->where('lead_id', $request->lead_id);
+        if ($request->filled('requested_by')) $query->where('requested_by', $request->requested_by);
+        if ($request->filled('date_from'))    $query->whereDate('created_at', '>=', $request->date_from);
+        if ($request->filled('date_to'))      $query->whereDate('created_at', '<=', $request->date_to);
+
+        $requests   = $query->paginate(15)->withQueryString();
+        $requesters = \App\Models\User::orderBy('name')->get(['id', 'name']);
+
+        return response()->json([
+            'requests'   => $requests,
+            'requesters' => $requesters,
+        ]);
+    }
+
+    public function priceRequestApprove(Request $request, LeadProductPriceRequest $req)
+    {
+        if ($req->status !== 'pending') {
+            return response()->json(['message' => 'Already processed.'], 422);
+        }
+
+        DB::transaction(function () use ($request, $req) {
+            $defaultStatus = LeadStatus::first();
+            $leadProduct = LeadProduct::create([
+                'lead_id'          => $req->lead_id,
+                'product_id'       => $req->product_id,
+                'deal_name'        => $req->deal_name,
+                'product_name'     => $req->product_name,
+                'description'      => $req->product_description,
+                'unit_price'       => $req->requested_unit_price,
+                'quantity'         => $req->quantity,
+                'discount_percent' => $req->discount_percent,
+                'remarks'          => $req->remarks,
+                'product_status'   => LeadProduct::statusKey($defaultStatus?->name ?? 'new'),
+                'lead_status_id'   => $defaultStatus?->id,
+                'created_by'       => $req->requested_by,
+            ]);
+            $req->update([
+                'status'           => 'approved',
+                'approved_by'      => $request->user()->id,
+                'approved_at'      => now(),
+                'lead_product_id'  => $leadProduct->id,
+                'rejection_reason' => null,
+            ]);
+        });
+
+        return response()->json([
+            'message'       => 'Price request approved.',
+            'price_request' => $req->fresh(['lead', 'product', 'requestedBy', 'approvedBy']),
+        ]);
+    }
+
+    public function priceRequestReject(Request $request, LeadProductPriceRequest $req)
+    {
+        if ($req->status !== 'pending') {
+            return response()->json(['message' => 'Already processed.'], 422);
+        }
+
+        $data = $request->validate([
+            'rejection_reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $req->update([
+            'status'           => 'rejected',
+            'approved_by'      => $request->user()->id,
+            'approved_at'      => now(),
+            'rejection_reason' => $data['rejection_reason'] ?? null,
+        ]);
+
+        return response()->json([
+            'message'       => 'Price request rejected.',
+            'price_request' => $req->fresh(['lead', 'product', 'requestedBy', 'approvedBy']),
         ]);
     }
 }
