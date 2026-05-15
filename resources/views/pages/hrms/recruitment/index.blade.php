@@ -1,0 +1,140 @@
+@extends('layouts.app')
+
+@section('title', 'Recruitment')
+
+@push('styles')
+    @include('pages.hrms.employee_onboarding.styles')
+    @include('pages.hrms.recruitment.styles')
+@endpush
+
+@section('content')
+<div class="eob-page">
+    <div class="eob-topbar">
+        <div>
+            <div class="eob-title">Recruitment</div>
+            <div class="eob-breadcrumb">HRMS > Recruitment</div>
+        </div>
+        <div class="eob-actions">
+            <a href="{{ route('hrms.dashboard') }}" class="eob-btn eob-btn-ghost">Back</a>
+            <a href="{{ route('recruitment.create') }}" class="eob-btn eob-btn-primary">Add Candidate</a>
+        </div>
+    </div>
+
+    <div class="eob-body">
+        @if(session('success'))
+            <div class="eob-alert eob-alert-success">{!! session('success') !!}</div>
+        @endif
+        @if(session('error'))
+            <div class="eob-alert eob-alert-error">{{ session('error') }}</div>
+        @endif
+
+        <div class="rec-stats">
+            <a href="{{ route('recruitment.index') }}" class="rec-stat {{ request('bucket') === null && request('status') === null ? 'is-active' : '' }}">
+                <div class="rec-stat-label">All Candidates</div>
+                <div class="rec-stat-value">{{ $counts['all'] }}</div>
+            </a>
+            <a href="{{ route('recruitment.index', ['bucket' => 'active']) }}" class="rec-stat {{ request('bucket') === 'active' ? 'is-active' : '' }}">
+                <div class="rec-stat-label">Active Pipeline</div>
+                <div class="rec-stat-value">{{ $counts['active'] }}</div>
+            </a>
+            <a href="{{ route('recruitment.index', ['bucket' => 'selected']) }}" class="rec-stat {{ request('bucket') === 'selected' ? 'is-active' : '' }}">
+                <div class="rec-stat-label">Selected Bucket</div>
+                <div class="rec-stat-value">{{ $counts['selected'] }}</div>
+            </a>
+            <a href="{{ route('recruitment.index', ['bucket' => 'rejected']) }}" class="rec-stat {{ request('bucket') === 'rejected' ? 'is-active' : '' }}">
+                <div class="rec-stat-label">Rejected Bucket</div>
+                <div class="rec-stat-value">{{ $counts['rejected'] }}</div>
+            </a>
+        </div>
+
+        <div class="eob-filter-card">
+            <form method="GET" action="{{ route('recruitment.index') }}" class="eob-filter-form">
+                <div class="eob-field">
+                    <label class="eob-label">Search</label>
+                    <input type="text" name="search" class="eob-input" value="{{ request('search') }}" placeholder="Name, mobile, email, job, location">
+                </div>
+                <div class="eob-field" style="max-width:220px;">
+                    <label class="eob-label">Status</label>
+                    <select name="status" class="eob-select">
+                        <option value="">All Status</option>
+                        @foreach($statuses as $value => $label)
+                            <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="eob-actions">
+                    <button type="submit" class="eob-btn eob-btn-primary">Filter</button>
+                    @if(request()->hasAny(['search', 'status', 'bucket']))
+                        <a href="{{ route('recruitment.index') }}" class="eob-btn eob-btn-ghost">Reset</a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        <div class="eob-table-card">
+            <div class="eob-card-head">
+                <div>
+                    <div class="eob-card-title">Candidate Pipeline</div>
+                    <div class="eob-card-sub">Track applicants from first contact through interview, selection, or rejection.</div>
+                </div>
+                <div class="eob-results">{{ $candidates->total() }} candidate(s)</div>
+            </div>
+
+            @if($candidates->isEmpty())
+                <div class="eob-empty">No recruitment candidates found.</div>
+            @else
+                <div style="overflow-x:auto;">
+                    <table class="eob-list-table">
+                        <thead>
+                            <tr>
+                                <th>Candidate</th>
+                                <th>Applied For</th>
+                                <th>Contact</th>
+                                <th>Location</th>
+                                <th>HR Activity</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($candidates as $candidate)
+                                <tr>
+                                    <td>
+                                        <div class="eob-cell-title">{{ $candidate->name }}</div>
+                                        <div class="eob-cell-sub">{{ $candidate->candidate_no }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="eob-cell-title">{{ $candidate->job_title }}</div>
+                                        <div class="eob-cell-sub">{{ $candidate->source ?: 'Source not added' }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="eob-cell-title">{{ $candidate->mobile_number }}</div>
+                                        <div class="eob-cell-sub">{{ $candidate->email ?: 'Email not added' }}</div>
+                                    </td>
+                                    <td>{{ $candidate->location ?: 'N/A' }}</td>
+                                    <td>
+                                        <div class="eob-cell-title">{{ $candidate->call_updates_count }} call update(s)</div>
+                                        <div class="eob-cell-sub">{{ $candidate->interviews_count }} interview(s)</div>
+                                    </td>
+                                    <td><span class="rec-chip rec-chip-{{ $candidate->status }}">{{ $candidate->status_label }}</span></td>
+                                    <td>{{ $candidate->created_at->format('d M Y') }}</td>
+                                    <td>
+                                        <div class="eob-inline-actions">
+                                            <a href="{{ route('recruitment.show', $candidate) }}" class="eob-icon-btn" title="View">V</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                @if($candidates->hasPages())
+                    @include('partials.table-pagination', ['paginator' => $candidates])
+                @endif
+            @endif
+        </div>
+    </div>
+</div>
+@endsection

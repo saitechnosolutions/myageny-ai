@@ -25,7 +25,7 @@ class SuperAdminSeeder extends Seeder
         $role->syncPermissions(Permission::withoutGlobalScopes()->get());
 
         $user = User::updateOrCreate(
-            ['email' => 'admin@gmail.com'],
+            ['email' => 'admin@myagency.com'],
             [
                 'name' => 'Super Admin',
                 'password' => Hash::make('12345678'),

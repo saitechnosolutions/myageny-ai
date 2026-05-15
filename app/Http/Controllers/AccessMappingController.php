@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Role;
+use App\Models\RoleHierarchyMapping;
 use App\Models\RoleMapping;
 use App\Models\User;
 use App\Models\UserMapping;
@@ -17,10 +18,10 @@ class AccessMappingController extends Controller
 
     public function roleIndex()
     {
-        $roles = Role::with(['roleMapping', 'users'])
+        $roles = Role::with(['roleMapping', 'users', 'roleParentMapping.parentRole', 'childRoleMappings.childRole'])
             ->orderByRaw('COALESCE(display_name, name)')
             ->get();
-        $roleChart = $this->buildRoleChart();
+        $roleChart = $this->buildRoleChart($roles);
 
         $accessLevels = RoleMapping::ACCESS_LEVELS;
 
@@ -32,10 +33,41 @@ class AccessMappingController extends Controller
         $data = $request->validate([
             'mappings' => ['required', 'array'],
             'mappings.*' => ['required', Rule::in(array_keys(RoleMapping::ACCESS_LEVELS))],
+            'parents' => ['nullable', 'array'],
+            'parents.*' => ['nullable', 'integer', 'exists:roles,id'],
         ]);
 
         $roles = Role::whereIn('id', array_keys($data['mappings']))->get();
+        $rolesById = $roles->keyBy('id');
         $companyId = auth()->user()?->company_id;
+        $submittedParents = collect($data['parents'] ?? [])
+            ->mapWithKeys(fn ($parentId, $childId) => [(int) $childId => $parentId ? (int) $parentId : null]);
+
+        $parentMap = RoleHierarchyMapping::query()
+            ->pluck('parent_role_id', 'child_role_id')
+            ->map(fn ($parentId) => (int) $parentId)
+            ->all();
+
+        foreach ($submittedParents as $childId => $parentId) {
+            if (! $parentId) {
+                unset($parentMap[$childId]);
+                continue;
+            }
+
+            $parentMap[$childId] = $parentId;
+        }
+
+        foreach ($submittedParents as $childId => $parentId) {
+            if (! $parentId) {
+                continue;
+            }
+
+            if ((int) $childId === (int) $parentId || $this->roleHierarchyWouldLoop((int) $childId, (int) $parentId, $parentMap)) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'This role mapping would create a hierarchy loop. Please choose another parent role.');
+            }
+        }
 
         foreach ($roles as $role) {
             RoleMapping::updateOrCreate(
@@ -43,6 +75,27 @@ class AccessMappingController extends Controller
                 [
                     'company_id' => $role->company_id ?: $companyId,
                     'access_level' => $data['mappings'][$role->id],
+                ]
+            );
+        }
+
+        foreach ($submittedParents as $childId => $parentId) {
+            $childRole = $rolesById->get($childId);
+
+            if (! $childRole) {
+                continue;
+            }
+
+            if (! $parentId) {
+                RoleHierarchyMapping::where('child_role_id', $childId)->delete();
+                continue;
+            }
+
+            RoleHierarchyMapping::updateOrCreate(
+                ['child_role_id' => $childId],
+                [
+                    'company_id' => $childRole->company_id ?: $companyId,
+                    'parent_role_id' => $parentId,
                 ]
             );
         }
@@ -142,52 +195,70 @@ class AccessMappingController extends Controller
         return back()->with('success', 'User mapping removed successfully.');
     }
 
-    private function buildRoleChart(): Collection
+    private function buildRoleChart(Collection $roles): array
     {
-        $mappings = UserMapping::with(['manager.roles', 'user.roles'])
-            ->orderBy('manager_id')
-            ->get();
-
-        return $mappings
-            ->groupBy(fn (UserMapping $mapping) => $this->roleLabel($mapping->manager))
-            ->map(function (Collection $managerMappings, string $managerRole) {
-                $managers = $managerMappings
-                    ->pluck('manager')
-                    ->filter()
-                    ->unique('id')
-                    ->sortBy('name')
-                    ->map(fn (User $user) => $this->userChartPayload($user))
-                    ->values();
-
-                $childRoles = $managerMappings
-                    ->groupBy(fn (UserMapping $mapping) => $this->roleLabel($mapping->user))
-                    ->map(function (Collection $childMappings, string $childRole) {
-                        $users = $childMappings
-                            ->pluck('user')
-                            ->filter()
-                            ->unique('id')
-                            ->sortBy('name')
-                            ->map(fn (User $user) => $this->userChartPayload($user))
-                            ->values();
-
-                        return [
-                            'role' => $childRole,
-                            'users' => $users,
-                            'count' => $users->count(),
-                        ];
-                    })
-                    ->sortBy('role')
-                    ->values();
+        $nodes = $roles
+            ->map(function (Role $role) {
+                $accessLevel = $role->roleMapping?->access_level ?? $this->visibility->defaultAccessLevelForRole($role);
 
                 return [
-                    'role' => $managerRole,
-                    'managers' => $managers,
-                    'children' => $childRoles,
-                    'count' => $childRoles->sum('count'),
+                    'id' => 'role-' . $role->id,
+                    'roleId' => (int) $role->id,
+                    'parentRoleId' => $role->roleParentMapping?->parent_role_id ? (int) $role->roleParentMapping->parent_role_id : null,
+                    'name' => $this->roleDisplayName($role),
+                    'key' => $role->name,
+                    'accessLevel' => $accessLevel,
+                    'accessLabel' => RoleMapping::labelFor($accessLevel),
+                    'userCount' => $role->users->count(),
+                    'childCount' => $role->childRoleMappings->count(),
+                    'color' => $this->roleChartColor($accessLevel),
                 ];
             })
-            ->sortBy('role')
             ->values();
+
+        $links = $nodes
+            ->filter(fn (array $node) => $node['parentRoleId'])
+            ->map(fn (array $node) => ['role-' . $node['parentRoleId'], $node['id']])
+            ->values();
+
+        return [
+            'nodes' => $nodes,
+            'links' => $links,
+            'mappedCount' => $links->count(),
+            'parentCount' => $nodes->where('childCount', '>', 0)->count(),
+        ];
+    }
+
+    private function roleHierarchyWouldLoop(int $childId, int $parentId, array $parentMap): bool
+    {
+        $visited = [$childId => true];
+        $currentId = $parentId;
+
+        while ($currentId) {
+            if (isset($visited[$currentId])) {
+                return true;
+            }
+
+            $visited[$currentId] = true;
+            $currentId = $parentMap[$currentId] ?? null;
+        }
+
+        return false;
+    }
+
+    private function roleDisplayName(Role $role): string
+    {
+        return $role->display_name ?: str($role->name)->after('__')->replace('_', ' ')->title()->value();
+    }
+
+    private function roleChartColor(string $accessLevel): string
+    {
+        return match ($accessLevel) {
+            RoleMapping::ACCESS_COMPANY => '#008236',
+            RoleMapping::ACCESS_TEAM => '#8fd3a9',
+            RoleMapping::ACCESS_TL => '#65b7d9',
+            default => '#f4c95d',
+        };
     }
 
     private function buildUserTree(User $user, Collection $users, Collection $visited): array

@@ -60,11 +60,19 @@ class DataVisibilityService
             return RoleMapping::ACCESS_TEAM;
         }
 
+        if ($mappedLevels->contains(RoleMapping::ACCESS_TL)) {
+            return RoleMapping::ACCESS_TL;
+        }
+
         foreach ($user->roles as $role) {
             $defaultLevel = $this->defaultAccessLevelForRole($role);
 
             if ($defaultLevel === RoleMapping::ACCESS_TEAM) {
                 return RoleMapping::ACCESS_TEAM;
+            }
+
+            if ($defaultLevel === RoleMapping::ACCESS_TL) {
+                return RoleMapping::ACCESS_TL;
             }
         }
 
@@ -83,6 +91,10 @@ class DataVisibilityService
 
         if ($keys->intersect(['tl', 'team_leader', 'teamlead', 'manager', 'sales_manager', 'sales_head', 'branch_manager'])->isNotEmpty()) {
             return RoleMapping::ACCESS_TEAM;
+        }
+
+        if ($keys->intersect(['project_coordinator', 'project_coordination', 'pc'])->isNotEmpty()) {
+            return RoleMapping::ACCESS_TL;
         }
 
         return RoleMapping::ACCESS_SELF;
@@ -104,6 +116,10 @@ class DataVisibilityService
 
         if ($accessLevel === RoleMapping::ACCESS_TEAM) {
             return $this->descendantUserIds($user)->push($user->id)->unique()->values()->all();
+        }
+
+        if ($accessLevel === RoleMapping::ACCESS_TL) {
+            return $this->mappedTlUserIds($user)->push($user->id)->unique()->values()->all();
         }
 
         return [$user->id];
@@ -134,6 +150,27 @@ class DataVisibilityService
         }
 
         return $descendants->unique()->values();
+    }
+
+    public function mappedTlUserIds(User $manager): Collection
+    {
+        $companyId = $manager->company_id;
+
+        $tlIds = UserMapping::query()
+            ->where('manager_id', $manager->id)
+            ->when($companyId, fn (Builder $query) => $query->where('company_id', $companyId))
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $userId) => $this->userHasTlRole($userId))
+            ->unique()
+            ->values();
+
+        return $tlIds
+            ->map(fn (int $tlId) => User::find($tlId))
+            ->filter()
+            ->flatMap(fn (User $tlUser) => $this->descendantUserIds($tlUser)->push($tlUser->id))
+            ->unique()
+            ->values();
     }
 
     public function visibleAssignableUsers(?User $user = null): Collection
@@ -357,6 +394,20 @@ class DataVisibilityService
         return $user->roles->contains(function ($role) {
             return in_array($this->roleKey($role->name), ['super_admin', 'admin', 'company_admin'], true)
                 || in_array($this->roleKey((string) $role->display_name), ['super_admin', 'admin', 'company_admin'], true);
+        });
+    }
+
+    private function userHasTlRole(int $userId): bool
+    {
+        $user = User::with('roles')->find($userId);
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->roles->contains(function ($role) {
+            return in_array($this->roleKey($role->name), ['tl', 'team_leader', 'teamlead'], true)
+                || in_array($this->roleKey((string) $role->display_name), ['tl', 'team_leader', 'teamlead'], true);
         });
     }
 

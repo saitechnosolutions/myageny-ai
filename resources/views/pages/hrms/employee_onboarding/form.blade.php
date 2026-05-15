@@ -1,5 +1,11 @@
 @php
     $employee = $employee ?? null;
+    $portalUser = $employee?->portalUser;
+    $selectedTlUserId = old('tl_user_id', $portalUser?->managerMappings?->first()?->manager_id);
+    $portalBranchId = old('branch_id', $portalUser?->branch_id ?? ((($method ?? 'POST') === 'POST') ? auth()->user()?->branch_id : null));
+    $portalEmail = old('portal_email', $portalUser?->email ?? '');
+    $portalPasswordRequired = ($method ?? 'POST') === 'POST';
+    $portalAccountRequired = $portalPasswordRequired || (bool) $portalUser;
 
     $bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
     $statusOptions = ['pending' => 'Pending', 'verified' => 'Verified', 'rejected' => 'Rejected'];
@@ -69,21 +75,20 @@
 
     $wizardSteps = [
         ['key' => 'personal', 'number' => '01', 'title' => 'Personal Details', 'sub' => 'Basic profile and identity information.'],
-        ['key' => 'emergency', 'number' => '02', 'title' => 'Emergency Contact', 'sub' => 'Primary emergency reach-out person.'],
-        ['key' => 'education', 'number' => '03', 'title' => 'Educational Details', 'sub' => 'Academic records and qualifications.'],
-        ['key' => 'employment', 'number' => '04', 'title' => 'Employment Details', 'sub' => 'Previous organisations and CTC history.'],
-        ['key' => 'family', 'number' => '05', 'title' => 'Family Details', 'sub' => 'Immediate family and contact details.'],
-        ['key' => 'reference', 'number' => '06', 'title' => 'Professional Reference', 'sub' => 'Reference contact information.'],
-        ['key' => 'salary', 'number' => '07', 'title' => 'Employee Salaries', 'sub' => 'Salary, statutory deductions, and payroll setup.'],
-        ['key' => 'bank', 'number' => '08', 'title' => 'Bank Account Details', 'sub' => 'Payroll and bank information.'],
-        ['key' => 'documents', 'number' => '09', 'title' => 'Document Uploads', 'sub' => 'Certificates and identity proofs.'],
-        ['key' => 'declaration', 'number' => '10', 'title' => 'Declaration', 'sub' => 'Final declaration and signature.'],
+        ['key' => 'portal', 'number' => '02', 'title' => 'Employee Portal Account', 'sub' => 'Login, branch, role, and TL mapping.'],
+        ['key' => 'emergency', 'number' => '03', 'title' => 'Emergency Contact', 'sub' => 'Primary emergency reach-out person.'],
+        ['key' => 'education', 'number' => '04', 'title' => 'Educational Details', 'sub' => 'Academic records and qualifications.'],
+        ['key' => 'employment', 'number' => '05', 'title' => 'Employment Details', 'sub' => 'Previous organisations and CTC history.'],
+        ['key' => 'family', 'number' => '06', 'title' => 'Family Details', 'sub' => 'Immediate family and contact details.'],
+        ['key' => 'reference', 'number' => '07', 'title' => 'Professional Reference', 'sub' => 'Reference contact information.'],
+        ['key' => 'salary', 'number' => '08', 'title' => 'Employee Salaries', 'sub' => 'Salary, statutory deductions, and payroll setup.'],
+        ['key' => 'bank', 'number' => '09', 'title' => 'Bank Account Details', 'sub' => 'Payroll and bank information.'],
+        ['key' => 'documents', 'number' => '10', 'title' => 'Document Uploads', 'sub' => 'Certificates and identity proofs.'],
+        ['key' => 'declaration', 'number' => '11', 'title' => 'Declaration', 'sub' => 'Final declaration and signature.'],
     ];
 
     $errorStepMap = [
         'name' => 'personal',
-        'role_id' => 'personal',
-        'department_id' => 'personal',
         'father_name' => 'personal',
         'correspondence_address' => 'personal',
         'permanent_address' => 'personal',
@@ -97,6 +102,12 @@
         'pan_card_no' => 'personal',
         'photograph' => 'personal',
         'status' => 'personal',
+        'portal_email' => 'portal',
+        'portal_password' => 'portal',
+        'branch_id' => 'portal',
+        'role_id' => 'portal',
+        'department_id' => 'portal',
+        'tl_user_id' => 'portal',
         'emergency_contact_name' => 'emergency',
         'emergency_relation' => 'emergency',
         'emergency_contact_no' => 'emergency',
@@ -222,35 +233,6 @@
                                 @error('name')<div class="eob-error">{{ $message }}</div>@enderror
                             </div>
                             <div class="eob-group">
-                                <label class="eob-label">Department</label>
-                                <select name="department_id" class="eob-select" id="employeeDepartmentSelect">
-                                    <option value="">Select department</option>
-                                    @foreach($departments as $department)
-                                        <option value="{{ $department->id }}" @selected((string) old('department_id', $employee?->department_id) === (string) $department->id)>
-                                            {{ $department->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('department_id')<div class="eob-error">{{ $message }}</div>@enderror
-                            </div>
-                            <div class="eob-group">
-                                <label class="eob-label">Role</label>
-                                <select name="role_id" class="eob-select" id="employeeRoleSelect">
-                                    <option value="">Select role</option>
-                                    @foreach($roles as $role)
-                                        <option
-                                            value="{{ $role->id }}"
-                                            data-department-id="{{ $role->department_id }}"
-                                            @selected((string) old('role_id', $employee?->role_id) === (string) $role->id)
-                                        >
-                                            {{ $role->display_name ?: ucfirst(str_replace('_', ' ', $role->name)) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div class="eob-help">After selecting a department, only roles from that department will be shown.</div>
-                                @error('role_id')<div class="eob-error">{{ $message }}</div>@enderror
-                            </div>
-                            <div class="eob-group">
                                 <label class="eob-label">Father's Name</label>
                                 <input type="text" name="father_name" class="eob-input" value="{{ old('father_name', $employee?->father_name) }}">
                                 @error('father_name')<div class="eob-error">{{ $message }}</div>@enderror
@@ -337,6 +319,112 @@
                                     @endforeach
                                 </select>
                                 @error('status')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="eob-card eob-wizard-panel" data-step="portal" data-step-title="Employee Portal Account" data-step-sub="Login, branch, role, and TL mapping.">
+                    <div class="eob-card-head">
+                        <div>
+                            <div class="eob-card-title">Employee Portal Account</div>
+                            <div class="eob-card-sub">Create the login account and place the employee under the correct TL.</div>
+                        </div>
+                    </div>
+                    <div class="eob-card-body">
+                        <div class="eob-form-grid">
+                            <div class="eob-group">
+                                <label class="eob-label">User Email @if($portalAccountRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <input
+                                    type="email"
+                                    name="portal_email"
+                                    id="employeePortalEmail"
+                                    class="eob-input"
+                                    value="{{ $portalEmail }}"
+                                    autocomplete="username"
+                                    @if($portalAccountRequired) required @endif
+                                >
+                                <div class="eob-help">This email will be used for employee portal login.</div>
+                                @error('portal_email')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group">
+                                <label class="eob-label">Password @if($portalPasswordRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <input
+                                    type="password"
+                                    name="portal_password"
+                                    class="eob-input"
+                                    autocomplete="new-password"
+                                    @if($portalPasswordRequired) required @endif
+                                >
+                                <div class="eob-help">{{ $portalPasswordRequired ? 'Minimum 8 characters.' : 'Leave blank to keep the current password.' }}</div>
+                                @error('portal_password')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group">
+                                <label class="eob-label">Branch @if($portalAccountRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <select name="branch_id" class="eob-select" id="employeeBranchSelect" @if($portalAccountRequired) required @endif>
+                                    <option value="">Select branch</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}" @selected((string) $portalBranchId === (string) $branch->id)>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('branch_id')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group">
+                                <label class="eob-label">Department @if($portalAccountRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <select name="department_id" class="eob-select" id="employeeDepartmentSelect" @if($portalAccountRequired) required @endif>
+                                    <option value="">Select department</option>
+                                    @foreach($departments as $department)
+                                        <option value="{{ $department->id }}" @selected((string) old('department_id', $employee?->department_id) === (string) $department->id)>
+                                            {{ $department->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('department_id')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group">
+                                <label class="eob-label">Role @if($portalAccountRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <select name="role_id" class="eob-select" id="employeeRoleSelect" @if($portalAccountRequired) required @endif>
+                                    <option value="">Select role</option>
+                                    @foreach($roles as $role)
+                                        <option
+                                            value="{{ $role->id }}"
+                                            data-department-id="{{ $role->department_id }}"
+                                            data-department-name="{{ $role->department?->name ?? '' }}"
+                                            data-parent-role-id="{{ $role->roleParentMapping?->parent_role_id ?? '' }}"
+                                            data-parent-role-name="{{ $role->roleParentMapping?->parentRole ? ($role->roleParentMapping->parentRole->display_name ?: \Illuminate\Support\Str::of(\Illuminate\Support\Str::afterLast($role->roleParentMapping->parentRole->name, '__'))->replace('_', ' ')->title()->value()) : '' }}"
+                                            @selected((string) old('role_id', $employee?->role_id) === (string) $role->id)
+                                        >
+                                            {{ $role->display_name ?: ucfirst(str_replace('_', ' ', \Illuminate\Support\Str::afterLast($role->name, '__'))) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="eob-help">After selecting a department, only roles from that department will be shown.</div>
+                                @error('role_id')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group">
+                                <label class="eob-label">TL Mapping @if($portalAccountRequired)<span class="eob-label-required">*</span>@endif</label>
+                                <select name="tl_user_id" class="eob-select" id="employeeTlSelect" data-selected-tl="{{ $selectedTlUserId }}" @if($portalAccountRequired) required @endif>
+                                    <option value="">Select department and role first</option>
+                                    @foreach($tlUsers as $tlUser)
+                                        <option
+                                            value="{{ $tlUser['id'] }}"
+                                            data-branch-id="{{ $tlUser['branch_id'] }}"
+                                            data-department-ids="{{ implode(',', $tlUser['department_ids']) }}"
+                                            data-role-ids="{{ implode(',', $tlUser['role_ids'] ?? []) }}"
+                                            @selected((string) $selectedTlUserId === (string) $tlUser['id'])
+                                        >
+                                            {{ $tlUser['name'] }} - {{ $tlUser['role_label'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="eob-help" id="employeeTlHelp">TLs will appear after department and role selection.</div>
+                                @error('tl_user_id')<div class="eob-error">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="eob-group full">
+                                <label class="eob-label">Portal Mapping Summary</label>
+                                <div class="eob-help" id="employeePortalMappingSummary">Select department and role to view available TLs and current mapping details.</div>
                             </div>
                         </div>
                     </div>
@@ -814,6 +902,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const marriageDateGroup = document.getElementById('marriageDateGroup');
     const roleSelect = document.getElementById('employeeRoleSelect');
     const departmentSelect = document.getElementById('employeeDepartmentSelect');
+    const branchSelect = document.getElementById('employeeBranchSelect');
+    const tlSelect = document.getElementById('employeeTlSelect');
+    const tlHelp = document.getElementById('employeeTlHelp');
+    const personalEmailInput = form.querySelector('input[name="email"]');
+    const portalEmailInput = document.getElementById('employeePortalEmail');
     const stepButtons = Array.from(document.querySelectorAll('.eob-wizard-step-btn'));
     const panels = Array.from(document.querySelectorAll('.eob-wizard-panel'));
     const prevButton = document.getElementById('wizardPrevBtn');
@@ -823,6 +916,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const progressBar = document.getElementById('wizardProgressBar');
     const activeTitle = document.getElementById('wizardActiveTitle');
     const activeSub = document.getElementById('wizardActiveSub');
+    const tlUsers = @json($tlUsers);
+    const currentPortalUserId = '{{ $portalUser?->id }}';
+    const portalSummary = document.getElementById('employeePortalMappingSummary');
 
     function toggleMarriageDate() {
         const selected = document.querySelector('input[name="marital_status"]:checked');
@@ -834,11 +930,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     toggleMarriageDate();
 
+    if (personalEmailInput && portalEmailInput) {
+        personalEmailInput.addEventListener('input', function () {
+            if (!portalEmailInput.dataset.touched && portalEmailInput.value.trim() === '') {
+                portalEmailInput.value = personalEmailInput.value.trim();
+            }
+        });
+
+        portalEmailInput.addEventListener('input', function () {
+            portalEmailInput.dataset.touched = '1';
+        });
+    }
+
     const allRoleOptions = roleSelect ? Array.from(roleSelect.querySelectorAll('option')).map(function (option) {
         return {
             value: option.value,
             label: option.textContent,
             departmentId: option.getAttribute('data-department-id') || '',
+            parentRoleId: option.getAttribute('data-parent-role-id') || '',
+            parentRoleLabel: option.getAttribute('data-parent-role-name') || '',
             selected: option.selected
         };
     }) : [];
@@ -876,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return true;
             }
 
-            return option.departmentId === selectedDepartmentId;
+            return option.departmentId === '' || option.departmentId === selectedDepartmentId;
         });
 
         roleSelect.innerHTML = '';
@@ -888,6 +998,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (option.departmentId) {
                 optionElement.setAttribute('data-department-id', option.departmentId);
+            }
+
+            if (option.parentRoleId) {
+                optionElement.setAttribute('data-parent-role-id', option.parentRoleId);
+            }
+
+            if (option.parentRoleLabel) {
+                optionElement.setAttribute('data-parent-role-name', option.parentRoleLabel);
             }
 
             if (option.value === selectedRoleId) {
@@ -906,15 +1024,205 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function selectedRoleMeta() {
+        if (!roleSelect || !roleSelect.value) {
+            return null;
+        }
+
+        const selectedOption = roleSelect.options[roleSelect.selectedIndex];
+        const savedOption = allRoleOptions.find(function (option) {
+            return String(option.value) === String(roleSelect.value);
+        });
+
+        return {
+            value: roleSelect.value,
+            label: selectedOption?.textContent.trim() || savedOption?.label || '',
+            departmentId: selectedOption?.getAttribute('data-department-id') || savedOption?.departmentId || '',
+            parentRoleId: selectedOption?.getAttribute('data-parent-role-id') || savedOption?.parentRoleId || '',
+            parentRoleLabel: selectedOption?.getAttribute('data-parent-role-name') || savedOption?.parentRoleLabel || '',
+        };
+    }
+
+    function normalizedRoleLabel(label) {
+        return String(label || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    }
+
+    function tlUserMatchesMappedParentRole(tlUser, parentRoleId, parentRoleLabel) {
+        const roleIds = Array.isArray(tlUser.role_ids) ? tlUser.role_ids.map(String) : [];
+
+        if (parentRoleId && roleIds.includes(String(parentRoleId))) {
+            return true;
+        }
+
+        const parentKey = normalizedRoleLabel(parentRoleLabel);
+
+        return Boolean(tlUser.is_super_admin && ['super_admin', 'admin'].includes(parentKey));
+    }
+
+    function filteredTlUsersForSelection() {
+        const selectedDepartmentId = departmentSelect ? departmentSelect.value : '';
+        const selectedRole = selectedRoleMeta();
+        const selectedBranchId = branchSelect ? branchSelect.value : '';
+        const parentRoleId = selectedRole?.parentRoleId || '';
+        const parentRoleLabel = selectedRole?.parentRoleLabel || '';
+
+        return tlUsers.filter(function (tlUser) {
+            if (currentPortalUserId && String(tlUser.id) === String(currentPortalUserId)) {
+                return false;
+            }
+
+            const matchesBranch = !selectedBranchId || !tlUser.branch_id || String(tlUser.branch_id) === String(selectedBranchId) || tlUser.is_super_admin;
+
+            if (parentRoleId) {
+                return matchesBranch && tlUserMatchesMappedParentRole(tlUser, parentRoleId, parentRoleLabel);
+            }
+
+            const departments = Array.isArray(tlUser.department_ids) ? tlUser.department_ids.map(String) : [];
+            const matchesDepartment = departments.includes(String(selectedDepartmentId)) || departments.includes('') || tlUser.is_super_admin;
+
+            return matchesDepartment && matchesBranch;
+        });
+    }
+
+    function updateTlOptions() {
+        if (!tlSelect) {
+            return;
+        }
+
+        const selectedDepartmentId = departmentSelect ? departmentSelect.value : '';
+        const selectedRoleId = roleSelect ? roleSelect.value : '';
+        const selectedRole = selectedRoleMeta();
+        const parentRoleId = selectedRole?.parentRoleId || '';
+        const parentRoleLabel = selectedRole?.parentRoleLabel || 'mapped parent role';
+        const previousValue = tlSelect.value || tlSelect.getAttribute('data-selected-tl') || '';
+
+        tlSelect.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+
+        if (!selectedDepartmentId || !selectedRoleId) {
+            placeholder.textContent = 'Select department and role first';
+            tlSelect.appendChild(placeholder);
+            tlSelect.value = '';
+            if (tlHelp) {
+                tlHelp.textContent = 'TLs will appear after department and role selection.';
+            }
+            return;
+        }
+
+        const filteredTlUsers = filteredTlUsersForSelection();
+
+        placeholder.textContent = filteredTlUsers.length
+            ? (parentRoleId ? 'Select ' + parentRoleLabel : 'Select TL')
+            : (parentRoleId ? 'No user found with ' + parentRoleLabel + ' role' : 'No TL found for this department');
+        tlSelect.appendChild(placeholder);
+
+        filteredTlUsers.forEach(function (tlUser) {
+            const option = document.createElement('option');
+            option.value = tlUser.id;
+            option.textContent = tlUser.name + ' - ' + (tlUser.role_label || 'Team Lead');
+
+            if (tlUser.email) {
+                option.textContent += ' (' + tlUser.email + ')';
+            }
+
+            if (String(tlUser.id) === String(previousValue)) {
+                option.selected = true;
+            }
+
+            tlSelect.appendChild(option);
+        });
+
+        if (!filteredTlUsers.some(function (tlUser) {
+            return String(tlUser.id) === String(previousValue);
+        })) {
+            tlSelect.value = '';
+        }
+
+        if (tlHelp) {
+            tlHelp.textContent = filteredTlUsers.length
+                ? (
+                    parentRoleId
+                        ? filteredTlUsers.length + ' user' + (filteredTlUsers.length === 1 ? '' : 's') + ' available from mapped parent role: ' + parentRoleLabel + '.'
+                        : filteredTlUsers.length + ' TL' + (filteredTlUsers.length === 1 ? '' : 's') + ' available for the selected department.'
+                )
+                : (
+                    parentRoleId
+                        ? 'No active users found for mapped parent role: ' + parentRoleLabel + '.'
+                        : 'No active TLs found. Create or assign a TL role for this department first.'
+                );
+        }
+
+        updatePortalMappingSummary();
+    }
+
+    function updatePortalMappingSummary() {
+        if (!portalSummary || !departmentSelect || !roleSelect || !tlSelect) {
+            return;
+        }
+
+        const departmentLabel = departmentSelect.options[departmentSelect.selectedIndex]?.textContent.trim() || 'No department selected';
+        const roleLabel = roleSelect.options[roleSelect.selectedIndex]?.textContent.trim() || 'No role selected';
+        const selectedRole = selectedRoleMeta();
+        const parentRoleLabel = selectedRole?.parentRoleLabel || '';
+        const selectedTlOption = tlSelect.options[tlSelect.selectedIndex];
+        const selectedTlLabel = selectedTlOption && selectedTlOption.value ? selectedTlOption.textContent.trim() : null;
+
+        const availableRoleLabels = allRoleOptions
+            .filter(function (option) {
+                if (!option.value) {
+                    return false;
+                }
+
+                if (!departmentSelect.value) {
+                    return true;
+                }
+
+                return option.departmentId === departmentSelect.value || option.departmentId === '';
+            })
+            .map(function (option) { return option.label; });
+
+        const filteredTlUsers = filteredTlUsersForSelection();
+
+        let summary = 'Department: ' + departmentLabel + '. Role: ' + roleLabel + '. ';
+
+        if (departmentSelect.value) {
+            summary += 'Available roles for this department: ' + (availableRoleLabels.length ? availableRoleLabels.join(', ') : 'None') + '. ';
+        }
+
+        if (selectedTlLabel) {
+            summary += 'Selected TL mapping: ' + selectedTlLabel + '.';
+        } else {
+            summary += parentRoleLabel
+                ? 'Mapped parent role: ' + parentRoleLabel + '. Available users: ' + filteredTlUsers.length + '.'
+                : 'Available TLs for selected department: ' + filteredTlUsers.length + ' ' + (filteredTlUsers.length === 1 ? 'TL' : 'TLs') + '.';
+        }
+
+        portalSummary.textContent = summary;
+    }
+
     if (roleSelect) {
         roleSelect.addEventListener('change', function () {
             syncDepartmentFromRole(true);
+            filterRolesByDepartment();
+            updateTlOptions();
+            updatePortalMappingSummary();
         });
     }
 
     if (departmentSelect) {
         departmentSelect.addEventListener('change', function () {
             filterRolesByDepartment();
+            updateTlOptions();
+            updatePortalMappingSummary();
+        });
+    }
+
+    if (branchSelect) {
+        branchSelect.addEventListener('change', function () {
+            updateTlOptions();
+            updatePortalMappingSummary();
         });
     }
 
@@ -923,6 +1231,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     filterRolesByDepartment();
+    updateTlOptions();
 
     const salaryInputs = {
         grossSalary: form.querySelector('[data-salary-input="gross_salary"]'),

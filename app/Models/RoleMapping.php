@@ -13,11 +13,13 @@ class RoleMapping extends Model
 
     public const ACCESS_COMPANY = 'company';
     public const ACCESS_TEAM = 'team';
+    public const ACCESS_TL = 'tl';
     public const ACCESS_SELF = 'self';
 
     public const ACCESS_LEVELS = [
         self::ACCESS_COMPANY => 'Company All Data',
         self::ACCESS_TEAM => 'Mapped Team Data',
+        self::ACCESS_TL => 'Mapped TL Data',
         self::ACCESS_SELF => 'Assigned Self Data',
     ];
 

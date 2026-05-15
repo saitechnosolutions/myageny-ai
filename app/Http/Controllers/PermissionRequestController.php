@@ -279,7 +279,10 @@ class PermissionRequestController extends Controller
     private function resolveEmployee(User $user): ?EmployeeOnboarding
     {
         return EmployeeOnboarding::query()
-            ->where('email', $user->email)
+            ->where(function ($query) use ($user) {
+                $query->where('portal_user_id', $user->id)
+                    ->orWhere('email', $user->email);
+            })
             ->latest()
             ->first();
     }
