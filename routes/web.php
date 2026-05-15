@@ -29,6 +29,7 @@ use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\QuotationSettingsController;
+use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\SuperAdminDashboardController;
 use App\Http\Controllers\UserController;
@@ -51,6 +52,9 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::get('/quotations/{id}/pdf',  [QuotationController::class, 'downloadPdf'])->name('quotation.pdf');
+Route::get('/quotations/{quotation}/response/{response}', [QuotationController::class, 'customerResponse'])
+    ->middleware('signed')
+    ->name('quotations.customer-response');
 
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
@@ -163,6 +167,13 @@ Route::middleware(['auth'])->group(function () {
         ->name('permission-requests.approve');
     Route::patch('/permission-requests/{permissionRequest}/approvals/{approval}/reject', [PermissionRequestController::class, 'reject'])
         ->name('permission-requests.reject');
+    Route::resource('recruitment', RecruitmentController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::post('/recruitment/{recruitment}/call-updates', [RecruitmentController::class, 'storeCallUpdate'])
+        ->name('recruitment.call-updates.store');
+    Route::post('/recruitment/{recruitment}/interviews', [RecruitmentController::class, 'storeInterview'])
+        ->name('recruitment.interviews.store');
+    Route::patch('/recruitment/{recruitment}/status', [RecruitmentController::class, 'updateStatus'])
+        ->name('recruitment.status.update');
     Route::resource('assets', AssetEntryController::class);
     Route::resource('employee-onboarding', EmployeeOnboardingController::class);
     Route::resource('interns', InternJoiningFormController::class);
@@ -361,6 +372,7 @@ Route::post('/facebook-integration/{campaignMaster}/sync', [FacebookIntegrationC
     Route::post('/quotations', [QuotationController::class, 'store'])->middleware('can:quotations.create')->name('quotations.store');
     Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->middleware('can:quotations.view')->name('quotations.show');
     Route::patch('/quotations/{quotation}/approve', [QuotationController::class, 'approve'])->middleware('can:quotations.approve')->name('quotations.approve');
+    Route::post('/quotations/{quotation}/send-email', [QuotationController::class, 'sendEmail'])->middleware('can:quotations.view')->name('quotations.send-email');
     Route::delete('/quotations/{quotation}', [QuotationController::class, 'destroy'])->middleware('can:quotations.delete')->name('quotations.destroy');
 
 

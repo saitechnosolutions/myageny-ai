@@ -12,6 +12,15 @@ class Quotation extends Model
 {
     use HasFactory, BelongsToCompany;
 
+    public const CUSTOMER_RESPONSE_PENDING = 'pending';
+    public const CUSTOMER_RESPONSE_AGREE = 'agree';
+    public const CUSTOMER_RESPONSE_DISAGREE = 'disagree';
+    public const CUSTOMER_RESPONSES = [
+        self::CUSTOMER_RESPONSE_PENDING => 'Pending',
+        self::CUSTOMER_RESPONSE_AGREE => 'Agree',
+        self::CUSTOMER_RESPONSE_DISAGREE => 'Disagree',
+    ];
+
     public const GST_RATE = 18.0;
     public const DEFAULT_SELLER_STATE = 'Tamil Nadu';
     public const INDIAN_STATES = [
@@ -63,6 +72,8 @@ class Quotation extends Model
         'total_amount',
         'lead_id',
         'is_approved',
+        'customer_response',
+        'customer_responded_at',
         'approved_by',
         'approved_at',
         'notes',
@@ -86,6 +97,7 @@ class Quotation extends Model
         'quotation_date' => 'date',
         'valid_until'    => 'date',
         'is_approved'    => 'boolean',
+        'customer_responded_at' => 'datetime',
         'approved_at'    => 'datetime',
         'tax'            => 'decimal:2',
         'subtotal'       => 'decimal:2',
@@ -148,6 +160,11 @@ class Quotation extends Model
     public function getStatusLabelAttribute(): string
     {
         return $this->is_approved ? 'Approved' : 'Pending';
+    }
+
+    public function getCustomerResponseLabelAttribute(): string
+    {
+        return self::CUSTOMER_RESPONSES[$this->customer_response] ?? 'Pending';
     }
 
     public static function normalizeState(?string $state): ?string

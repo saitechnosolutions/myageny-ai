@@ -34,6 +34,8 @@
             'documentLabels' => $documentLabels,
             'roles' => $roles,
             'departments' => $departments,
+            'branches' => $branches,
+            'tlUsers' => $tlUsers,
         ])
     </div>
 </div>

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
-            $table->enum('access_level', ['company', 'team', 'self'])->default('self');
+            $table->enum('access_level', ['company', 'team', 'tl', 'self'])->default('self');
             $table->timestamps();
 
             $table->unique('role_id');

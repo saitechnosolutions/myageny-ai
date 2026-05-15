@@ -2,11 +2,17 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Role;
+use App\Models\RoleHierarchyMapping;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UpdateEmployeeOnboardingRequest extends FormRequest
 {
+    private const TEAM_LEAD_ROLE_KEYS = ['tl', 'team_lead', 'team_leader', 'teamlead', 'manager'];
+
     public function authorize(): bool
     {
         return true;
@@ -15,10 +21,16 @@ class UpdateEmployeeOnboardingRequest extends FormRequest
     public function rules(): array
     {
         $fileRules = ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'];
+        $employee = $this->route('employee_onboarding');
+        $portalUserId = $employee?->portal_user_id;
 
         return [
-            'role_id' => ['nullable', 'exists:roles,id'],
+            'role_id' => ['nullable', 'exists:roles,id', $this->roleMatchesDepartmentRule()],
             'department_id' => ['nullable', 'exists:departments,id'],
+            'portal_email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($portalUserId)],
+            'portal_password' => ['nullable', 'string', 'min:8', 'max:255'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
+            'tl_user_id' => ['nullable', 'exists:users,id', $this->validTeamLeadRule()],
             'name' => ['required', 'string', 'max:150'],
             'father_name' => ['nullable', 'string', 'max:150'],
             'correspondence_address' => ['nullable', 'string', 'max:2000'],
@@ -114,5 +126,204 @@ class UpdateEmployeeOnboardingRequest extends FormRequest
 
             'status' => ['required', Rule::in(['pending', 'verified', 'rejected'])],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $employee = $this->route('employee_onboarding');
+            $hasPortalUser = (bool) $employee?->portal_user_id;
+            $wantsPortalAccount = $hasPortalUser
+                || $this->filled('portal_email')
+                || $this->filled('portal_password')
+                || $this->filled('branch_id')
+                || $this->filled('tl_user_id');
+
+            if (! $wantsPortalAccount) {
+                return;
+            }
+
+            foreach ([
+                'department_id' => 'Department is required for portal account.',
+                'role_id' => 'Role is required for portal account.',
+                'portal_email' => 'User email is required for portal account.',
+                'branch_id' => 'Branch is required for portal account.',
+                'tl_user_id' => 'TL mapping is required for portal account.',
+            ] as $field => $message) {
+                if (! $this->filled($field)) {
+                    $validator->errors()->add($field, $message);
+                }
+            }
+
+            if (! $hasPortalUser && ! $this->filled('portal_password')) {
+                $validator->errors()->add('portal_password', 'Password is required to create a portal account.');
+            }
+        });
+    }
+
+    private function roleMatchesDepartmentRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $value) {
+                return;
+            }
+
+            $role = Role::withoutGlobalScopes()->find($value);
+
+            if (! $role) {
+                return;
+            }
+
+            $companyId = auth()->user()?->company_id;
+            if ($companyId !== null && (int) $role->company_id !== (int) $companyId) {
+                $fail('Selected role does not belong to your company.');
+                return;
+            }
+
+            $departmentId = $this->input('department_id');
+            if ($departmentId && $role->department_id && (int) $role->department_id !== (int) $departmentId) {
+                $fail('Selected role does not belong to the selected department.');
+            }
+        };
+    }
+
+    private function validTeamLeadRule(): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if (! $value) {
+                return;
+            }
+
+            $teamLead = User::withoutGlobalScopes()
+                ->with('roles.roleMapping')
+                ->find($value);
+
+            if (! $teamLead) {
+                return;
+            }
+
+            $employee = $this->route('employee_onboarding');
+            if ($employee?->portal_user_id && (int) $teamLead->id === (int) $employee->portal_user_id) {
+                $fail('Employee cannot be mapped under their own portal account.');
+                return;
+            }
+
+            if (! $teamLead->is_active) {
+                $fail('Selected TL account is inactive.');
+                return;
+            }
+
+            $companyId = auth()->user()?->company_id;
+            if ($companyId !== null && (int) $teamLead->company_id !== (int) $companyId) {
+                $fail('Selected TL does not belong to your company.');
+                return;
+            }
+
+            $branchId = $this->input('branch_id');
+            if ($branchId && $teamLead->branch_id && (int) $teamLead->branch_id !== (int) $branchId) {
+                $fail('Selected TL does not belong to the selected branch.');
+                return;
+            }
+
+            if (! $this->userCanManageSelectedRole($teamLead)) {
+                $fail('Selected TL does not match the mapped parent role for the selected role.');
+            }
+        };
+    }
+
+    private function userCanManageSelectedRole(User $user): bool
+    {
+        $roleId = $this->input('role_id');
+
+        if ($roleId) {
+            $mapping = RoleHierarchyMapping::with('parentRole')
+                ->where('child_role_id', $roleId)
+                ->first();
+
+            if ($mapping) {
+                return $this->userHasMappedParentRole($user, (int) $mapping->parent_role_id, $mapping->parentRole);
+            }
+        }
+
+        return $this->userHasTeamLeadRoleForDepartment($user, $this->input('department_id'));
+    }
+
+    private function userHasMappedParentRole(User $user, int $parentRoleId, ?Role $parentRole): bool
+    {
+        if ($user->roles->contains('id', $parentRoleId)) {
+            return true;
+        }
+
+        if (! $parentRole) {
+            return false;
+        }
+
+        $parentRoleKeys = collect([$parentRole->name, $parentRole->display_name])
+            ->filter()
+            ->flatMap(function (string $roleName) {
+                $normalized = $this->normalizeRoleKey($roleName);
+
+                return [$normalized, Str::afterLast($normalized, '__'), Str::afterLast($roleName, '__')];
+            })
+            ->map(fn (string $roleName) => $this->normalizeRoleKey($roleName))
+            ->unique();
+
+        $companySuperAdminId = auth()->user()?->company_id
+            ? optional(\App\Models\Company::find(auth()->user()->company_id))->super_admin_user_id
+            : null;
+
+        if (($user->isSuperAdmin() || (int) $user->id === (int) $companySuperAdminId) && $parentRoleKeys->intersect(['super_admin', 'admin'])->isNotEmpty()) {
+            return true;
+        }
+
+        if ($user->isCompanyAdmin() && $parentRoleKeys->contains('company_admin')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function userHasTeamLeadRoleForDepartment(User $user, mixed $departmentId): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $user->roles->contains(function (Role $role) use ($departmentId) {
+            $departmentMatches = ! $departmentId
+                || ! $role->department_id
+                || (int) $role->department_id === (int) $departmentId;
+
+            return $departmentMatches && $this->roleLooksLikeTeamLead($role);
+        });
+    }
+
+    private function roleLooksLikeTeamLead(Role $role): bool
+    {
+        if ($role->relationLoaded('roleMapping') && $role->roleMapping?->access_level === 'team') {
+            return true;
+        }
+
+        $roleKeys = collect([$role->name, $role->display_name])
+            ->filter()
+            ->flatMap(function (string $roleName) {
+                $normalized = $this->normalizeRoleKey($roleName);
+
+                return [$normalized, Str::afterLast($normalized, '__')];
+            })
+            ->unique();
+
+        return $roleKeys->intersect(self::TEAM_LEAD_ROLE_KEYS)->isNotEmpty();
+    }
+
+    private function normalizeRoleKey(string $value): string
+    {
+        return Str::of($value)
+            ->lower()
+            ->replace(['-', ' '], '_')
+            ->replaceMatches('/[^a-z0-9_]+/', '')
+            ->replaceMatches('/_+/', '_')
+            ->trim('_')
+            ->value();
     }
 }

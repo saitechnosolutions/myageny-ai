@@ -34,6 +34,7 @@ class EmployeeOnboarding extends Model
         'employee_id',
         'role_id',
         'department_id',
+        'portal_user_id',
         'name',
         'father_name',
         'correspondence_address',
@@ -160,6 +161,11 @@ class EmployeeOnboarding extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function portalUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'portal_user_id');
     }
 
     public function updater(): BelongsTo

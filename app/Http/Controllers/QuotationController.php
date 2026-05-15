@@ -16,7 +16,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
+use Throwable;
 
 class QuotationController extends Controller
 {
@@ -255,6 +259,80 @@ class QuotationController extends Controller
         return back()->with('success', 'Quotation approved successfully.');
     }
 
+    public function sendEmail(Quotation $quotation): RedirectResponse
+    {
+        abort_unless($this->visibility->canAccessQuotation($quotation), 403);
+
+        $quotation->loadMissing(['items.product', 'createdBy', 'lead.createdBy', 'lead.assignedTo']);
+
+        $lead = $quotation->lead;
+        $email = trim((string) $lead?->email);
+
+        if (! $lead || $email === '') {
+            return back()->with('error', 'Lead email not available for this quotation.');
+        }
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return back()->with('error', 'Lead email is invalid. Please update the lead email and try again.');
+        }
+
+        try {
+            $pdf = $this->makeQuotationPdf($quotation);
+            $filename = $this->quotationPdfFilename($quotation);
+            $agreeUrl = URL::signedRoute('quotations.customer-response', [
+                'quotation' => $quotation->id,
+                'response' => Quotation::CUSTOMER_RESPONSE_AGREE,
+            ]);
+            $disagreeUrl = URL::signedRoute('quotations.customer-response', [
+                'quotation' => $quotation->id,
+                'response' => Quotation::CUSTOMER_RESPONSE_DISAGREE,
+            ]);
+
+            Mail::send('emails.quotation', [
+                'quotation' => $quotation,
+                'lead' => $lead,
+                'agreeUrl' => $agreeUrl,
+                'disagreeUrl' => $disagreeUrl,
+            ], function ($message) use ($quotation, $lead, $email, $pdf, $filename) {
+                $message
+                    ->to($email, $lead->contact_name ?: null)
+                    ->subject('Quotation ' . $quotation->quotation_no)
+                    ->attachData($pdf->output(), $filename, [
+                        'mime' => 'application/pdf',
+                    ]);
+            });
+        } catch (Throwable $exception) {
+            Log::error('Quotation email send failed.', [
+                'quotation_id' => $quotation->id,
+                'email' => $email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return back()->with('error', 'Quotation mail could not be sent. Please check mail settings and try again.');
+        }
+
+        return back()->with('success', 'Quotation ' . $quotation->quotation_no . ' sent to ' . $email . '.');
+    }
+
+    public function customerResponse(Quotation $quotation, string $response): View
+    {
+        abort_unless(in_array($response, [
+            Quotation::CUSTOMER_RESPONSE_AGREE,
+            Quotation::CUSTOMER_RESPONSE_DISAGREE,
+        ], true), 404);
+
+        $quotation->update([
+            'customer_response' => $response,
+            'customer_responded_at' => now(),
+        ]);
+
+        return view('pages.quotations.customer_response', [
+            'quotation' => $quotation,
+            'response' => $response,
+            'responseLabel' => Quotation::CUSTOMER_RESPONSES[$response],
+        ]);
+    }
+
     // ── Destroy ───────────────────────────────────────────────────────────────
 
     public function destroy(Quotation $quotation): RedirectResponse
@@ -491,12 +569,34 @@ class QuotationController extends Controller
         $quotation = Quotation::with('items', 'createdBy', 'lead.createdBy', 'lead.assignedTo')->findOrFail($id);
         // abort_unless(auth()->check() && $this->visibility->canAccessQuotation($quotation), 403);
 
+        $pdf = $this->makeQuotationPdf($quotation);
+        $filename = $this->quotationPdfFilename($quotation);
+
+        return $pdf->stream($filename);
+    }
+
+    private function makeQuotationPdf(Quotation $quotation)
+    {
+        $quotation->loadMissing(['items.product', 'createdBy', 'lead.createdBy', 'lead.assignedTo']);
+        $quoteSetting = $this->quotationSettingsFor($quotation);
+
+        return Pdf::loadView('pages.quotations.quotation_format_1', compact('quotation', 'quoteSetting'))
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'defaultFont' => 'DejaVu Sans',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+            ]);
+    }
+
+    private function quotationSettingsFor(Quotation $quotation): array
+    {
         $branchId = auth()->user()?->branch_id
-            ?? $quotation->lead->createdBy?->branch_id;
+            ?? $quotation->lead?->createdBy?->branch_id;
 
-        $settings = QuotationSetting::where('branch_id', $branchId)->get();;
+        $settings = QuotationSetting::where('branch_id', $branchId)->get();
 
-        $quoteSetting = [
+        return [
             'logo' => $settings->where('key', 'logo')->first()?->value,
             'theme_color' => $settings->where('key', 'theme_color')->first()?->value,
             'secondary_color' => $settings->where('key', 'secondary_color')->first()?->value,
@@ -517,19 +617,11 @@ class QuotationController extends Controller
             'bank_branch' => $settings->where('key', 'bank_branch')->first()?->value,
             'bank_upi' => $settings->where('key', 'bank_upi')->first()?->value,
         ];
+    }
 
-
-        $pdf = Pdf::loadView('pages.quotations.quotation_format_1', compact('quotation', 'quoteSetting'))
-                  ->setPaper('a4', 'portrait')
-                  ->setOptions([
-                      'defaultFont'  => 'DejaVu Sans',
-                      'isHtml5ParserEnabled' => true,
-                      'isRemoteEnabled'      => true,
-                  ]);
-
-        $filename = 'QT-' . str_pad($quotation->id, 6, '0', STR_PAD_LEFT) . '.pdf';
-
-        return $pdf->stream($filename);
+    private function quotationPdfFilename(Quotation $quotation): string
+    {
+        return 'QT-' . str_pad((string) $quotation->id, 6, '0', STR_PAD_LEFT) . '.pdf';
     }
 
     public function getLeadQuotations($leadId)

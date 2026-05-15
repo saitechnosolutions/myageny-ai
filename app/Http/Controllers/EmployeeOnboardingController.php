@@ -4,20 +4,27 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreEmployeeOnboardingRequest;
 use App\Http\Requests\UpdateEmployeeOnboardingRequest;
+use App\Models\Branch;
 use App\Models\Department;
 use App\Models\EmployeeOnboarding;
 use App\Models\Role;
+use App\Models\User;
+use App\Models\UserMapping;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class EmployeeOnboardingController extends Controller
 {
     private const FILE_DIRECTORY = 'employee_onboarding';
     private const EMPLOYEE_ID_PREFIX = 'STS';
+    private const TEAM_LEAD_ROLE_KEYS = ['tl', 'team_lead', 'team_leader', 'teamlead', 'manager'];
 
     private const DOCUMENT_LABELS = [
         'photograph' => 'Photograph',
@@ -66,8 +73,10 @@ class EmployeeOnboardingController extends Controller
         return view('pages.hrms.employee_onboarding.create', [
             'documentLabels' => self::DOCUMENT_LABELS,
             'generatedEmployeeId' => $this->generateNextEmployeeId(),
-            'roles' => Role::with('department')->orderByRaw('COALESCE(display_name, name)')->get(),
+            'roles' => Role::with(['department', 'roleParentMapping.parentRole'])->orderByRaw('COALESCE(display_name, name)')->get(),
             'departments' => Department::orderBy('name')->get(),
+            'branches' => Branch::where('is_active', true)->orderBy('name')->get(),
+            'tlUsers' => $this->teamLeadUsers(),
         ]);
     }
 
@@ -76,15 +85,19 @@ class EmployeeOnboardingController extends Controller
         $validated = $request->validated();
 
         $employee = DB::transaction(function () use ($request, $validated) {
+            $portalUser = $this->syncPortalAccount(null, $validated);
+
             $employee = new EmployeeOnboarding();
             $employee->fill($this->extractAttributes($validated));
             $employee->employee_id = $this->generateNextEmployeeId();
+            $employee->portal_user_id = $portalUser->id;
             $employee->created_by = auth()->id();
             $employee->updated_by = auth()->id();
             $this->fillFileAttributes($employee, $request);
             $employee->save();
 
             $this->syncRelatedRows($employee, $validated);
+            $this->syncPortalMapping($portalUser, $validated);
 
             return $employee;
         });
@@ -96,7 +109,18 @@ class EmployeeOnboardingController extends Controller
 
     public function show(EmployeeOnboarding $employee_onboarding): View
     {
-        $employee_onboarding->load(['educations', 'employments', 'familyDetails', 'creator', 'updater', 'role.department', 'department']);
+        $employee_onboarding->load([
+            'educations',
+            'employments',
+            'familyDetails',
+            'creator',
+            'updater',
+            'role.department',
+            'department',
+            'portalUser.branch',
+            'portalUser.roles',
+            'portalUser.managerMappings.manager',
+        ]);
 
         return view('pages.hrms.employee_onboarding.show', [
             'employee' => $employee_onboarding,
@@ -106,14 +130,25 @@ class EmployeeOnboardingController extends Controller
 
     public function edit(EmployeeOnboarding $employee_onboarding): View
     {
-        $employee_onboarding->load(['educations', 'employments', 'familyDetails', 'role.department', 'department']);
+        $employee_onboarding->load([
+            'educations',
+            'employments',
+            'familyDetails',
+            'role.department',
+            'department',
+            'portalUser.branch',
+            'portalUser.roles',
+            'portalUser.managerMappings.manager',
+        ]);
 
         return view('pages.hrms.employee_onboarding.edit', [
             'employee' => $employee_onboarding,
             'documentLabels' => self::DOCUMENT_LABELS,
             'generatedEmployeeId' => $employee_onboarding->employee_id,
-            'roles' => Role::with('department')->orderByRaw('COALESCE(display_name, name)')->get(),
+            'roles' => Role::with(['department', 'roleParentMapping.parentRole'])->orderByRaw('COALESCE(display_name, name)')->get(),
             'departments' => Department::orderBy('name')->get(),
+            'branches' => Branch::where('is_active', true)->orderBy('name')->get(),
+            'tlUsers' => $this->teamLeadUsers(),
         ]);
     }
 
@@ -122,12 +157,20 @@ class EmployeeOnboardingController extends Controller
         $validated = $request->validated();
 
         DB::transaction(function () use ($request, $validated, $employee_onboarding) {
+            $portalUser = $this->syncPortalAccount($employee_onboarding->portalUser, $validated);
+
             $employee_onboarding->fill($this->extractAttributes($validated));
+            if ($portalUser) {
+                $employee_onboarding->portal_user_id = $portalUser->id;
+            }
             $employee_onboarding->updated_by = auth()->id();
             $this->fillFileAttributes($employee_onboarding, $request, true);
             $employee_onboarding->save();
 
             $this->syncRelatedRows($employee_onboarding, $validated);
+            if ($portalUser) {
+                $this->syncPortalMapping($portalUser, $validated);
+            }
         });
 
         return redirect()
@@ -162,6 +205,10 @@ class EmployeeOnboardingController extends Controller
             'employments',
             'family_details',
             'employee_id',
+            'portal_email',
+            'portal_password',
+            'branch_id',
+            'tl_user_id',
         ], EmployeeOnboarding::DOCUMENT_FIELDS));
 
         if (($attributes['marital_status'] ?? null) !== 'married') {
@@ -169,6 +216,67 @@ class EmployeeOnboardingController extends Controller
         }
 
         return $attributes;
+    }
+
+    private function syncPortalAccount(?User $user, array $validated): ?User
+    {
+        $email = trim((string) ($validated['portal_email'] ?? ''));
+        $password = (string) ($validated['portal_password'] ?? '');
+
+        if (! $user && $email === '') {
+            return null;
+        }
+
+        $role = Role::withoutGlobalScopes()->find($validated['role_id'] ?? null);
+
+        $attributes = [
+            'name' => $validated['name'],
+            'email' => $email,
+        ];
+
+        if (array_key_exists('branch_id', $validated)) {
+            $attributes['branch_id'] = $validated['branch_id'] ?: null;
+        }
+
+        if (! $user) {
+            $attributes['company_id'] = auth()->user()?->company_id;
+            $attributes['is_active'] = true;
+            $attributes['password'] = Hash::make($password);
+
+            $user = User::create($attributes);
+        } else {
+            if ($password !== '') {
+                $attributes['password'] = Hash::make($password);
+            }
+
+            $user->update($attributes);
+        }
+
+        if ($role) {
+            $user->syncRoles([$role->name]);
+        }
+
+        return $user;
+    }
+
+    private function syncPortalMapping(User $user, array $validated): void
+    {
+        if (! array_key_exists('tl_user_id', $validated)) {
+            return;
+        }
+
+        if (empty($validated['tl_user_id'])) {
+            UserMapping::where('user_id', $user->id)->delete();
+            return;
+        }
+
+        UserMapping::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'manager_id' => $validated['tl_user_id'],
+                'company_id' => $user->company_id ?: auth()->user()?->company_id,
+            ]
+        );
     }
 
     private function fillFileAttributes(EmployeeOnboarding $employee, Request $request, bool $isUpdate = false): void
@@ -266,6 +374,95 @@ class EmployeeOnboardingController extends Controller
         if ($path && Storage::disk('public')->exists($path)) {
             Storage::disk('public')->delete($path);
         }
+    }
+
+    private function teamLeadUsers(): Collection
+    {
+        $companySuperAdminId = null;
+
+        if ($companyId = auth()->user()?->company_id) {
+            $companySuperAdminId = optional(\App\Models\Company::find($companyId))->super_admin_user_id;
+        }
+
+        return User::with(['roles.roleMapping', 'branch'])
+            ->where('is_active', true)
+            ->when(auth()->user()?->company_id, fn ($query) => $query->where('company_id', auth()->user()->company_id))
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $user) => $user->roles->isNotEmpty() || (int) $user->id === (int) $companySuperAdminId || $user->isSuperAdmin())
+            ->map(function (User $user) use ($companySuperAdminId) {
+                $teamLeadRoles = $user->roles->filter(fn (Role $role) => $this->roleLooksLikeTeamLead($role));
+                $displayRoles = $teamLeadRoles->isNotEmpty() ? $teamLeadRoles : $user->roles;
+                $isSuperAdmin = $user->isSuperAdmin() || (int) $user->id === (int) $companySuperAdminId;
+
+                return [
+                    'id' => (string) $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'branch_id' => (string) ($user->branch_id ?? ''),
+                    'branch_name' => $user->branch?->name,
+                    'department_ids' => $displayRoles
+                        ->map(fn (Role $role) => (string) ($role->department_id ?? ''))
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    'role_ids' => $user->roles
+                        ->map(fn (Role $role) => (string) $role->id)
+                        ->unique()
+                        ->values()
+                        ->all(),
+                    'role_label' => $displayRoles
+                        ->map(fn (Role $role) => $this->roleLabel($role))
+                        ->filter()
+                        ->unique()
+                        ->implode(', ') ?: ($isSuperAdmin ? 'Super Admin' : 'Team Lead'),
+                    'is_super_admin' => $isSuperAdmin,
+                ];
+            })
+            ->values();
+    }
+
+    private function userHasTeamLeadRole(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $user->roles->contains(fn (Role $role) => $this->roleLooksLikeTeamLead($role));
+    }
+
+    private function roleLooksLikeTeamLead(Role $role): bool
+    {
+        if ($role->relationLoaded('roleMapping') && $role->roleMapping?->access_level === 'team') {
+            return true;
+        }
+
+        $roleKeys = collect([$role->name, $role->display_name])
+            ->filter()
+            ->flatMap(function (string $roleName) {
+                $normalized = $this->normalizeRoleKey($roleName);
+
+                return [$normalized, Str::afterLast($normalized, '__')];
+            })
+            ->unique();
+
+        return $roleKeys->intersect(self::TEAM_LEAD_ROLE_KEYS)->isNotEmpty();
+    }
+
+    private function normalizeRoleKey(string $value): string
+    {
+        return Str::of($value)
+            ->lower()
+            ->replace(['-', ' '], '_')
+            ->replaceMatches('/[^a-z0-9_]+/', '')
+            ->replaceMatches('/_+/', '_')
+            ->trim('_')
+            ->value();
+    }
+
+    private function roleLabel(Role $role): string
+    {
+        return $role->display_name ?: Str::of(Str::afterLast($role->name, '__'))->replace('_', ' ')->title()->value();
     }
 
     private function generateNextEmployeeId(): string

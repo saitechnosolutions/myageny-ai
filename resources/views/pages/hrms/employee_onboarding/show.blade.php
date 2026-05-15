@@ -89,8 +89,6 @@
                     <div class="eob-card-body">
                         <div class="eob-show-grid">
                             <div class="eob-show-item"><div class="eob-show-label">Employee ID</div><div class="eob-show-value">{{ $employee->employee_id }}</div></div>
-                            <div class="eob-show-item"><div class="eob-show-label">Role</div><div class="eob-show-value">{{ $employee->role?->display_name ?: ($employee->role?->name ?: 'N/A') }}</div></div>
-                            <div class="eob-show-item"><div class="eob-show-label">Department</div><div class="eob-show-value">{{ $employee->department?->name ?: 'N/A' }}</div></div>
                             <div class="eob-show-item"><div class="eob-show-label">Father's Name</div><div class="eob-show-value">{{ $employee->father_name ?: 'N/A' }}</div></div>
                             <div class="eob-show-item"><div class="eob-show-label">Blood Group</div><div class="eob-show-value">{{ $employee->blood_group ?: 'N/A' }}</div></div>
                             <div class="eob-show-item"><div class="eob-show-label">Marital Status</div><div class="eob-show-value">{{ ucfirst($employee->marital_status) }}</div></div>
@@ -99,6 +97,28 @@
                             <div class="eob-show-item"><div class="eob-show-label">Pan Card No</div><div class="eob-show-value">{{ $employee->pan_card_no ?: 'N/A' }}</div></div>
                             <div class="eob-show-item"><div class="eob-show-label">Correspondence Address</div><div class="eob-show-value">{{ $employee->correspondence_address ?: 'N/A' }}</div></div>
                             <div class="eob-show-item"><div class="eob-show-label">Permanent Address</div><div class="eob-show-value">{{ $employee->permanent_address ?: 'N/A' }}</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                @php
+                    $portalManager = $employee->portalUser?->managerMappings?->first()?->manager;
+                @endphp
+                <div class="eob-show-card">
+                    <div class="eob-card-head">
+                        <div>
+                            <div class="eob-card-title">Employee Portal Account</div>
+                            <div class="eob-card-sub">Login, branch, role, department, and TL mapping.</div>
+                        </div>
+                    </div>
+                    <div class="eob-card-body">
+                        <div class="eob-show-grid">
+                            <div class="eob-show-item"><div class="eob-show-label">User Email</div><div class="eob-show-value">{{ $employee->portalUser?->email ?: 'N/A' }}</div></div>
+                            <div class="eob-show-item"><div class="eob-show-label">Branch</div><div class="eob-show-value">{{ $employee->portalUser?->branch?->name ?: 'N/A' }}</div></div>
+                            <div class="eob-show-item"><div class="eob-show-label">Department</div><div class="eob-show-value">{{ $employee->department?->name ?: 'N/A' }}</div></div>
+                            <div class="eob-show-item"><div class="eob-show-label">Role</div><div class="eob-show-value">{{ $employee->role?->display_name ?: ($employee->role?->name ?: 'N/A') }}</div></div>
+                            <div class="eob-show-item"><div class="eob-show-label">TL Mapping</div><div class="eob-show-value">{{ $portalManager?->name ?: 'N/A' }}</div></div>
+                            <div class="eob-show-item"><div class="eob-show-label">Account Status</div><div class="eob-show-value">{{ $employee->portalUser ? ($employee->portalUser->is_active ? 'Active' : 'Inactive') : 'N/A' }}</div></div>
                         </div>
                     </div>
                 </div>

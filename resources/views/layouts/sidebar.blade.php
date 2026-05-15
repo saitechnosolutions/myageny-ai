@@ -2,6 +2,7 @@
 @php
     $isHrmsModule = request()->routeIs('hrms.dashboard')
         || request()->routeIs('employee-onboarding.*')
+        || request()->routeIs('recruitment.*')
         || request()->routeIs('assets.*')
         || request()->routeIs('interns.*')
         || request()->routeIs('attendance.*')
@@ -73,6 +74,22 @@
                             <path d="M23 11h-6"></path>
                         </svg>
                         <span>Employees</span>
+                    </div>
+                </a>
+
+                <a href="{{ route('recruitment.index') }}" class="nav-item {{ request()->routeIs('recruitment.*') ? 'active' : '' }}">
+                    @if(request()->routeIs('recruitment.*'))
+                        <div class="active-indicator"></div>
+                    @endif
+                    <div class="nav-content">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9.5" cy="7" r="3.5"></circle>
+                            <path d="M17 8h4"></path>
+                            <path d="M19 6v4"></path>
+                            <path d="M17 16h4"></path>
+                        </svg>
+                        <span>Recruitment</span>
                     </div>
                 </a>
 

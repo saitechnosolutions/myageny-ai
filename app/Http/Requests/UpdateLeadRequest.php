@@ -19,8 +19,7 @@ class UpdateLeadRequest extends FormRequest
             'lead_date'     => ['required', 'date'],
             'mobile_number' => ['required', 'string', 'max:20'],
             'email'         => ['nullable', 'email', 'max:150'],
-            'lead_source'   => ['required', 'string', Rule::in(Lead::sourceKeys())],
-            'lead_status'   => ['required', 'string', Rule::in(Lead::statusKeys())],
+
             'product_name'  => ['nullable', 'string', 'max:100'],
             'assigned_to'   => ['required', 'exists:users,id'],
             'priority'      => ['required', 'in:low,medium,high'],
