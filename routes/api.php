@@ -15,6 +15,10 @@ use App\Http\Controllers\OutcomeCategoryController;
 use App\Http\Controllers\App\AppApiController;
 use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\SuperAdminDashboardController;
+use App\Http\Controllers\App\HRMS\DashboardApiController;
+use App\Http\Controllers\App\HRMS\EmployeeApiController;
+use App\Http\Controllers\App\HRMS\InternApiController;
+use App\Http\Controllers\App\HRMS\AttendanceApiController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -107,6 +111,20 @@ Route::patch('/quotation/{quotation}', [QuotationController::class, 'apiUpdate']
 Route::middleware('auth:sanctum')->prefix('mobile')->name('mobile.')->group(function () {
     Route::get('dashboard', [MobileDashboardController::class, 'index'])->name('dashboard');
 
+    Route::prefix('hrms')->name('hrms.')->group(function () {
+      Route::get('dashboard',         [DashboardApiController::class,  'index'])->name('dashboard');
+      Route::get('employees/meta',    [EmployeeApiController::class,    'meta'])->name('employees.meta');
+      Route::get('employees',         [EmployeeApiController::class,    'index'])->name('employees.index');
+      Route::get('employees/{id}',    [EmployeeApiController::class,    'show'])->name('employees.show');
+
+      Route::get('interns',      [InternApiController::class, 'index'])->name('interns.index');
+      Route::get('interns/{id}', [InternApiController::class, 'show'])->name('interns.show');
+
+      Route::get('attendance',      [AttendanceApiController::class, 'index'])->name('attendance.index');
+      Route::get('attendance/{id}', [AttendanceApiController::class, 'show'])->name('attendance.show');  
+
+  });
+
     Route::prefix('attendance')->name('attendance.')->group(function () {
         Route::post('check-in', [MobileDailyAttendanceController::class, 'attendanceCheckIn'])->name('check-in');
         Route::post('check-out', [MobileDailyAttendanceController::class, 'attendanceCheckOut'])->name('check-out');
@@ -166,4 +184,7 @@ Route::middleware('auth:sanctum')->prefix('mobile/leads')->name('mobile.leads.')
     Route::post('/{lead}/quotations',                     [MobileLeadShowController::class, 'storeQuotation'])->name('quotations.store');
     Route::patch('/{lead}/quotations/{quotation}/status', [MobileLeadShowController::class, 'updateQuotationStatus'])->name('quotations.status');
     Route::delete('/{lead}/quotations/{quotation}',       [MobileLeadShowController::class, 'destroyQuotation'])->name('quotations.destroy');
+
+    
+
 });
